@@ -1,0 +1,59 @@
+########################### BENCH TESTING FOR FIBER OPTIC SENSING CODE #################################
+
+Dear User! 
+
+Welcome to the Fobench code testing! Here you will help me to evaluate the code I made for reading and processing DAS files. This is the core code I use for processing, so I would appreciate much every input in terms of style, options, and tools to integrate, correct or delete. I will guide you step by step, and you might be very familiar with everything here, or the conceptual stuff. Sorry on behalf.
+
+The code is made in Python, but I believe is an easy language and similar to Matlab. I'll explain the structure of the code later. What we must do is first to install everything in order to make this run. So... let's go!
+
+
+1. INSTALL ANACONDA/MINICONDA/CONDA.
+
+For the testing we need a safe environment to install all the packages for running the program. An environment is a safe virtual space where we can install/delete packages or the interpreter (Python itself) of any code without the possibility of damaging severely the Operating System. Ubuntu also runs with Python, so it's better to do the mess in a controlled environment. That's how we installed the pyGrav code in Beatrice's PC, for example. The code is very old, so it needs very old versions of packages and Python interpreter. Acandona is key in this.
+
+Anaconda/Miniconda/Conda (all work the same way) is a program that allows us to create these virtual environments. It comes with a base environment, but we will not use that. We will create another one later. If you have the permissions to install things (root user) in your own Ubuntu machine, then we're ready to go! Otherwise these must be asked to Matthias.
+
+Let's download the program first. Enter to the following link and download the latest version, the one on top:
+
+    https://docs.conda.io/en/latest/miniconda.html#linux-installers
+
+Then you install it with the following commands:
+    
+    bash Miniconda3-latest-Linux-x86_64.sh
+    conda update conda
+
+Finally, one last an important command. We need to change the main channel of conda. A channel is the server from where all the packages are requested. Due to legal terms, GFZ is not able to use the main one due to a change in their license terms. Therefore we will change this to avoid problems (for more info get in contact with: Alexander Jordan - alex@gfz-potsdam.de). Run this:
+    
+    conda config --add channels conda-forge
+    
+After this, I recommend to close and open again the terminal.
+
+
+2. CREATE THE ENVIRONMENT WITH PACKAGES.
+
+Now let's make the environment. Normally we could do it by first creating the environment and then installing the packages one by one or with a single command. Fortunately conda is able to create an environment file, which means that I can save all the specifications of the environment that I have used to run my DAS code (name, packages, versions of the packages, etc.) and pass it to another user for him/she to configure everything in one single command. The file containing the necessary for the DAS environment is "environment.yml".
+
+The environment I have been using contains more than what is necessary since I try a lot of stuff. I could reduce it, but it means I must change dependencies inside the files, and it could take me a while of try and error. So lets try to make it simpler. It will require around 4 GB of space. Sorry for this.
+
+To create the environment, you just have to run in the terminal the following command (will take a while):
+
+    conda env create -f environment.yml
+
+With that it is done! to start playing with the code, just activate the environment by writing in the terminal:
+
+    conda activate fobench2
+
+and you need to do this to be able to run the codes of DAS without problems. Once you're done for the moment, just close the environment by typing:
+
+    conda deactivate
+
+or closing the terminal. No need to specify the name of the environment (fobench2) since you're already in.
+
+Now, I would like to invite to the next file called "testing.py", where you can really test the code and play with it.
+
+Thanks again for doing this!
+
+
+
+
+
