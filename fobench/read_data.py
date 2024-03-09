@@ -242,6 +242,28 @@ def read_data(filepath=None, company=None, range_ch=None, format=None):
         units = str(dataset.attrs['RawDataUnit'])[2:-1]
         conv_factor = None # conversion factor if given explicitly
     
+    # UNDER CONSTRUCTION   
+    if (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
+        
+        print('Reading HDF5 file (Aragon Photonics Format)...')
+        file_file = h5.File(filepath,'r')
+        properties = file_file.attrs
+        dataset = file_file['strain']
+        chans_nums = [i for i in range(file_file['position'].size)]
+        chans = np.array(chans_nums)
+        fiber = 'standard'
+        sampling_frequency = float(properties['trigger_frequency'][0])
+        dt = 1 / sampling_frequency
+        num_points = int(file_file['time'].size)
+        start_time = UTC(properties['Global_FileSaveIO_TimeStamp_s'][0])
+        end_time = UTC(start_time + num_points * dt)
+        spatial_interval = float(properties['spatial_sampling'][0])
+        time_length = end_time - start_time
+        gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
+        channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
+        units = 'strain' if str(dataset.attrs['units'])[2:-1] == 'nanostrain' else str(dataset.attrs['units'])[2:-1] # for inmediate conversion to strain instead of nanostrain.
+        conv_factor = None # conversion factor if given explicitly
+    
     # Attributed for the Fiber class.
     result_tuple = namedtuple('attributes',[
         'file',
