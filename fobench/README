@@ -7,7 +7,7 @@ Welcome to the Fobench code testing! Here you will help me to evaluate the code 
 The code is made in Python, but I believe is an easy language and similar to Matlab. I'll explain the structure of the code later. What we must do is first to install everything in order to make this run. So... let's go!
 
 
-1. INSTALL ANACONDA/MINICONDA/CONDA.
+1. INSTALL ANACONDA/MINICONDA/CONDA:
 
 For the testing we need a safe environment to install all the packages for running the program. An environment is a safe virtual space where we can install/delete packages or the interpreter (Python itself) of any code without the possibility of damaging severely the Operating System. Ubuntu also runs with Python, so it's better to do the mess in a controlled environment. That's how we installed the pyGrav code in Beatrice's PC, for example. The code is very old, so it needs very old versions of packages and Python interpreter. Acandona is key in this.
 
@@ -29,29 +29,37 @@ Finally, one last an important command. We need to change the main channel of co
 After this, I recommend to close and open again the terminal.
 
 
-2. CREATE THE ENVIRONMENT WITH PACKAGES.
+2. CREATE THE ENVIRONMENT:
 
-Now let's make the environment. Normally we could do it by first creating the environment and then installing the packages one by one or with a single command. Fortunately conda is able to create an environment file, which means that I can save all the specifications of the environment that I have used to run my DAS code (name, packages, versions of the packages, etc.) and pass it to another user for him/she to configure everything in one single command. The file containing the necessary for the DAS environment is "environment.yml".
-
-The environment I have been using contains more than what is necessary since I try a lot of stuff. I could reduce it, but it means I must change dependencies inside the files, and it could take me a while of try and error. So lets try to make it simpler. It will require around 4 GB of space. Sorry for this.
-
+The following I don't recommend since the .yml file contains a lot of unnecessary packages to run Fobench.
 To create the environment, you just have to run in the terminal the following command (will take a while):
 
     conda env create -f environment.yml
 
-With that it is done! to start playing with the code, just activate the environment by writing in the terminal:
+Instead, I do recommend to just create an empty environment:
 
-    conda activate fobench2
+    conda create --name "name-of-the-new-environment" python=3.11
+
+With that it is done! To start playing with the code, just activate the environment by writing in the terminal:
+
+    conda activate "name-of-the-new-environment"
 
 and you need to do this to be able to run the codes of DAS without problems. Once you're done for the moment, just close the environment by typing:
 
     conda deactivate
 
-or closing the terminal. No need to specify the name of the environment (fobench2) since you're already in.
+or closing the terminal. No need to specify the name of the environment since you're already in.
 
-Now, I would like to invite to the next file called "testing.py", where you can really test the code and play with it.
 
-Thanks again for doing this!
+3. INSTALL FOBENCH:
+
+Activate the environment, and then you can install this code by runing in the command line (inside your environment or out):
+
+    pip install git+https://github.com/Doctus5/fobench.git
+
+And then you have it ready for importing it and use it!
+
+ALL COMMENTS AND SUGGESTIONS ARE ENCOURAGED AND WELCOME. THAT'S THE ONLY WAY THIS CODE CAN IMPROVE!
 
 
 
