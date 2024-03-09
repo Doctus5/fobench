@@ -1,5 +1,5 @@
-#import sys
-#sys.path.append('/projects/dasatsea/ETNA2019/codes/program_reader/')
+import sys
+sys.path.append('/projects/dasatsea/ETNA2019/codes/program_reader/')
 import matplotlib.pyplot as plt
 
 ########################### BENCH TESTING FOR DAS CODE: FOBENCH #################################
@@ -56,13 +56,14 @@ print('I am printing something')
 
 # Defining the path to the DAS file to read. Currently is able to read 3 types of files (TDMS Silixa, HDF5 Silixa,
 # HDF5 Febus, HDF5 ASN, HDF5 QuantX, HDF5 Terra15, Numpy BAM (just testing) ). Therefore you can replace this variable with the one you want. I just
-# here put a sugestion.
+# here put some sugestion from my relatives path. It will only work with your own paths.
 
 #file_path = '/projects/dasatsea/ETNA2019/PDN/PDN2019/DASdata/PDN_2019-0.5km-Carina/CarinaP8_Constellation/Etna_UTC_20190912_113158.340.tdms' # Carina Silixa
-file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/terra15treble+/20240122_firsttest_strain_rate_UTC-YMD20240124-HMS172633.580_seq_00000000000.hdf5' # Terra15 strain_rate
+#file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/terra15treble+/20240122_firsttest_strain_rate_UTC-YMD20240124-HMS172633.580_seq_00000000000.hdf5' # Terra15 strain_rate
 #file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/terra15treble+/20240122_firsttest_velocity_UTC-YMD20240124-HMS172710.006_seq_00000000000.hdf5' # Terra15 velocity
-#file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/OptoDAS/135002.hdf5' # OptoDAS ASN
+file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/OptoDAS/135002.hdf5' # OptoDAS ASN
 #file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/OptaSense_QuantX/TestRecord_2024-02-08T115129Z.h5' # OptaSense QuantX
+#file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/HDAS/2024_02_09_16h48m33s_HDAS_2Dmap_Strain.h5' # HDAS
 
 # We load the file with the fobench code. First import the package/code for loading DAS data and then we read.
 # The loading part takes several lines because manages different cases for different formats and manufacturers.
@@ -70,8 +71,7 @@ file_path = '/home/sergioad/Downloads/DAS_ExampleFiles/terra15treble+/20240122_f
 
 from fobench.fiber import Fiber
 
-das = Fiber(file_path, 'terra15') # It is important to set well who is the company or manufacturer of the instrument (letters in lowcaps: quantx, terra15, asn, etc.)!
-
+das = Fiber(file_path, 'asn') # It is important to set well who is the company or manufacturer of the instrument (letters in lowcaps: quantx, terra15, asn, etc.)!
 
 # The entry variables are the file path, the name of the company. a third one exists which allows loading only
 # a certian range, or specific(s) channels (for now only valid for silixa). It is useful for loading only specific prt of the data without
