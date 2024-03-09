@@ -39,7 +39,6 @@ import fobench.plotting as plot
 
 
 
-
 class Fiber(object):
 	'''
 	IMPORTANT INFO: Most of the methods perform changes within the class permanently. Therefore is usefull to make a copy of the class
@@ -71,7 +70,7 @@ class Fiber(object):
   
 		attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format)
 		
-		#file_file.close()
+		#file_file.close() # You might need more things from there afterwards.
 		
 		self.base = attributes.file
 		self.fiber = attributes.fiber
@@ -118,7 +117,7 @@ class Fiber(object):
 			print(prop, '=', self.properties[prop])
 	
 	
-	#Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.	
+	#Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
 	def __data__(self):
 		'''
 		Co-authors: --
@@ -127,14 +126,15 @@ class Fiber(object):
 		:Params:
 			- NA.
 		:Return:
-			- values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 is time and axis 1 are the channels.  
+			- values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.  
 		'''
 	
 		values = []
 		
 		if self.format == 'tdms' and self.company == 'silixa':
-		
-			values = np.array(self.channels).T
+			
+			# values = np.array(self.channels).T # Old slow method.
+			values = self.base['Measurement'].as_dataframe().to_numpy() # New way to load data. Cuts time by half.
 			
 		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'febus':
 		
@@ -165,6 +165,10 @@ class Fiber(object):
 
 			values = np.array(self.dataset['RawData'])
 		
+		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'aragon':
+
+			values = np.array(self.dataset)*(10**-9)
+
 		return values.astype('float')
 		
 	
@@ -218,8 +222,8 @@ class Fiber(object):
 		t0, tf = UTC(t0), UTC(tf)
 
 		# in case one of the triming times is beyond the range of the start and end times of the data, it redefines the limits to the ones of the data.
-		t0 = self.start_time if t0 < self.start_time else t0
-		tf  = self.end_time if tf > self.end_time else tf
+		t0 = self.start_time if t0 <= self.start_time else t0
+		tf  = self.end_time if tf >= self.end_time else tf
 
 		t = self.times()
 		t0_new, tf_new, t0_pos, tf_pos = None, None, None, None
@@ -602,7 +606,7 @@ class Fiber(object):
 		
 
 	#Function for filtering.
-	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, **options):
+	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
 		Co-authors: --
 		Description:
@@ -613,13 +617,14 @@ class Fiber(object):
 			- freq(type:Int, Float, Tuple): cut-off value for the filter in 'lowpass' and 'highpass'. If it for 'bandpass', then it must be a tuple containing the cut-offs of the bandwith.
 			- pre_process(type:Boolean): to use to detren, demean and tape before filtering. Default is True.
 			- frac(type:Float): see description in method "taper".
+			- order(type:Int): order of polynomuial fit for detrending.
 		:Return:
 			- NA.  
 		'''
 
 		if pre_process == True:		
   
-			self.detrend()
+			self.detrend(order=order)
 			self.demean()
 			self.taper(frac=frac)
     
@@ -748,9 +753,9 @@ class Fiber(object):
 		sd = self.data.std(axis=0)
 		#result = np.where(sd == 0, 0, m/sd)
 		#result = 20*np.log10(abs(result)) #For dB values
-		result = sd
+		#result = sd
 	
-		return result
+		return sd
 		
 		
 	#Function for plotting or returning the Root-Mean-Square amplitude (RMS-A) of the data.
