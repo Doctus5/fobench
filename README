@@ -55,7 +55,7 @@ or closing the terminal. No need to specify the name of the environment since yo
 
 Activate the environment, and then you can install this code by runing in the command line (inside your environment or out):
 
-    pip install git+https://github.com/Doctus5/fobench.git
+    pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
 
 And then you have it ready for importing it and use it!
 
