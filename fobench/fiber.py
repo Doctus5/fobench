@@ -283,6 +283,36 @@ class Fiber(object):
 		self.total_channels = len(self.channels_num)
 		
 		return self
+
+
+	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
+	def append_coord(self, n_ch, x_ch, y_ch, z_ch):
+		'''
+		Co-authors: --
+		Description:
+			Attach coordinates of specified channels for the class instance. Necessary for plotting the fibre path and other spacial operations.
+		:Params:
+			- n_ch(type:Numpy): 1D array of channel number.
+			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
+			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
+			- z_ch(type:Numpy): 1D array of Z (depth - meters) coordinates of the channels specified in "n_ch".
+		:Return:
+			- NA.  
+		'''
+
+		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
+		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
+		z_ch = np.zeros(n_ch.size) if x_ch is None else z_ch
+
+		ch_coord = np.zeros((n_ch.size, 4))
+		ch_coord[:,0] = n_ch
+		ch_coord[:,1] = x_ch
+		ch_coord[:,2] = y_ch
+		ch_coord[:,3] = z_ch
+
+		self.ch_coord = ch_coord
+		
+		return self
 		
 	
 	#Return the data with a channel specified if it's wanted	
