@@ -97,7 +97,21 @@ class Fiber(object):
 		# Clean variables. Usually because h5py objects can't be copied with copy() function.
 		del self.dataset
 		del self.base
-		
+	
+	#set up nice output for print(FiberInstance)
+	def __str__(self):
+		return f'''Instance of Fiber class \n
+recording parameters:
+---------------------------------------------------------------------
+{self.units = }
+{self.start_time = }
+{self.end_time = }
+{self.total_channels = }
+{self.spatial_interval = }
+{self.sampling_frequency = }
+{self.gauge_length = }
+'''
+	
 		#Secondary methods
 			
 
