@@ -334,7 +334,7 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Returns the data in the same way as using the sttribute "data", however, this has an option for selecting the data corresponding to one channel.
+			Returns the data in the same way as using the attribute "data", however, this has an option for selecting the data corresponding to one channel.
 		:Params:
 			- channel(type:Int or Float): Channel number to get the data from. If not specified, it will be as same as adquiring the attribute "data".
 		:Return:
