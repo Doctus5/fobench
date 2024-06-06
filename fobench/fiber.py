@@ -302,7 +302,7 @@ class Fiber(object):
 
 		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
 		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
-		z_ch = np.zeros(n_ch.size) if x_ch is None else z_ch
+		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
 
 		ch_coord = np.zeros((n_ch.size, 4))
 		ch_coord[:,0] = n_ch

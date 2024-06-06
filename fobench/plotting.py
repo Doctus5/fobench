@@ -163,8 +163,9 @@ def simple_plot(data, t, channel='', units_y=None, max_value=None, spectrogram=F
 	fig.autofmt_xdate()
 	
 	ax.plot(t, data, c='black', linewidth=0.7, label=str(channel).zfill(5), **kwargs)
-	max_val = max(data.max(), abs(data.min())) if max_value == None else max_value
-	ax.set_ylim(-max_val-(max_val*0.2), max_val+(max_val*0.2))
+	# max_val = max(data.max(), abs(data.min())) if max_value == None else max_value
+	min_val, max_val = data.min(), data.max()
+	ax.set_ylim(min_val+(min_val*0.2), max_val+(max_val*0.2))
 	
 	ax.xaxis_date()
 	precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
