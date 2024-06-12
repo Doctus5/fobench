@@ -148,9 +148,9 @@ recording parameters:
 			- NA.  
 		'''
 	
-		for prop in self.properties:
-		
-			print(prop, '=', self.properties[prop])
+		for prop, value in self.properties.items():
+			print(f"{prop} = {value}")
+
 	
 	
 	#Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
