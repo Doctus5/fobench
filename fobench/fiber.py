@@ -98,8 +98,16 @@ class Fiber(object):
 		del self.dataset
 		del self.base
 	
-	#set up nice output for print(FiberInstance)
 	def __str__(self):
+		'''
+		Co-authors: Jonas Pätzel
+		Description: 
+			defines output of print(Fiber); overview of most important recording parameters
+		:Params:
+			- NA.
+		:Return:
+			- NA.  
+		'''
 		return f'''Instance of Fiber class \n
 recording parameters:
 ---------------------------------------------------------------------
@@ -111,6 +119,20 @@ recording parameters:
 {self.sampling_frequency = }
 {self.gauge_length = }
 '''
+	def __iadd__(self, other):
+		'''
+		Co-authors: Jonas Pätzel
+		Description: 
+			allows to concatenate two Fiber instances with self += other
+		:Params:
+			- other: Fiber instance.
+		:Return:
+			- NA.  
+		'''
+		if not isinstance(other, Fiber):
+			raise TypeError
+		return self.concatenate(other, fill_gaps=0)
+
 	
 		#Secondary methods
 			
