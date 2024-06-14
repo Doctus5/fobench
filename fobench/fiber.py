@@ -79,15 +79,15 @@ class Fiber(object):
 		self.channels = attributes.chans
 		self.channels_num = attributes.chans_nums
 		self.total_channels = attributes.list_chans_num
-		self.sampling_frequency = attributes.sampling_frequency
-		self.dt = 1 / self.sampling_frequency
-		self.start_time = attributes.start_time
-		self.end_time = attributes.end_time
-		self.spatial_interval = attributes.spatial_interval
+		self.sampling_frequency = attributes.sampling_frequency # sampling rate of the data.
+		self.dt = 1 / self.sampling_frequency # calculated time stamp.
+		self.start_time = attributes.start_time # start time of the data in file.
+		self.end_time = attributes.end_time # end time of the data in file.
+		self.spatial_interval = attributes.spatial_interval # channel spaciong or spatial interval between channels [m].
 		self.time_length = self.end_time - self.start_time
 		self.num_points = attributes.num_points # int(self.time_length/self.dt)
-		self.gauge_length = attributes.gauge_length
-		self.channel_offset = attributes.channel_offset
+		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
+		self.channel_offset = attributes.channel_offset # offset where measurement started. It will not always record at channel 0 or distance 0.
 		self.data = self.__data__()
 		self.corrected = False
 		self.sensing = sensing
@@ -347,6 +347,36 @@ recording parameters:
 		ch_coord[:,3] = z_ch
 
 		self.ch_coord = ch_coord
+		
+		return self
+
+
+	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
+	def georeference(self, n_ch, x_ch, y_ch, z_ch, err=None):
+		'''
+		Co-authors: --
+		Description:
+			Georeferencing of channels of the data. If tap tests were done to geolocate specific channels, this ones can be used for 
+			georeferencing other channels by linear interpolations between the located ones (assuming straight paths).
+			It automatically attach the new coordinates to the Fiber class.
+		:Params:
+			- n_ch(type:Numpy): 1D array of channel number (ID) that were located with tap tests.
+			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
+			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
+			- z_ch(type:Numpy): 1D array of Z altitude [meters] of the channels specified in "n_ch".
+			- err(type:Float - Optional): maximum accepted error from interpolation in decimals. In case is given, the method will evaluate
+			the error of the calculated channel spacing vs. the original one from the metadata. 
+		:Return:
+			- NA.  
+		'''
+
+		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
+		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
+		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
+
+		n_ch, x_ch, y_ch, z_ch = tools.interpolate_channels(n_ch, x_ch, y_ch, z_ch, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
+
+		self.append_coord(n_ch, x_ch, y_ch, z_ch)
 		
 		return self
 		
