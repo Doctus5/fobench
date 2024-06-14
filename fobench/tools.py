@@ -4,15 +4,16 @@ from obspy.core.stream import Stream
 from obspy.core import UTCDateTime as UTC
 from datetime import datetime
 
-
+import warnings
 import numpy as np
 import scipy.signal as signal
 import scipy as scipy
 import h5py as h5
+
+from pyrocko.orthodrome import distance_accurate50m_numpy as deg2m
+
 #from numba import jit, cuda
 
-#local paths
-#from pyFunctions.PARAMS import *
 
 
 #Function to sscan hierarchycally the HDF5 files.					
@@ -29,7 +30,7 @@ def scan_hdf5(path, recursive=True, tab_step=2):
         
         
 '''
-TOOLS USED EXCLUSIVE FOR DAS CLASS
+TOOLS USED EXCLUSIVE FOR Fiber CLASS
 '''
 
 
@@ -113,6 +114,73 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 			data = np.multiply(data,factor)
 		
 	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels']
+
+
+def interpolate_channels(n_ch, x_ch, y_ch, z_ch, err=None, spacing=None):
+	'''
+	Co-authors: --
+	Description: 
+		Do a linear interpolation between sections of georeferenced channels to georeference the non-located channels.
+		Inputs must be the georeferences channels in ascending order.
+	:Params:
+		- n_ch(type:Numpy): 1D array of channel number.
+		- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
+		- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
+		- z_ch(type:Numpy): 1D array of Z (depth - meters) coordinates of the channels specified in "n_ch".
+		- err(type:Float - Optional): maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
+		- spacing(type:Int or Float - Optional): real channel spacing value in meters.
+	:Return:
+		- NA.
+	'''
+
+	new_ch, new_x, new_y, new_z =  [], [], [], []
+
+	for i in range(n_ch.size-1):
+
+		ch_start, ch_end = n_ch[i], n_ch[i+1]
+
+		# deltas or differences between extremes.
+		dch =  n_ch[i+1] - n_ch[i]
+		dx = x_ch[i+1] - x_ch[i] 
+		dy = y_ch[i+1] - y_ch[i] 
+		dz = z_ch[i+1] - z_ch[i] 
+
+		# channels = np.linspace(ch_start, ch_end, ch_end - ch_start + 1)
+		N = np.linspace(0, 1, ch_end - ch_start + 1) # number of channels in between, counting extremes.
+		CH = n_ch[i] + dch * N
+		X = x_ch[i] + dx * N
+		Y = y_ch[i] + dy * N
+		Z = z_ch[i] + dz * N
+
+		ii = 0 if i == 0 else 1 # index for start aappending new georefereced channels.
+
+		new_ch += list(CH[ii:].astype(int))
+		new_x += list(X[ii:])
+		new_y += list(Y[ii:])
+		new_z += list(Z[ii:])
+
+		if err != None:
+
+			r1 = deg2m(y_ch[i+1], x_ch[i+1], y_ch[i], x_ch[i], implementation='python')[0] # lat/lon distance in meters.
+			r2 = np.sqrt(r1**2 + dz**2) # total calculated distance between known locations in 3D.
+			calc_spacing = (1/(ch_end - ch_start)) * r2 # calculated channel spacing from georeferencing.
+			dev = (calc_spacing - spacing) / spacing # calculated error between new channel spacing and real.
+			print(f'Fiber section {i+1} -> channel spacing of {calc_spacing} m. Original spacing is {spacing} m.')
+
+			if np.abs(dev) > err:
+
+				# A warning is raised but program continues.
+				print(f'WARNING: Error of calculated channels spacing in fiber section {i+1} is of {dev*100}%.\nCheck control points.')
+				return None # Calculation is interrupted for not fulfilling standards.
+
+	return np.array(new_ch).astype(int), np.array(new_x), np.array(new_y), np.array(new_z)
+
+
+'''
+####################################################
+Signal Analysis functions below...
+####################################################
+'''
 
 
 def hilbert(data, axis=0):
