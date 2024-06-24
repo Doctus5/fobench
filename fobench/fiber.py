@@ -699,8 +699,31 @@ recording parameters:
 		self.num_points = self.data.shape[0]
 
 		return self
-		
 
+	def normalize(self, method='absolute max'):
+		'''
+		Co-authors:Jonas Pätzel
+		Description:
+			min-max normalizes the data according to the chosen method
+		:Params:
+			- method (type:String): normalization either with respect to 
+			the whole record ('absolute max', default) or for each channel individually ('trace max')
+
+		:Return:
+			- NA.  
+		'''
+
+		if method == 'absolute max':
+			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min()) 
+		elif method == 'trace max':
+			channel_min = self.data.min(axis=1, keepdims=True)
+			channel_max = self.data.max(axis=1, keepdims=True)
+			normalized_data = (self.data - channel_min)/(channel_max - channel_min)
+		
+		self.data = normalized_data
+		
+		return self
+	
 	#Function for filtering.
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
