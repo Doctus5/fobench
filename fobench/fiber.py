@@ -3,11 +3,12 @@ Class "Fiber" for creating, storing and manipulating fiber optic sensing data.
 So far it recieves TDMS format (Silixa) and H5 format (Febus).
 
 Created on 2022-08-19 12:07:17
-Last modification on 2023-09-14 14:51:00
+Last modification on 2024-06-28 19:17:00
 
 :author:
-	- Sergio Diaz (sergioad@gfz-potsdam.de)
+	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
 :contributors:
+	- Jonas Pätzel (jonas.patzel@ulb.be)
 	- Christopher Wollin (wollin@gfz-potsdam.de)
 :license:
 
@@ -200,7 +201,7 @@ recording parameters:
 
 
 	# Translates the string inout dimension into numerical axis of numpy.
-	# If thereis a change in how data matrix is opperated from now on, can be regulated from here instead throug all methods.
+	# If there is a change in how data matrix is opperated from now on, can be regulated from here instead throug all methods.
 	def __axis__(self, dim):
 		'''
 		Co-authors: --
