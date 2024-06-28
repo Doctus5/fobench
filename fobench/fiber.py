@@ -97,7 +97,15 @@ class Fiber(object):
 		# Clean variables. Usually because h5py objects can't be copied with copy() function.
 		del self.dataset
 		del self.base
-	
+
+
+	'''
+	####################################################
+	Internal functions...
+	####################################################
+	'''
+
+
 	def __str__(self):
 		'''
 		Co-authors: Jonas Pätzel
@@ -119,6 +127,8 @@ recording parameters:
 {self.sampling_frequency = }
 {self.gauge_length = }
 '''
+	
+
 	def __iadd__(self, other):
 		'''
 		Co-authors: Jonas Pätzel
@@ -132,25 +142,6 @@ recording parameters:
 		if not isinstance(other, Fiber):
 			raise TypeError
 		return self.concatenate(other, fill_gaps=0)
-
-	
-		#Secondary methods
-			
-
-	def metadata(self):
-		'''
-		Co-authors: --
-		Description: 
-			Print out the metadata in an organized way.
-		:Params:
-			- NA.
-		:Return:
-			- NA.  
-		'''
-	
-		for prop, value in self.properties.items():
-			print(f"{prop} = {value}")
-
 	
 	
 	#Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
@@ -206,6 +197,47 @@ recording parameters:
 			values = np.array(self.dataset)*(10**-9)
 
 		return values.astype('float')
+
+
+	# Translates the string inout dimension into numerical axis of numpy.
+	# If thereis a change in how data matrix is opperated from now on, can be regulated from here instead throug all methods.
+	def __axis__(self, dim):
+		'''
+		Co-authors: --
+		Description: 
+			Translates a string input into numerical axial value for numpy. Used for the other methods.
+		:Params:
+			- dim(type: String): 't', or 'd' to differentiate between time or distance respectively.
+		:Return:
+			- axis(type: Int): integer value which denotes in numpy dimension where is time and distance.  
+		'''
+		
+		axial = {'t':0, 'd':1}
+    
+		return axial[dim]
+
+
+	'''
+	####################################################
+	Standard functions...
+	####################################################
+	'''
+
+
+	# Returns the complete metadata of the file.
+	def metadata(self):
+		'''
+		Co-authors: --
+		Description: 
+			Print out the metadata in an organized way.
+		:Params:
+			- NA.
+		:Return:
+			- NA.  
+		'''
+	
+		for prop, value in self.properties.items():
+			print(f"{prop} = {value}")
 		
 	
 	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
@@ -455,6 +487,8 @@ recording parameters:
 		:Return:
 			- NA.  
 		'''
+
+		axis = self.__axis__('t')
 	
 		if self.start_time <= input_das.start_time:
 		
@@ -476,9 +510,9 @@ recording parameters:
 		
 			fill = np.zeros((num_t, first.total_channels))
 			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
-			first.data = np.concatenate((first.data, fill), axis=0)
+			first.data = np.concatenate((first.data, fill), axis=axis)
 			
-		self.data = np.concatenate((first.data, second.data), axis=0)
+		self.data = np.concatenate((first.data, second.data), axis=axis)
 		self.start_time = first.start_time
 		self.end_time = second.end_time
 		self.num_points += second.num_points
@@ -601,17 +635,20 @@ recording parameters:
 
 
 	#Function for detrending the data
-	def detrend(self, order=1, axis=0):
+	def detrend(self, order=1, dim='t'):
 		'''
 		Co-authors: --
 		Description:
 			Detrends the data, taking any unwanted trend component in the data that might come artifacts such as temperature, instrument, very long period signal, etc.
 		:Params:
-			- axis(type:Int): axis to where to apply the operation (time-sample = 0, space-sample = 1).
+			- order(type: Int): order number of the fitting curve used to apply the detrend.
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- NA.  
 		'''
-		
+
+		axis = self.__axis__(dim)		
+
 		M = self.total_channels if axis == 0 else self.num_points
 
 		for i in range(M): # I think there is a way to do this matrix wise, and coefficients might appear per column. See numpy.polyfit()
@@ -628,34 +665,36 @@ recording parameters:
 
 
 	#Function for demeaning the data
-	def demean(self, axis=0):
+	def demean(self, dim='t'):
 		'''
 		Co-authors: --
 		Description:
 			Demean the data, trying to reduce any trend outside of the 0 value line.
 		:Params:
-			- axis(type:Int): axis to where to apply the operation (time-sample = 0, space-sample = 1).
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- NA.  
 		'''
 		
+		axis = self.__axis__(dim)
 		self.data -= self.data.mean(axis=axis)
 		
 		return self
 	
 	#Function for tappering the data
-	def taper(self, frac=0.05, axis=0):
+	def taper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
 		Description:
-			Tapers the data in time (axis=0) or in space (axis=1). The taper used is a tapered cosine window (Tukey).
+			Tapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
 		:Params:
 			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
-			- axis(type:Int): axis to where to apply the operation (time-sample = 0, space-sample = 1).
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- NA.  
 		'''
 		
+		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
 		taper = signal.windows.tukey(M=M, alpha=frac*2)
 		taper = taper[:,None] if axis == 0 else taper[None, :]
@@ -681,17 +720,18 @@ recording parameters:
 			- NA.  
 		'''
 	
+		axis = self.__axis__('t') # axis to apply, default is time.
 		down_factor = int(self.sampling_frequency / new_freq)
 		new_freq = self.sampling_frequency / down_factor
 		
 		#Check prefilter... which one is?
 		if ftype is not None:
 			
-			new_data = filter.decimate(data=self.data, factor=down_factor, ftype=ftype, axis=0)
+			new_data = filter.decimate(data=self.data, factor=down_factor, ftype=ftype, axis=axis)
 			
 		else:
 		
-			new_data = signal.decimate(x=self.data, q=down_factor, axis=0)
+			new_data = signal.decimate(x=self.data, q=down_factor, axis=axis)
 		
 		self.data = new_data
 		self.sampling_frequency = new_freq
@@ -700,31 +740,38 @@ recording parameters:
 
 		return self
 
-	def normalize(self, method='absolute max'):
+	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
+	def normalize(self, method='absolute max', dim='d'):
 		'''
 		Co-authors:Jonas Pätzel
 		Description:
 			min-max normalizes the data according to the chosen method
 		:Params:
 			- method (type:String): normalization either with respect to 
-			the whole record ('absolute max', default) or for each channel individually ('trace max')
-
+			the whole record ('absolute max', default) or for each channel individually ('trace max').
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
 		:Return:
 			- NA.  
 		'''
 
+		axis = self.__axis__(dim)
+
 		if method == 'absolute max':
-			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min()) 
+      
+			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min())
+   
 		elif method == 'trace max':
-			channel_min = self.data.min(axis=1, keepdims=True)
-			channel_max = self.data.max(axis=1, keepdims=True)
+      
+			channel_min = self.data.min(axis=dim, keepdims=True)
+			channel_max = self.data.max(axis=dim, keepdims=True)
 			normalized_data = (self.data - channel_min)/(channel_max - channel_min)
 		
 		self.data = normalized_data
 		
 		return self
-	
-	#Function for filtering.
+
+
+	# Function for filtering. Shall we also declare dimensionality options here?
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
 		Co-authors: --
@@ -785,17 +832,21 @@ recording parameters:
 		
 		
 	#Function for integrating the signal
-	def integrate(self, method='cum_trapezoid', axis=0, taper=True):
+	def integrate(self, method='cum_trapezoid', dim='t', taper=True):
 		'''
 		Co-authors: --
 		Description:
-			Integrates the data in time (axis=0) or in space (axis=1).
+			Integrates the data in time (dim='t') or in space (dim='d').
 		:Params:
-			- method(type:String): sets the prefered method for integration. Default and only one is "cum_trapezoid" as cumulative trapezoid
+			- method(type: String): sets the prefered method for integration. Default and only one is "cum_trapezoid" as cumulative trapezoid
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
+			- taper(type: Boolean): Decided wether to apply a taper to the signal before integration to avoid offsets or trends (recommended).
+			Default is True.
 		:Return:
 			- NA.  
 		'''
 		
+		axis = self.__axis__(dim)
 		dx = self.dt if axis == 0 else self.spatial_interval
 		
 		if taper == True:
@@ -817,17 +868,19 @@ recording parameters:
 	
 	
 	#Function for differentiating the signal
-	def differentiate(self, method='gradient', axis=0):
+	def differentiate(self, method='gradient', dim='t'):
 		'''
 		Co-authors: --
 		Description:
-			Differentiates the data in time (axis=0) or in space (axis=1).
+			Differentiates the data in time (dim='t') or in space (dim='d').
 		:Params:
 			- method(type:String): sets the prefered method for differentiation. Default and only one is "gradient".
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- NA.  
 		'''
 
+		axis = self.__axis__(dim)
 		res = np.gradient(self.data, self.dt, axis=axis)
 		self.data = res
 		self.units = 'Strain acc. [1/s$^{2}$]'
@@ -836,17 +889,19 @@ recording parameters:
 		
 		
 	#Function to detaper...
-	def detaper(self, frac=0.05, axis=0):
+	def detaper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
 		Description:
-			Tapers the data in time (axis=0) or in space (axis=1). The taper used is a tapered cosine window (Tukey).
+			Tapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
 		:Params:
 			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- NA.  
 		'''
 		
+		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
 		taper = signal.windows.tukey(M=M, alpha=frac*2)
 		taper = taper[:,None] if axis == 0 else taper[None, :]
@@ -857,19 +912,21 @@ recording parameters:
 
 
 	#Function for calculating the Signal to Noise Ratio. The method is based on the simple SNR from scipy at version 0.4.0 (old version, not present in recent versions). Doing it with Power Spectral energies might be something in future. For now let's keep it simple.
-	def SNR(self):
+	def SNR(self, dim='t'):
 		'''
 		Co-authors: --
 		Description:
 			under construction. DON'T USE THIS METHOD!
 		:Params:
-			- param1(type:--): --.
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- return1(type:--): --.  
 		'''
 
+		axis = self.__axis__(dim)
+
 		#m = self.data.mean(axis=0)
-		sd = self.data.std(axis=0)
+		sd = self.data.std(axis=axis)
 		#result = np.where(sd == 0, 0, m/sd)
 		#result = 20*np.log10(abs(result)) #For dB values
 		#result = sd
@@ -878,7 +935,7 @@ recording parameters:
 		
 		
 	#Function for plotting or returning the Root-Mean-Square amplitude (RMS-A) of the data.
-	def rmsa(self, window=None, overlap=None, axis=0):
+	def rmsa(self, window=None, overlap=None, dim='t'):
 		'''
 		Co-authors: --
 		Description:
@@ -886,15 +943,17 @@ recording parameters:
 		:Params:
 			- window(type:Float): moving window length in seconds to use for the RMS-A calculation. Default is the time length of the data.
 			- overlap(type:Float): overlapping time between windows. Still under construction. DO NOT USE.
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- times(type:Numpy): array of the new times per each RMS-A value.
 			- rms_a(type:Numpy): array containing the RMS-A values.
 		'''
 		
+		axis = self.__axis__(dim)
 		window = self.time_length if window == None else window
 		times_d = np.array_split(self.times('matplotlib'), int(self.time_length/window))
 		times = np.array([item[int(len(item)/2)] for item in times_d])
-		data_d = np.array_split(self.data, int(self.time_length/window), axis=0)
+		data_d = np.array_split(self.data, int(self.time_length/window), axis=axis)
 		rms_a = []
 		
 		for subdata in data_d:
@@ -906,17 +965,18 @@ recording parameters:
 
 
 	# Function for peak to peak amplitude calculation in every channel.
-	def pp_amp(self, axis=0):
+	def pp_amp(self, dim='t'):
 		'''
 		Co-authors: --
 		Description:
 			Calculate the peak to peak amplitude values per available channels.
 		:Params:
-			- axis(type: int): axis for where to operate. Default 0: along the columns of DAS (per channel). Default 0.
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- ptp_amplitude(type: numpy): complete path of the resulting file.
 		'''
 
+		axis = self.__axis__(dim)
 		ptp_amplitude = tools.peak_to_peak_amp(self.data, self.sampling_frequency, axis=axis)
 
 		return ptp_amplitude
@@ -1154,6 +1214,7 @@ recording parameters:
 			- NA.  
 		'''
 	
+		axis = self.__axis__('t')
 		channel = int(channel)
 		index = self.channels_num.index(channel)
 		spec= self.data[:,index]
@@ -1164,8 +1225,8 @@ recording parameters:
 		noverlap = int(nperseg/2)
 		f, t, Sxx = signal.spectrogram(spec, self.sampling_frequency, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
 		t = self.times(time_type='matplotlib')
-		Sxx = np.flip(Sxx,axis=0)
-		Sxx = Sxx / Sxx.max(axis=0) if norm == True else Sxx
+		Sxx = np.flip(Sxx,axis=axis)
+		Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 		trace = spec if trace == True else None
 		
 		plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units, trace=trace, figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel), show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
@@ -1209,7 +1270,7 @@ recording parameters:
 		Description:
 			Plot the DAS data as multiple seismograms in the same image (record section).
 		:Params:
-			- axis(type: list): List of the channels to plot into the record section. If not, all of them will be plotted as Default
+			- channels(type: list): List of the channels to plot into the record section. If not, all of them will be plotted as Default.
 		:Return:
 			- NA.
 		'''
