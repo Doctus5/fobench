@@ -25,7 +25,7 @@ import scipy.integrate as integrate
 from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2
 
 from obspy.core import UTCDateTime as UTC
-from obspy.core.trace import Trace
+from obspy.core.trace import oTrace
 from obspy.core.stream import Stream
 
 from pyrocko.util import str_to_time
@@ -560,7 +560,7 @@ recording parameters:
 			
 			if t_type == 'obspy':
    
-				trace = Trace(data=self.data[:,i])
+				trace = oTrace(data=self.data[:,i])
 				trace.stats.network = self.fiber
 				trace.stats.station = str(self.channels_num[i]).zfill(5)
 				trace.stats.npts = self.num_points + 1
