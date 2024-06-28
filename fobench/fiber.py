@@ -25,7 +25,7 @@ import scipy.integrate as integrate
 from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2
 
 from obspy.core import UTCDateTime as UTC
-from obspy.core.trace import oTrace
+from obspy.core.trace import Trace as oTrace
 from obspy.core.stream import Stream
 
 from pyrocko.util import str_to_time
@@ -46,7 +46,7 @@ class Fiber(object):
 	'''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-	def __init__(self, filepath, company='silixa', range_ch=None, sensing='das'):
+	def __init__(self, filepath, company='silixa', range_ch=None, sensing='das', load_data=True):
 		'''
 		Co-authors: --
 		Description: 
@@ -88,7 +88,7 @@ class Fiber(object):
 		self.num_points = attributes.num_points # int(self.time_length/self.dt)
 		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
 		self.channel_offset = attributes.channel_offset # offset where measurement started. It will not always record at channel 0 or distance 0.
-		self.data = self.__data__()
+		self.data = self.__data__() if load_data == True else None
 		self.corrected = False
 		self.sensing = sensing
 		self.units = attributes.units
