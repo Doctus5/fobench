@@ -749,7 +749,7 @@ recording parameters:
 			min-max normalizes the data according to the chosen method
 		:Params:
 			- method (type:String): normalization either with respect to 
-			the whole record ('absolute max', default) or for each channel individually ('trace max').
+			the whole record ('absolute max', default) or for each channel/timestep individually ('trace max').
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
 		:Return:
 			- NA.  
@@ -760,12 +760,14 @@ recording parameters:
 		if method == 'absolute max':
       
 			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min())
+			normalized_data = normalized_data * 2 -1 
    
 		elif method == 'trace max':
       
-			channel_min = self.data.min(axis=dim, keepdims=True)
-			channel_max = self.data.max(axis=dim, keepdims=True)
+			channel_min = self.data.min(axis=axis, keepdims=True)
+			channel_max = self.data.max(axis=axis, keepdims=True)
 			normalized_data = (self.data - channel_min)/(channel_max - channel_min)
+			normalized_data = normalized_data * 2 -1
 		
 		self.data = normalized_data
 		
