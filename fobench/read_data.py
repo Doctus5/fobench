@@ -52,7 +52,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None):
         file_file = tdms.TdmsFile.read(filepath)
         properties = file_file.properties
         dataset = None
-        chans = file_file['Measurement'].channels() if not range_ch else [file_file['Measurement'].channels()[i] for i in range_ch]
+        chans = file_file['Measurement'].channels() if range_ch == None else [file_file['Measurement'].channels()[i] for i in range_ch]
         chans_nums = [int(chan.name) for chan in chans]
         fiber = properties['name'].split('_')[0]
         sampling_frequency = properties['SamplingFrequency[Hz]']
