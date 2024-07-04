@@ -161,8 +161,8 @@ recording parameters:
 		
 		if self.format == 'tdms' and self.company == 'silixa':
 			
-			# values = np.array(self.channels).T # Old slow method.
-			values = self.base['Measurement'].as_dataframe().to_numpy() # New way to load data. Cuts time by half.
+			values = np.array(self.channels).T # Old slow method.
+			# values = self.base['Measurement'].as_dataframe().to_numpy() # New way to load data. Cuts time by half.
 			
 		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'febus':
 		
