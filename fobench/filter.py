@@ -288,12 +288,10 @@ def decimate(data, factor, ftype, axis=0):
 	
 		b, a, n = lfir235()
 	
-	filtered = signal.lfilter(b=b, a=a, x=data, axis=axis)
-	filtered = filtered[n//2::factor,:] if axis==0 else filtered[:,n//2::factor]
+	filtered = signal.lfilter(b=b, a=a, x=data, axis=axis) # low pass filtering.
+	filtered = filtered[n//2::factor,:] if axis==0 else filtered[:,n//2::factor] # decimation.
 	
 	return filtered
-	
-
 
 
 def remez_fir(data, freqmin, freqmax, df):

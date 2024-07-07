@@ -265,23 +265,66 @@ def detrend_signal(o_signal, order):
     return new_signal
 
 
-def filt_preprocess(o_signal, order=1):
+def filt_preprocess(io_signal, order=1, shape='sym', percent=0.1, steps=(True, True, True)):
 	'''
 	Co-authors: --
 	Description: 
 		Do pre-processing of the signal for adecuate filtering. This includes detrend, demean, and tape in borders.
+		User can define with 'steps' variable which processes want to do.
 	:Params:
-		- signal(type:Numpy): original signal.
+		- io_signal(type:Numpy): input original signal to be modified for output.
 		- order(type:Int): degree or order of the polyfit for detrending the signal. Default is 1.
+		- shape(type:String): Determines if the taper window has taper on both sides ('sym'=symmetrical),
+		or just in one of the sides ('left' or 'right'). Default is 'sym'.
+		- percent(type:Float): Percentage of the window/data where the taper is applied. Default is 0.1.
+		- steps(Type:Tuple of Booleans): tuple or list of bolleans which determines by True or False the pre-processing to do,
+		in the defined order -> (detrend, demean, taper). Default is True for all.
 	:Return:
 		- new_signal(type:Numpy): pre-processed signal (detrended, demenaed, tapered).
 	'''
 
-	new_signal = detrend_signal(o_signal, order) # detrend signal
-	new_signal -= new_signal.mean() # demean
-	new_signal *= signal.windows.tukey(len(new_signal), alpha=0.05*2) # taper	
+	if steps[0] == True:
+     
+		io_signal = detrend_signal(io_signal, order) # detrend signal
 
-	return new_signal
+	if steps[1] == True:
+
+		io_signal -= io_signal.mean() # demean
+
+	if steps[2] == True:
+
+		io_signal *= taper_window(len(io_signal), shape, percent) # taper	
+
+	return io_signal
+
+
+def taper_window(N, shape='sym', percent=0.1): # alpha is the percentage of all the data contained/affected by the tapered window
+    '''
+	Co-authors: --
+	Description: 
+		Creates a taper window of a given length of points. Taper can be symetrical, or in one of the sides.
+	:Params:
+		- N(type:Int): number of points for the taper window.
+		- shape(type:String): Determines if the taper window has taper on both sides ('sym'=symmetrical),
+		or just in one of the sides ('left' or 'right'). Default is 'sym'.
+		- percent(type:Float): Percentage of the window/data where the taper is applied. Default is 0.1.
+	:Return:
+		- window(type:Numpy): taper window for further applications.
+	'''
+    
+    percent = percent * 2 if shape != 'sym' else percent # fix percentages in asymmetrical case.
+    window = signal.windows.tukey(N, alpha=percent) # taper window original
+    half = N//2 # half window index
+    
+    if shape == 'left':
+        
+        window[half:] = 1.0
+        
+    if shape == 'right':
+        
+        window[:half] =  1.0
+    
+    return window
 
 
 def spectrum(o_signal, sampling_rate, pre_processing=True, order=1, pad=0, nfft=None):
