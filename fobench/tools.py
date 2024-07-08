@@ -116,7 +116,7 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels']
 
 
-def interpolate_channels(n_ch, x_ch, y_ch, z_ch, err=None, spacing=None):
+def interpolate_channels(n_ch, x_ch, y_ch, z_ch, system='decimal', err=None, spacing=None):
 	'''
 	Co-authors: --
 	Description: 
@@ -127,6 +127,8 @@ def interpolate_channels(n_ch, x_ch, y_ch, z_ch, err=None, spacing=None):
 		- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
 		- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
 		- z_ch(type:Numpy): 1D array of Z (depth - meters) coordinates of the channels specified in "n_ch".
+		- system(type:String): Defined the receiving coordinate systems for X and Y. It can be 'decimal' for decimal degrees 
+		or 'utm' for Universal Transverse Mercator. Default is 'decimal'.
 		- err(type:Float - Optional): maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
 		- spacing(type:Int or Float - Optional): real channel spacing value in meters.
 	:Return:
@@ -161,8 +163,15 @@ def interpolate_channels(n_ch, x_ch, y_ch, z_ch, err=None, spacing=None):
 
 		if err != None:
 
-			r1 = deg2m(y_ch[i+1], x_ch[i+1], y_ch[i], x_ch[i], implementation='python')[0] # lat/lon distance in meters.
-			r2 = np.sqrt(r1**2 + dz**2) # total calculated distance between known locations in 3D.
+			if system == 'decimal':
+
+				r1 = deg2m(y_ch[i+1], x_ch[i+1], y_ch[i], x_ch[i], implementation='python')[0] # lat/lon distance in meters.
+				r2 = np.sqrt(r1**2 + dz**2) # total calculated distance between known locations in 3D.			
+
+			if system == 'utm':
+
+				r2 = np.sqrt(dx**2 + dy**2 + dz**2) # total calculated distance between known locations in 3D with UTM. 
+			
 			calc_spacing = (1/(ch_end - ch_start)) * r2 # calculated channel spacing from georeferencing.
 			dev = (calc_spacing - spacing) / spacing # calculated error between new channel spacing and real.
 			print(f'Fiber section {i+1} -> channel spacing of {calc_spacing} m. Original spacing is {spacing} m.')

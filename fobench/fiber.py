@@ -95,6 +95,9 @@ class Fiber(object):
 		self.units = attributes.units
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
 
+		# Attributed not initialized since beginning. Required further processing to be initialized
+		self.ch_coord = None # coordinates of channels.
+
 		# Clean variables. Usually because h5py objects can't be copied with copy() function.
 		del self.dataset
 		del self.base
@@ -385,7 +388,7 @@ recording parameters:
 
 
 	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
-	def georeference(self, n_ch, x_ch, y_ch, z_ch, err=None):
+	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
 		Co-authors: --
 		Description:
@@ -397,6 +400,8 @@ recording parameters:
 			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
 			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
 			- z_ch(type:Numpy): 1D array of Z altitude [meters] of the channels specified in "n_ch".
+			- system(type:String): Defined the receiving coordinate systems for X and Y. It can be 'decimal' for decimal degrees 
+			or 'utm' for Universal Transverse Mercator. Default is 'decimal'.
 			- err(type:Float - Optional): maximum accepted error from interpolation in decimals. In case is given, the method will evaluate
 			the error of the calculated channel spacing vs. the original one from the metadata. 
 		:Return:
@@ -407,7 +412,7 @@ recording parameters:
 		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
 		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
 
-		n_ch, x_ch, y_ch, z_ch = tools.interpolate_channels(n_ch, x_ch, y_ch, z_ch, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
+		n_ch, x_ch, y_ch, z_ch = tools.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
 
 		self.append_coord(n_ch, x_ch, y_ch, z_ch)
 		
