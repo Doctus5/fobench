@@ -593,7 +593,7 @@ recording parameters:
 
 	'''
 	####################################################
-	Signal Processing functions below...
+	Signal Processing functions...
 	####################################################
 	'''
 
@@ -745,6 +745,7 @@ recording parameters:
 		self.num_points = self.data.shape[0]
 
 		return self
+
 
 	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
 	def normalize(self, method='absolute max', dim='d'):
