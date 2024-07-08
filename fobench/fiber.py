@@ -56,10 +56,10 @@ class Fiber(object):
 			The basis for manipulating the data is numpy. Tools are inspired in Obspy, however using
 			an obspy class for this takes long time in their processing tools.
 		:Params:
-			- filepath(type:String): compelte path fot he file to be read.
+			- filepath(type:String): compelte path of the file to be read.
 			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting "silixa" (Default), "febus", and "bam".
 			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
-			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'
+			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
 		:Return:
 			- NA.  
 		'''
