@@ -25,12 +25,12 @@ def scan_folder(filepath, format=None):
         Function that scans all within a folder to find all files inside.
     :Params:
         - filepath(type:String): compelte path fot he file to be read.
-        - format(type:String, Optional): if a format extension is specified (with point), only the files with such an extension will be returned.
+        - format(type:String, Optional): if a format extension is specified (without the point), only the files with such an extension will be returned.
     :Return:
         - files(type:List): list of paths of each of the files.  
 	'''
     
-    format = '.' if format == None else '*' + format + '*'
+    format = '*' if format == None else '*.' + format + '*'
     files = glob.glob(filepath + format)
     
     return files
