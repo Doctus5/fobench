@@ -63,15 +63,15 @@ class Fiber(object):
 		:Return:
 			- NA.  
 		'''
-	
+ 
+		# Private attributes
 		self.__filepath__ = filepath
+
+		# Public attributes
 		self.company = company
 		self.format = filepath.split('.')[-1]
-		# range_ch = [range_ch] if isinstance(range_ch,int) else range_ch
   
 		attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
-		
-		#file_file.close() # You might need more things from there afterwards.
 		
 		self.base = attributes.file
 		self.fiber = attributes.fiber
@@ -230,19 +230,27 @@ recording parameters:
 
 
 	# Returns the complete metadata of the file.
-	def metadata(self):
+	def metadata(self, meta_dict=False):
 		'''
 		Co-authors: --
 		Description: 
 			Print out the metadata in an organized way.
 		:Params:
-			- NA.
+			- meta_dict(type:Boolean): if True, metadata is returned as dictionary. Default is False.
 		:Return:
 			- NA.  
 		'''
+
+		if meta_dict == True:
+
+			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
+			
+			return metainfo
+
+		else:
 	
-		for prop, value in self.properties.items():
-			print(f"{prop} = {value}")
+			for prop, value in self.properties.items():
+				print(f"{prop} = {value}")
 		
 	
 	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
