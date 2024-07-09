@@ -17,6 +17,9 @@ Last modification on 2024-07-08 16:50:00
 import os
 import glob
 
+# inside packaged
+from ..fobench.fiber import Fiber
+
 
 def scan_folder(filepath, format=None):
     '''
@@ -36,18 +39,25 @@ def scan_folder(filepath, format=None):
     return files
 
 
-def chrono_order(files, company, format):
+def chrono_order(files, company):
     '''
     Co-authors: --
     Description: 
         Function that aranges all fiber optic sensing files in a chronological way. Requires reading the file without loading the data.
     :Params:
         - filepath(type:String): compelte path fot he file to be read.
-        - format(type:String, Optional): if a format extension is specified (with point), only the files with such an extension will be returned.
+        - company(type:String): name of the manufacturer.
     :Return:
         - files(type:List): list of paths of each of the files.  
 	'''
 
     N = len(files) # number of data files.
     
-    return 0
+    for i, file in enumerate(files):
+    
+        d_file = Fiber(file, company=company, load_data=True)
+        file_start, file_end = d_file.start_time, d_file.end_time
+        
+        print(i, file_start, file_end)
+    
+    #return 0
