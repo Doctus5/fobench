@@ -71,7 +71,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         sampling_frequency = properties['SamplingFrequency[Hz]']
         dt = 1/sampling_frequency
         start_time = UTC(properties['ISO8601 Timestamp'])
-        end_time = UTC(start_time + len(chans[0])*dt)
+        end_time = UTC(start_time + (len(chans[0])-1)*dt)
         spatial_interval = properties['SpatialResolution[m]']
         time_length = end_time - start_time
         num_points = int(time_length/dt)
