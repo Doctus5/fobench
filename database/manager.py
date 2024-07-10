@@ -108,7 +108,10 @@ def databse_discontinuities(df, split=True):
     :Params:
         - df(type:Dataframe): database indicating paths and essential metadata from each file.
     :Return:
-        - data_batches(type:List): List of dataframes indicating paths and essential metadata from each file.
+        - continuity(type:DataFrame): if split == True, the function returns a boolean DataFrame where it shows where a
+        dicontinuity happens. False objects mark the beginning of a dicontinuity along the data.
+        - database_chunks(type:List): if split == False, it returns a List of dataframes indicating paths and essential 
+        metadata from each file.
 	'''
     
     # attributes of metadata to evaluate continuity.
