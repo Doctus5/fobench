@@ -81,10 +81,10 @@ class Fiber(object):
 		self.channels_num = attributes.chans_nums
 		self.total_channels = attributes.list_chans_num
 		self.sampling_frequency = attributes.sampling_frequency # sampling rate of the data.
-		self.dt = 1 / self.sampling_frequency # calculated time stamp.
+		self.dt = 1 / self.sampling_frequency # calculated time step.
 		self.start_time = attributes.start_time # start time of the data in file.
 		self.end_time = attributes.end_time # end time of the data in file.
-		self.spatial_interval = attributes.spatial_interval # channel spaciong or spatial interval between channels [m].
+		self.spatial_interval = attributes.spatial_interval # channel spacing or spatial interval between channels [m].
 		self.time_length = self.end_time - self.start_time
 		self.num_points = attributes.num_points # int(self.time_length/self.dt)
 		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
@@ -363,7 +363,7 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Attach coordinates of specified channels for the class instance. Necessary for plotting the fibre path and other spacial operations.
+			Attach coordinates of specified channels for the class instance. Necessary for plotting the fibre path and other spatial operations.
 		:Params:
 			- n_ch(type:Numpy): 1D array of channel number.
 			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
