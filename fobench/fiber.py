@@ -869,7 +869,7 @@ recording parameters:
 		dx = self.dt if axis == 0 else self.spatial_interval
 		
 		if taper == True:
-			self.taper(axis=axis)
+			self.taper(dim=dim)
 		
 		if method == 'cum_trapezoid':
 			res = integrate.cumulative_trapezoid(y=self.data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
