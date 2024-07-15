@@ -71,15 +71,15 @@ def _update_processing(func):
             if (fiber.sensing == 'das' or fiber.sensing == 'dss'): unit_map = STRAIN_UNIT_MAP
             elif fiber.sensing == 'dts': unit_map = TEMP_UNIT_MAP
             
-            #fing current unit
+            # find current unit
             try: key = [i for i in unit_map if unit_map[i] == fiber.units][0]
             except: key = fiber.units[2]
 
-            	#depending on operation change key
+            	# depending on operation change key
             if func_name == 'integrate': key -= 1
             elif func_name == 'differentiate': key += 1
 
-            	#assign new unit
+            	# assign new unit
             try: fiber.units = unit_map[key]
             except: fiber.units = f'd^{key}/dt {unit_map[0]} [dm/m]'
             
