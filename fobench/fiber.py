@@ -94,6 +94,7 @@ class Fiber(object):
 		self.sensing = sensing
 		self.units = attributes.units
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
+		self.processing = []
 
 		# Attributed not initialized since beginning. Required further processing to be initialized
 		self.ch_coord = None # coordinates of channels.
@@ -258,7 +259,7 @@ recording parameters:
 		return copy.deepcopy(self)
 		
 	
-	#Performs instrument correction on the data to get the strain rate values.	
+	#Performs instrument correction on the data to get the strain rate values.
 	def instr_correct(self, target='strain-rate'):
 		'''
 		Co-authors: --
@@ -599,6 +600,7 @@ recording parameters:
 
 		
 	#function for upsampling spatially by double/half depending if it is upsampling or downsampling spatially.
+	@tools._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
 		Co-authors: --
@@ -641,6 +643,7 @@ recording parameters:
 
 
 	#Function for detrending the data
+	@tools._update_processing
 	def detrend(self, order=1, dim='t'):
 		'''
 		Co-authors: --
@@ -671,6 +674,7 @@ recording parameters:
 
 
 	#Function for demeaning the data
+	@tools._update_processing
 	def demean(self, dim='t'):
 		'''
 		Co-authors: --
@@ -688,6 +692,7 @@ recording parameters:
 		return self
 	
 	#Function for tappering the data
+	@tools._update_processing
 	def taper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
@@ -711,6 +716,7 @@ recording parameters:
 		
 	
 	#Function to decimate the data by any frequency below the original. Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...). The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
+	@tools._update_processing
 	def decimate(self, new_freq=None, ftype='fir-remez'):
 		'''
 		Co-authors: --
@@ -748,6 +754,7 @@ recording parameters:
 
 
 	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
+	@tools._update_processing
 	def normalize(self, method='absolute max', dim='d'):
 		'''
 		Co-authors:Jonas Pätzel
@@ -781,6 +788,7 @@ recording parameters:
 
 
 	# Function for filtering. Shall we also declare dimensionality options here?
+	@tools._update_processing
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
 		Co-authors: --
@@ -810,6 +818,7 @@ recording parameters:
 
 
 	# Function to make a fk-filter based on the input parameters.
+	@tools._update_processing
 	def fk_filter(self, freq_min, freq_max, k_min, k_max):
 		'''
 		Co-authors: --
@@ -841,6 +850,7 @@ recording parameters:
 		
 		
 	#Function for integrating the signal
+	@tools._update_processing
 	def integrate(self, method='cum_trapezoid', dim='t', taper=True):
 		'''
 		Co-authors: --
@@ -877,6 +887,7 @@ recording parameters:
 	
 	
 	#Function for differentiating the signal
+	@tools._update_processing
 	def differentiate(self, method='gradient', dim='t'):
 		'''
 		Co-authors: --
@@ -898,6 +909,7 @@ recording parameters:
 		
 		
 	#Function to detaper...
+	@tools._update_processing
 	def detaper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --

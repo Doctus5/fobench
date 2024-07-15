@@ -4,6 +4,8 @@ from obspy.core.stream import Stream
 from obspy.core import UTCDateTime as UTC
 from datetime import datetime
 
+import functools
+import inspect
 import warnings
 import numpy as np
 import scipy.signal as signal
@@ -32,6 +34,46 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 '''
 TOOLS USED EXCLUSIVE FOR Fiber CLASS
 '''
+STRAIN_UNIT_MAP = {
+-1: 'integrated strain',
+0: 'strain',
+1: 'strain-rate',
+2: 'strain-acceleration',
+3: 'strain-jerk'}
+
+TEMP_UNIT_MAP = {
+-1: 'integrated temperature',
+0: 'temperature',
+1: 'temperature rate',
+2: 'temperature acceleration'}
+
+
+def _update_processing(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        
+        func_name = func.__name__
+        
+        # extract all arguments
+        func_signature = inspect.signature(func)
+        bound_arguments = func_signature.bind(*args, **kwargs)
+        bound_arguments.apply_defaults()
+        args_dict = bound_arguments.arguments
+        args_dict.pop('self')
+        
+        # function call
+        result = func(*args, **kwargs)
+        
+        # append info to fiber instance
+        fiber = args[0]
+        fiber.processing.append({func_name : args_dict})
+        
+        return result
+    return wrapper
+
+
+
+
 
 
 # NEW DATA INSTRUMENT CORRECTION
