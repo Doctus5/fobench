@@ -881,7 +881,6 @@ recording parameters:
 		#	self.detaper(axis=axis)
 		
 		self.data = res
-		self.units = 'Strain'
 		
 		return self
 	
@@ -903,7 +902,6 @@ recording parameters:
 		axis = self.__axis__(dim)
 		res = np.gradient(self.data, self.dt, axis=axis)
 		self.data = res
-		self.units = 'Strain acc. [1/s$^{2}$]'
 		
 		return self
 		
