@@ -912,7 +912,7 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Tapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
+			Detapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
 		:Params:
 			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
@@ -954,7 +954,7 @@ recording parameters:
 		
 		
 	#Function for plotting or returning the Root-Mean-Square amplitude (RMS-A) of the data.
-	def rmsa(self, window=None, overlap=None, dim='t'):
+	def rmsa(self, window=None, overlap=None, dim='t', make_plot=False):
 		'''
 		Co-authors: --
 		Description:
@@ -980,6 +980,8 @@ recording parameters:
 			rms = np.sqrt(np.mean(subdata**2, axis=axis))
 			rms_a.append(rms)
 			
+		if make_plot:
+			plot.gen_DAS_plot(data=np.array(rms_a), t=times, channels=self.channels, cmap='inferno', title = f'RMSA for {window}s window')
 		return times, np.array(rms_a)
 
 
