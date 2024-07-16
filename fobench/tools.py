@@ -78,7 +78,7 @@ def _update_processing(func):
 		fiber = args[0]
 		fiber.processing.append({func_name : args_dict})
 		
-		if func_name in ['integrate', 'differentiate']:
+		if func_name in ['integrate', 'differentiate'] and args_dict['dim']=='t':
 			if (fiber.sensing == 'das' or fiber.sensing == 'dss'): unit_map = STRAIN_UNIT_MAP
 			elif fiber.sensing == 'dts': unit_map = TEMP_UNIT_MAP
 			
