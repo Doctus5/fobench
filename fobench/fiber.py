@@ -89,10 +89,10 @@ class Fiber(object):
 		self.num_points = attributes.num_points # int(self.time_length/self.dt)
 		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
 		self.channel_offset = attributes.channel_offset # offset where measurement started. It will not always record at channel 0 or distance 0.
+		self.units = attributes.units
 		self.data = self.__data__() if load_data == True else None
 		self.corrected = False
 		self.sensing = sensing
-		self.units = attributes.units
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
 		self.processing = []
 
@@ -199,7 +199,7 @@ recording parameters:
 		
 		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'aragon':
 
-			values = np.array(self.dataset)*(10**-9)
+			values = np.array(self.dataset)*(10**-9) if self.units == 'strain' else np.array(self.dataset)
 
 		return values.astype('float')
 
