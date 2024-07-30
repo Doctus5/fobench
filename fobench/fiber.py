@@ -145,7 +145,7 @@ recording parameters:
 			- NA.  
 		'''
 		if not isinstance(other, Fiber):
-			raise TypeError
+			raise TypeError('Object to add must be instance of Fiber class')
 		return self.concatenate(other, fill_gaps=0)
 	
 	
