@@ -94,7 +94,7 @@ class Fiber(object):
 		self.corrected = False
 		self.sensing = sensing
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
-		self.processing = []
+		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
 
 		# Attributed not initialized since beginning. Required further processing to be initialized
 		self.ch_coord = None # coordinates of channels.
