@@ -133,7 +133,6 @@ recording parameters:
 {self.gauge_length = }
 '''
 	
-
 	def __iadd__(self, other):
 		'''
 		Co-authors: Jonas Pätzel
@@ -388,6 +387,21 @@ recording parameters:
 		return self
 
 
+	def append_distances(self, offset=None):
+		'''
+		Co-authors: Jonas Pätzel
+		Description:
+			Attach optical distances channels for the class instance
+		:Params:
+			offset(type: float) offset to add to all channel distances, if None, Fiber.channel_offset is added
+		:Return:
+			- NA.  
+		'''
+		if offset is None:
+			offset = self.channel_offset
+		self.distances = [(num * self.spatial_interval) + offset for num in self.channels_num]
+
+
 	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
 	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
@@ -508,16 +522,14 @@ recording parameters:
 		tf = first.end_time + first.dt
 		num_t = int((second.start_time + second.dt - first.end_time) / first.dt) - 1
 		
-		if num_t < 0:
-			
-			num_t = abs(num_t)
-			second.data = second.data[num_t:,:]
-		
-		if num_t > 0:
-		
-			fill = np.zeros((num_t, first.total_channels))
-			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
-			first.data = np.concatenate((first.data, fill), axis=axis)
+# 		if num_t < 0:
+# 			num_t = abs(num_t)
+# 			second.data = second.data[num_t:,:]
+# 		
+# 		if num_t > 0:
+# 			fill = np.zeros((num_t, first.total_channels))
+# 			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
+# 			first.data = np.concatenate((first.data, fill), axis=axis)
 			
 		self.data = np.concatenate((first.data, second.data), axis=axis)
 		self.start_time = first.start_time
@@ -963,6 +975,7 @@ recording parameters:
 			- window(type:Float): moving window length in seconds to use for the RMS-A calculation. Default is the time length of the data.
 			- overlap(type:Float): overlapping time between windows. Still under construction. DO NOT USE.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
+			- make_plot(type: Bool): if set to True plot of the RMSA witll be generated
 		:Return:
 			- times(type:Numpy): array of the new times per each RMS-A value.
 			- rms_a(type:Numpy): array containing the RMS-A values.
@@ -982,6 +995,7 @@ recording parameters:
 			
 		if make_plot:
 			plot.gen_DAS_plot(data=np.array(rms_a), t=times, channels=self.channels, cmap='inferno', title = f'RMSA for {window}s window')
+
 		return times, np.array(rms_a)
 
 
