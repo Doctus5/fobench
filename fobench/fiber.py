@@ -767,15 +767,19 @@ recording parameters:
 
 	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
 	@tools._update_processing
-	def normalize(self, method='absolute max', dim='d'):
+	def normalize(self, method='absolute max', dim='d', ram_window=None):
 		'''
 		Co-authors:Jonas Pätzel
 		Description:
-			min-max normalizes the data according to the chosen method
+			normalizes the data according to the chosen method
 		:Params:
-			- method (type:String): normalization either with respect to 
-			the whole record ('absolute max', default) or for each channel/timestep individually ('trace max').
+			- method (type:String):type of normalization can be:
+				-'absolute max': with respect to the whole record (default)
+				-'trace max': for each channel/timestep individually
+				-'running mean': running absolute mean normalization
+				-'1bit': 1-bit normalization
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
+			-ram_window (type: int): window length in seconds, only for running absolute mean normalization
 		:Return:
 			- NA.  
 		'''
@@ -783,17 +787,45 @@ recording parameters:
 		axis = self.__axis__(dim)
 
 		if method == 'absolute max':
-      
+
 			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min())
 			normalized_data = normalized_data * 2 -1 
    
 		elif method == 'trace max':
-      
+
 			channel_min = self.data.min(axis=axis, keepdims=True)
 			channel_max = self.data.max(axis=axis, keepdims=True)
 			normalized_data = (self.data - channel_min)/(channel_max - channel_min)
 			normalized_data = normalized_data * 2 -1
-		
+
+		elif method == 'running mean':
+
+			if ram_window is None:
+				raise TypeError('please provide a window length for the running absolute mean normalization')
+			
+			normalized_data = self.data.copy()
+			
+			w_len = int(self.sampling_frequency * ram_window)
+
+			for i in range(self.total_channels):
+				segment_start = 0
+				segment_end = w_len 
+                
+				while segment_end < self.num_points:
+					segment = normalized_data[:,i][segment_start:segment_end]
+					weight = np.mean(np.abs(segment)) / (2 * w_len + 1)
+					normalized_data[:,i][segment_start + w_len // 2] /= weight
+
+					segment_start += 1
+					segment_end += 1
+
+		elif method == '1bit':
+
+			normalized_data = np.sign(self.data).astype(np.float64)
+
+		else:
+			raise ValueError(f'"{method}" is not a valid normalization method')
+
 		self.data = normalized_data
 		
 		return self
