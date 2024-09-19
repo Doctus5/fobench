@@ -56,7 +56,7 @@ class Fiber(object):
 			The basis for manipulating the data is numpy. Tools are inspired in Obspy, however using
 			an obspy class for this takes long time in their processing tools.
 		:Params:
-			- filepath(type:String): compelte path of the file to be read.
+			- filepath(type:String): complete path of the file to be read.
 			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting "silixa" (Default), "febus", and "bam".
 			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
 			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
@@ -1010,7 +1010,7 @@ recording parameters:
 	
 	
 	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function. 
-	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', file_name=None, where=None, **kwargs):
+	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1025,7 +1025,9 @@ recording parameters:
 			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, but the figure instance would be open
 			so the user can add further changes. Default = True.
 			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section). 
+			Default = True.
+   			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 		:Return:
@@ -1054,15 +1056,21 @@ recording parameters:
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2)
 
 			freqs, fft_values = tools.spectrum(o_signal, self.sampling_frequency, True, order, int(self.num_points/4), nfft)
-			fft_values = np.flip(fft_values/fft_values.max()) if norm == True else np.flip(fft_values)
+			fft_values = fft_values/fft_values.max() if norm == True else fft_values
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2) # to smooth the surve
 
 
 			spectrogram.append(fft_values)
 			
 		spectrogram = np.array(spectrogram).T
-			
-		plot.gen_spectrogram(spec_matrix=spectrogram, freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
+		
+		if results == True:
+    
+			return freqs, spectrogram
+
+		else:
+
+			plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
 		
 		
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
