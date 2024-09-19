@@ -31,13 +31,21 @@ class Project(object):
 	'''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-	def __init__(self, filepath):
+	def __init__(self, metadata_file=None):
 		'''
 		Co-authors: --
 		Description: 
 			Initializes a "Project" Class which keeps track of the organization of the single/multiple data collected.
 		:Params:
-			- filepath(type:String): compelte path where the single/multiple datasets are located.
+			- metadata_file(type:json): JSON object which represents the metadata of the project. If this file is non existent
+			then Project must be initialized without it and a metadata must be created from scratch (see Tutorial).
+			- project_type(type:String): type of project to handle based on 
 		:Return:
 			- NA.  
 		'''
+
+		# In case class is initialized first time or empty (no metadata).
+		self.units = [] # list of units/interrogators used. Each one is a Unit class that contains Datasets class.
+
+		# Private attributes
+		

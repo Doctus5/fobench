@@ -30,7 +30,7 @@ class Dataset(object):
     '''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-    def __init__(self, filepath, company='silixa', sensing='das', scan=True):
+    def __init__(self, folder_path, company='silixa', sensing='das', database=None):
         '''
         Co-authors: --
         Description: 
@@ -44,9 +44,10 @@ class Dataset(object):
         '''
 
         # internal attributed.
-        self.__filepath__ = filepath # filepath where the data is located (a folder).
+        self.__filepath__ = folder_path # filepath where the data is located (a folder).
         
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
         self.sensing = sensing # sensing target of the dataset.
         self.files = 0
+        self.database = database # DataFrame format of 
         

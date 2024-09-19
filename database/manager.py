@@ -1,5 +1,5 @@
 """
-Method for managing, sorting and manipulating files in folders.
+Method for managing, sorting and manipulating files and databases in folders.
 
 Created on 2024-07-08 16:50:00
 Last modification on 2024-07-08 16:50:00
@@ -71,8 +71,8 @@ def files2database(files, company):
         info['file'] = d_file.__filepath__ # we also take the filepath.
         
         # correct format for start and end times into strings (UTC also can do the thing).
-        info['start_time'] = info['start_time'].isoformat()
-        info['end_time'] = info['end_time'].isoformat()
+        info['start_time'] = pd.to_datetime(info['start_time'].isoformat())
+        info['end_time'] = pd.to_datetime(info['end_time'].isoformat())
         
         database.append(info)
         del d_file # free memory.
@@ -99,7 +99,7 @@ def chrono_order(database):
     return database
 
 
-def databse_discontinuities(df, split=True):
+def database_discontinuities(df, split=True):
     '''
     Co-authors: --
     Description: 
@@ -149,5 +149,21 @@ def databse_discontinuities(df, split=True):
                 last_incident = i
         
         return database_chunks
+    
+    
+def write_json_metadata(df, split=True):
+    '''
+    Co-authors: --
+    Description: 
+        Checks if there are time and parameters discontinuities along a reported Dataset. Necessary to separate chuncks of data.
+        In case the user wants it, it returns the database splitted 
+    :Params:
+        - df(type:Dataframe): database indicating paths and essential metadata from each file.
+    :Return:
+        - continuity(type:DataFrame): if split == True, the function returns a boolean DataFrame where it shows where a
+        dicontinuity happens. False objects mark the beginning of a dicontinuity along the data.
+        - database_chunks(type:List): if split == False, it returns a List of dataframes indicating paths and essential 
+        metadata from each file.
+	'''
     
     
