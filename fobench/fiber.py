@@ -352,6 +352,7 @@ recording parameters:
 		self.data = self.data[:,ch0:chf+1]
 		self.channels = self.channels[ch0:chf+1]
 		self.channels_num = self.channels_num[ch0:chf+1]
+		if hasattr(self, 'distances'): self.distances = self.distances[ch0:chf+1]
 		self.total_channels = len(self.channels_num)
 		
 		return self
