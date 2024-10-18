@@ -34,7 +34,7 @@ def scan_folder(filepath, format=None):
         - files(type:List): list of paths of each of the files.  
 	'''
     
-    format = '*' if format == None else '*.' + format + '*'
+    format = '*' if format == None else '*.' + format
     files = glob.glob(filepath + format)
     
     return files
@@ -64,6 +64,7 @@ def files2database(files, company):
     
         file = files[i] # select file
         # by checking the start and end times in the files
+        print('File: ' + file)
         d_file = Fiber(file, company=company, load_data=False)
         
         info = d_file.metadata(meta_dict=True) # getting public relevant attributes.
