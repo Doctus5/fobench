@@ -1,6 +1,6 @@
 # Fobench: Fiber Optic Sensing Code Bench Testing
 
-Welcome to **Fobench**! This repository contains code for reading and processing Distributed Acoustic Sensing (DAS) files. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
+Welcome to **Fobench**! This repository contains code for reading and processing Fiber Optic Sensing files, currently Distributed Dynnamic Strain Sensing (DDSS; a.k.a DAS) and Distributed Strain Sensing (DSS). Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
 
 Follow this guide to get started with Fobench.
 
@@ -78,7 +78,8 @@ Once installed, you're ready to start using the code in your Python environment!
 
 Your feedback is crucial to the development of this code. If you have suggestions, please feel free to reach out or submit an issue. You can contact:
 
-- Alexander Jordan: [alex@gfz-potsdam.de](mailto:alex@gfz-potsdam.de)
+- Sergio Diaz-Meza: [sergioad@gfz-potsdam.de](mailto:sergioad@gfz-potsdam.de)
+- Jonas Pätzel: [jonas.patzel@ulb.be](mailto:sjonas.patzel@ulb.be)
 
 All contributions are welcome, including code improvements, bug reports, and feature suggestions!
 
