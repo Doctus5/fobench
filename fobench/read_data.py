@@ -74,14 +74,14 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         end_time = UTC(start_time + (len(chans[0])-1)*dt)
         spatial_interval = properties['SpatialResolution[m]']
         time_length = end_time - start_time
-        num_points = int(time_length/dt)
+        num_points = len(chans[0])
         gauge_length = properties['GaugeLength']
         channel_offset = properties['OffsetLength']
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
     
     # Required checking! Contact providers! TEST!
-    if (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
     
         print('Reading H5 file (Febus Format)...')
         LAG = 201 #important parameter! Sometimes the data is repeated in batches. This number indicates the position in the minibatch where the data begins to be repeated.
@@ -101,13 +101,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * LAG)
         spatial_interval = properties['Spacing'][0]
         time_length = end_time - start_time
-        num_points = int(time_length/dt)
+        num_points = int(time_length/dt) # check!
         gauge_length = properties['GaugeLength'] # CHECK THIS!!
         channel_offset = 0 # FIX THIS!!
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
 
-    if (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
     
         print('Reading H5 file (Silixa Format)...')
         file_file = h5.File(filepath,'r')
@@ -149,7 +149,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
         
-    if format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+    elif format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
     
         print('File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.')
         file_file = None
@@ -173,7 +173,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = None
         conv_factor = None # conversion factor if given explicitly
 
-    if format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+    elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
     
         print('File format is a Numpy Zip Class. No Gaueg Length specified. Do not attempt to convert to Stran-Rate.')
         file_file = None
@@ -199,7 +199,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     
     #file_file.close()
     
-    if (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
         
         print('Reading HDF5 file (Terra15 Format)...')
         file_file = h5.File(filepath,'r')
@@ -223,7 +223,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = properties['data_product_units']
         conv_factor = None # conversion factor if given explicitly
         
-    if (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
+    elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
         
         print('Reading HDF5 file (ASN Format)...')
         file_file = h5.File(filepath,'r')
@@ -247,7 +247,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = str(file_file['header']['sensitivityUnits'][()])[3:-2]
         conv_factor = file_file['header']['sensitivities'][0,0]
         
-    if (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptoaSense HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptoaSense HDF5
         
         print('Reading HDF5 file (QuantX Format)...')
         file_file = h5.File(filepath,'r')
@@ -271,7 +271,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         conv_factor = None # conversion factor if given explicitly
     
     # UNDER CONSTRUCTION   
-    if (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
         
         print('Reading HDF5 file (Aragon Photonics Format)...')
         file_file = h5.File(filepath,'r')
@@ -293,6 +293,11 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
         units = 'strain' if str(dataset.attrs['units'])[2:-1] == 'nanostrain' else str(dataset.attrs['units'])[2:-1] # for inmediate conversion to strain instead of nanostrain.
         conv_factor = None # conversion factor if given explicitly
+        
+    else:
+        
+        # Terminate if file format can not be handled.
+        raise ValueError('"'+format+'" is not a recognized file format.')
     
     # Free space by erasing old content.
     database = None

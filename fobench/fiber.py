@@ -512,7 +512,7 @@ recording parameters:
 		else:
 		
 			first, second = input_das, self
-			
+		
 		tf = first.end_time + first.dt
 		num_t = int((second.start_time + second.dt - first.end_time) / first.dt) - 1
 		
@@ -530,27 +530,8 @@ recording parameters:
 		self.data = np.concatenate((first.data, second.data), axis=axis)
 		self.start_time = first.start_time
 		self.end_time = second.end_time
-		self.num_points += second.num_points
+		self.num_points = self.data.shape[axis]
 		self.time_length = self.end_time - self.start_time
-			
-		'''
-		#Old version of Code
-		if self.start_time <= input_das.start_time:
-		
-			tf = self.end_time + self.dt
-			num_t = int((input_das.start_time+input_das.dt - self.end_time)/self.dt)-1
-			fill = np.zeros((num_t, self.total_channels))
-			
-			if fill.size != 0:
-				
-				self.data = np.concatenate((self.data,fill), axis=0)
-
-			self.data = np.concatenate((self.data, input_das.data), axis=0)
-
-			self.end_time = input_das.end_time
-			self.num_points += input_das.num_points
-			self.time_length = self.end_time - self.start_time
-		'''
 			
 		return self
 
@@ -646,6 +627,8 @@ recording parameters:
 		self.channels_num = new_channels_num
 		self.total_channels = len(self.channels_num)
 		
+		print(data.shape, )
+		
 		return self
 
 
@@ -711,9 +694,12 @@ recording parameters:
 		
 		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
-		taper = signal.windows.tukey(M=M, alpha=frac*2)
-		taper = taper[:,None] if axis == 0 else taper[None, :]
-		
+		taper = signal.windows.tukey(M= M, alpha=frac*2)
+
+		# dimensions fix in case of mismatch between lengths.
+		taper = np.concatenate((taper, np.zeros(M - taper.size))) if taper.size < M else taper # fix length due to even or odd numbers in points.
+		taper = taper[:, None] if axis == 0 else taper[None, :]
+
 		self.data = np.multiply(self.data, taper)
 		
 		return self
