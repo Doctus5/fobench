@@ -1,0 +1,149 @@
+# Fobench: Fiber Optic Sensing Code Bench Testing
+
+Welcome to **Fobench**! This repository contains code for reading and processing Distributed Acoustic Sensing (DAS) files. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
+
+Follow this guide to get started with Fobench.
+
+---
+
+## Table of Contents
+1. [Installation](#installation)
+   - [Install Anaconda/Miniconda/Conda](#install-anacondaminicondaconda)
+   - [Create a Conda Environment](#create-a-conda-environment)
+2. [Installing Fobench](#installing-fobench)
+3. [Contributing](#contributing)
+
+---
+
+## Installation
+
+### Install Anaconda/Miniconda/Conda
+
+We will use Conda to create a virtual environment to safely manage the dependencies for Fobench.
+
+1. Download the latest version of Miniconda from [this link](https://docs.conda.io/en/latest/miniconda.html#linux-installers).
+
+2. Run the following commands to install Miniconda and update Conda:
+
+   ```bash
+   bash Miniconda3-latest-Linux-x86_64.sh
+   conda update conda
+   ```
+
+3. Change the main Conda channel to `conda-forge` (this avoids issues related to licensing):
+
+   ```bash
+   conda config --add channels conda-forge
+   ```
+
+4. Close and reopen the terminal to apply changes.
+
+---
+
+### Create a Conda Environment
+
+You can create a minimal environment for Fobench with the following command:
+
+```bash
+conda create --name fobench_env python=3.11
+```
+
+Once created, activate the environment:
+
+```bash
+conda activate fobench_env
+```
+
+When you're done, deactivate the environment by running:
+
+```bash
+conda deactivate
+```
+
+---
+
+## Installing Fobench
+
+With the environment activated, install Fobench using `pip`:
+
+```bash
+pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
+```
+
+Once installed, you're ready to start using the code in your Python environment!
+
+---
+
+## Contributing
+
+Your feedback is crucial to the development of this code. If you have suggestions, please feel free to reach out or submit an issue. You can contact:
+
+- Alexander Jordan: [alex@gfz-potsdam.de](mailto:alex@gfz-potsdam.de)
+
+All contributions are welcome, including code improvements, bug reports, and feature suggestions!
+
+
+
+
+<!-- ########################### BENCH TESTING FOR FIBER OPTIC SENSING CODE #################################
+
+Dear User! 
+
+Welcome to the Fobench code testing! Here you will help me to evaluate the code I made for reading and processing DAS files. This is the core code I use for processing, so I would appreciate much every input in terms of style, options, and tools to integrate, correct or delete. I will guide you step by step, and you might be very familiar with everything here, or the conceptual stuff. Sorry on behalf.
+
+The code is made in Python, but I believe is an easy language and similar to Matlab. I'll explain the structure of the code later. What we must do is first to install everything in order to make this run. So... let's go!
+
+
+1. INSTALL ANACONDA/MINICONDA/CONDA:
+
+For the testing we need a safe environment to install all the packages for running the program. An environment is a safe virtual space where we can install/delete packages or the interpreter (Python itself) of any code without the possibility of damaging severely the Operating System. Ubuntu also runs with Python, so it's better to do the mess in a controlled environment. That's how we installed the pyGrav code in Beatrice's PC, for example. The code is very old, so it needs very old versions of packages and Python interpreter. Acandona is key in this.
+
+Anaconda/Miniconda/Conda (all work the same way) is a program that allows us to create these virtual environments. It comes with a base environment, but we will not use that. We will create another one later. If you have the permissions to install things (root user) in your own Ubuntu machine, then we're ready to go! Otherwise these must be asked to Matthias.
+
+Let's download the program first. Enter to the following link and download the latest version, the one on top:
+
+    https://docs.conda.io/en/latest/miniconda.html#linux-installers
+
+Then you install it with the following commands:
+    
+    bash Miniconda3-latest-Linux-x86_64.sh
+    conda update conda
+
+Finally, one last an important command. We need to change the main channel of conda. A channel is the server from where all the packages are requested. Due to legal terms, GFZ is not able to use the main one due to a change in their license terms. Therefore we will change this to avoid problems (for more info get in contact with: Alexander Jordan - alex@gfz-potsdam.de). Run this:
+    
+    conda config --add channels conda-forge
+    
+After this, I recommend to close and open again the terminal.
+
+
+2. CREATE THE ENVIRONMENT:
+
+The following I don't recommend since the .yml file contains a lot of unnecessary packages to run Fobench.
+To create the environment, you just have to run in the terminal the following command (will take a while):
+
+    conda env create -f environment.yml
+
+Instead, I do recommend to just create an empty environment:
+
+    conda create --name "name-of-the-new-environment" python=3.11
+
+With that it is done! To start playing with the code, just activate the environment by writing in the terminal:
+
+    conda activate "name-of-the-new-environment"
+
+and you need to do this to be able to run the codes of DAS without problems. Once you're done for the moment, just close the environment by typing:
+
+    conda deactivate
+
+or closing the terminal. No need to specify the name of the environment since you're already in.
+
+
+3. INSTALL FOBENCH:
+
+Activate the environment, and then you can install this code by runing in the command line (inside your environment or out):
+
+    pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
+
+And then you have it ready for importing it and use it!
+
+ALL COMMENTS AND SUGGESTIONS ARE ENCOURAGED AND WELCOME. THAT'S THE ONLY WAY THIS CODE CAN IMPROVE! -->
