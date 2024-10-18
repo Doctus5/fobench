@@ -7,6 +7,7 @@ Last modification on 2023-09-14 14:51:00
 :author:
 	- Sergio Diaz (sergioad@gfz-potsdam.de)
 :contributors:
+	- Jonas Pätzel (jonas.patzel@ulb.be)
 	- Christopher Wollin (wollin@gfz-potsdam.de)
 :license:
 
@@ -18,7 +19,7 @@ from setuptools import setup
 
 setup(
     name ='fobench',
-    version = '0.0.1',
+    version = '0.0.2',
     packages = ['fobench'],
     install_requires = [
         # Here goes the dependencies !!
