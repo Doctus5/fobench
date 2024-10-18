@@ -56,22 +56,22 @@ class Fiber(object):
 			The basis for manipulating the data is numpy. Tools are inspired in Obspy, however using
 			an obspy class for this takes long time in their processing tools.
 		:Params:
-			- filepath(type:String): compelte path fot he file to be read.
+			- filepath(type:String): complete path of the file to be read.
 			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting "silixa" (Default), "febus", and "bam".
 			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
-			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'
+			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
 		:Return:
 			- NA.  
 		'''
-	
+ 
+		# Private attributes
 		self.__filepath__ = filepath
+
+		# Public attributes
 		self.company = company
 		self.format = filepath.split('.')[-1]
-		range_ch = [range_ch] if isinstance(range_ch,int) else range_ch
   
-		attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format)
-		
-		#file_file.close() # You might need more things from there afterwards.
+		attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
 		
 		self.base = attributes.file
 		self.fiber = attributes.fiber
@@ -89,8 +89,8 @@ class Fiber(object):
 		self.num_points = attributes.num_points # int(self.time_length/self.dt)
 		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
 		self.channel_offset = attributes.channel_offset # offset where measurement started. It will not always record at channel 0 or distance 0.
-		self.units = attributes.units
-		self.data = self.__data__() if load_data == True else None
+		# self.data = self.__data__() if load_data == True else None
+		self.data = attributes.data
 		self.corrected = False
 		self.sensing = sensing
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
@@ -148,59 +148,59 @@ recording parameters:
 		return self.concatenate(other, fill_gaps=0)
 	
 	
-	#Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
-	def __data__(self):
-		'''
-		Co-authors: --
-		Description: 
-			Extracts the data depending on the file type. This is done automatically during initialization of the class.
-		:Params:
-			- NA.
-		:Return:
-			- values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.  
-		'''
+	# #Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
+	# def __data__(self):
+	# 	'''
+	# 	Co-authors: --
+	# 	Description: 
+	# 		Extracts the data depending on the file type. This is done automatically during initialization of the class.
+	# 	:Params:
+	# 		- NA.
+	# 	:Return:
+	# 		- values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.  
+	# 	'''
 	
-		values = []
+	# 	values = []
 		
-		if self.format == 'tdms' and self.company == 'silixa':
+	# 	if self.format == 'tdms' and self.company == 'silixa':
 			
-			values = np.array(self.channels).T # Old slow method.
-			# values = self.base['Measurement'].as_dataframe().to_numpy() # New way to load data. Cuts time by half.
+	# 		values = np.array(self.channels).T # Old slow method.
+	# 		# values = self.base['Measurement'].as_dataframe().to_numpy() # New way to load data. Cuts time by half.
 			
-		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'febus':
+	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'febus':
 		
-			dims = self.dataset.shape
-			values = self.dataset[:,:self.LAG,:].reshape(int(dims[0]*self.LAG),dims[2])
+	# 		dims = self.dataset.shape
+	# 		values = self.dataset[:,:self.LAG,:].reshape(int(dims[0]*self.LAG),dims[2])
    
-		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'silixa':
+	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'silixa':
 
-			values = np.array(self.dataset[:,self.channels])
+	# 		values = np.array(self.dataset[:,self.channels])
 			
-		if self.format == 'npy' and self.company == 'bam':
+	# 	if self.format == 'npy' and self.company == 'bam':
 		
-			values = np.load(self.__filepath__)
+	# 		values = np.load(self.__filepath__)
 
-		if self.format == 'npz' and self.company == 'bam':
+	# 	if self.format == 'npz' and self.company == 'bam':
 		
-			values = np.load(self.__filepath__)['ph']
+	# 		values = np.load(self.__filepath__)['ph']
    
-		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'terra15':
+	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'terra15':
 
-			values = np.array(self.dataset['data'])
+	# 		values = np.array(self.dataset['data'])
 
-		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'asn':
+	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'asn':
 
-			values = np.array(self.dataset)
+	# 		values = np.array(self.dataset)
 
-		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'quantx':
+	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'quantx':
 
-			values = np.array(self.dataset['RawData'])
+	# 		values = np.array(self.dataset['RawData'])
 		
-		if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'aragon':
+	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'aragon':
 
-			values = np.array(self.dataset)*(10**-9) if self.units == 'strain' else np.array(self.dataset)
+	# 		values = np.array(self.dataset)*(10**-9)
 
-		return values.astype('float')
+	# 	return values.astype('float')
 
 
 	# Translates the string inout dimension into numerical axis of numpy.
@@ -229,19 +229,27 @@ recording parameters:
 
 
 	# Returns the complete metadata of the file.
-	def metadata(self):
+	def metadata(self, meta_dict=False):
 		'''
 		Co-authors: --
 		Description: 
 			Print out the metadata in an organized way.
 		:Params:
-			- NA.
+			- meta_dict(type:Boolean): if True, metadata is returned as dictionary. Default is False.
 		:Return:
 			- NA.  
 		'''
+
+		if meta_dict == True:
+
+			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
+			
+			return metainfo
+
+		else:
 	
-		for prop, value in self.properties.items():
-			print(f"{prop} = {value}")
+			for prop, value in self.properties.items():
+				print(f"{prop} = {value}")
 		
 	
 	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
@@ -519,7 +527,7 @@ recording parameters:
 		else:
 		
 			first, second = input_das, self
-			
+		
 		tf = first.end_time + first.dt
 		num_t = int((second.start_time + second.dt - first.end_time) / first.dt) - 1
 		
@@ -535,27 +543,8 @@ recording parameters:
 		self.data = np.concatenate((first.data, second.data), axis=axis)
 		self.start_time = first.start_time
 		self.end_time = second.end_time
-		self.num_points += second.num_points
+		self.num_points = self.data.shape[axis]
 		self.time_length = self.end_time - self.start_time
-			
-		'''
-		#Old version of Code
-		if self.start_time <= input_das.start_time:
-		
-			tf = self.end_time + self.dt
-			num_t = int((input_das.start_time+input_das.dt - self.end_time)/self.dt)-1
-			fill = np.zeros((num_t, self.total_channels))
-			
-			if fill.size != 0:
-				
-				self.data = np.concatenate((self.data,fill), axis=0)
-
-			self.data = np.concatenate((self.data, input_das.data), axis=0)
-
-			self.end_time = input_das.end_time
-			self.num_points += input_das.num_points
-			self.time_length = self.end_time - self.start_time
-		'''
 			
 		return self
 
@@ -652,6 +641,8 @@ recording parameters:
 		self.channels_num = new_channels_num
 		self.total_channels = len(self.channels_num)
 		
+		print(data.shape, )
+		
 		return self
 
 
@@ -720,9 +711,12 @@ recording parameters:
 		
 		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
-		taper = signal.windows.tukey(M=M, alpha=frac*2)
-		taper = taper[:,None] if axis == 0 else taper[None, :]
-		
+		taper = signal.windows.tukey(M= M, alpha=frac*2)
+
+		# dimensions fix in case of mismatch between lengths.
+		taper = np.concatenate((taper, np.zeros(M - taper.size))) if taper.size < M else taper # fix length due to even or odd numbers in points.
+		taper = taper[:, None] if axis == 0 else taper[None, :]
+
 		self.data = np.multiply(self.data, taper)
 		
 		return self
@@ -1060,7 +1054,7 @@ recording parameters:
 	
 	
 	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function. 
-	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', file_name=None, where=None, **kwargs):
+	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1075,7 +1069,9 @@ recording parameters:
 			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, but the figure instance would be open
 			so the user can add further changes. Default = True.
 			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section). 
+			Default = True.
+   			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 		:Return:
@@ -1104,15 +1100,21 @@ recording parameters:
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2)
 
 			freqs, fft_values = tools.spectrum(o_signal, self.sampling_frequency, True, order, int(self.num_points/4), nfft)
-			fft_values = np.flip(fft_values/fft_values.max()) if norm == True else np.flip(fft_values)
+			fft_values = fft_values/fft_values.max() if norm == True else fft_values
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2) # to smooth the surve
 
 
 			spectrogram.append(fft_values)
 			
 		spectrogram = np.array(spectrogram).T
-			
-		plot.gen_spectrogram(spec_matrix=spectrogram, freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
+		
+		if results == True:
+    
+			return freqs, spectrogram
+
+		else:
+
+			plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
 		
 		
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
