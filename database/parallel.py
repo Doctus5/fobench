@@ -17,6 +17,7 @@ Last modification on 2024-09-07 11:42:00
 import subprocess as terminal
 import numpy as np
 from itertools import chain
+from functools import partial
 
 
 class Parallel(object):
@@ -122,7 +123,8 @@ class Parallel(object):
         # See if mpi4py is installed in the Python environment.
         try:
             
-            import concurrent.futures as multip
+            # import concurrent.futures as multip
+            import multiprocessing as multip
             self._MODE_ = multip
             
         except ImportError:
@@ -173,23 +175,20 @@ class Parallel(object):
                 results = self.mpi_comm.gather(batch_result, root=0)
                 self.mpi_comm.Barrier() # wait for all to finish.
                 
-                self._MODE_.Finalize()
+                if self.mpi_rank != 0:
+                    
+                    self._MODE_.Finalize()
+                    exit()
             
-        # for Multiprocessing    
+        # for Multiprocessing.
         if self.mode == 'multiprocessing':
         
-            results = [0] * self.n_cores
-        
-            with self._MODE_.ThreadPoolExecutor(max_workers = self.n_cores) as executor:
+            results = []
+            ids = np.arange(self.n_cores)
+            
+            with self._MODE_.Pool() as pool:
                 
-                # results = list(executor.map())
-                
-                submissions = [executor.submit(self.__run_task__, i, task(arguments_chunk[i], *fixed_args)) for i in range(self.n_cores)]
-
-                for sub_result in self._MODE_.as_completed(submissions):
-                    
-                    task_id, result = sub_result.result()
-                    results[task_id] = result
+                results = pool.starmap(task, [(arguments_chunk[i], *fixed_args) for i in range(self.n_cores)])
 
         # Is there any output from the parallel computing for further process?
         if to_return == True:
