@@ -17,6 +17,7 @@ Last modification on 2024-07-08 15:59:00
 """
 
 # Necessary packages to import
+import pandas as pd
 
 # Fobench classes
 from .dataset import Dataset
@@ -51,20 +52,19 @@ class Unit(object):
 		self.datasets = [] # list of datasets. Each one is a Unit class that contains Datasets class.
 
 		# Private attributes
-		self.__folder_path__ = folder_path
+		self.__folder_path__ = folder_path # central folder path of files
+		self.__builded__ = False # is there a metadata file for it.
 
 		# Public attributes
 		self.sensing = sensing
 		self.company = company
 
 		# run initial build methods
-		if metadata_file == None:
+		# if metadata_file == None:
 
-			self.__build_from_scratch__(parallel=True)
 
-		else:
+		# else:
     
-			self.__build_from_metafile__()
 
 
 	'''
@@ -85,34 +85,44 @@ class Unit(object):
 			- NA.
 		'''
 
+		return 0
+  
+
+	'''
+	######################################################
+	Public Functions
+	######################################################
+	'''
+
 
 	#Creates the basic variables of the DAS object with its characteristics
-	def __build_from_scratch__(self, parallel=False):
+	def build(self, format=None, parallels=None):
 		'''
 		Co-authors: --
 		Description: 
 			Builds from a given metadata file.
 		:Params:
-			- folder_path(type:String): compelte path where the raw files of a single unit are located.
+			- parallel_params(type:Dict): dictionary containing the parameters for parallelization. If parameters are
+			given, then the building method runs in parallel. If None, it runs in serial.
 		:Return:
 			- NA.
 		'''
 
-		files = manager.scan_folder(self.__folder_path__)[100:400] # remove the limitations.
-		# print('SERIAL!!!')
-		# database_files = manager.files2database(files, self.company) # organize it as a Dataframe. Use Fiber Class.
-		# print(database_files, type(database_files))
+		files = manager.scan_folder(self.__folder_path__, format=format) # remove the limitations.
 
 		# calculate in parallel mode
-		print('PARALLEL!!!')
-		if parallel == True:
+		if parallels != None:
 
-			hpc = Parallel(params={'mode':'mpi', 'n_cores':50}) # initialize parallel process.
+			hpc = Parallel(params=parallels) # initialize parallel process.
 			results = hpc.submit(manager.files2database, files, self.company) # run.
-			# print(results, type(results))
+			
 			# now lets joint the results
+			database_files = pd.concat(results, ignore_index=True)
 
-		return 0
+		# in serial mode
+		else:
+
+			database_files = manager.files2database(files, self.company) # organize it as a Dataframe. Use Fiber Class.
 
 		database_files = manager.chrono_order(database_files) # aranges in a chronological order.
 		chunks = manager.database_discontinuities(database_files, split=True) # splits based on discontinuities.
@@ -121,5 +131,7 @@ class Unit(object):
 		for chunk in chunks:
     
 			self.datasets.append( Dataset(folder_path=self.__folder_path__, company=self.company, sensing=self.sensing, database=chunk) )
+
+		self.__builded__ = True # its now builded.
 
 		return self
