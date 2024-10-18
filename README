@@ -1,4 +1,91 @@
-########################### BENCH TESTING FOR FIBER OPTIC SENSING CODE #################################
+# Fobench: Fiber Optic Sensing Code Bench Testing
+
+Welcome to **Fobench**! This repository contains code for reading and processing Distributed Acoustic Sensing (DAS) files. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
+
+Follow this guide to get started with Fobench.
+
+---
+
+## Table of Contents
+1. [Installation](#installation)
+   - [Install Anaconda/Miniconda/Conda](#install-anacondaminicondaconda)
+   - [Create a Conda Environment](#create-a-conda-environment)
+2. [Installing Fobench](#installing-fobench)
+3. [Contributing](#contributing)
+
+---
+
+## Installation
+
+### Install Anaconda/Miniconda/Conda
+
+We will use Conda to create a virtual environment to safely manage the dependencies for Fobench.
+
+1. Download the latest version of Miniconda from [this link](https://docs.conda.io/en/latest/miniconda.html#linux-installers).
+
+2. Run the following commands to install Miniconda and update Conda:
+
+   ```bash
+   bash Miniconda3-latest-Linux-x86_64.sh
+   conda update conda
+   ```
+
+3. Change the main Conda channel to `conda-forge` (this avoids issues related to licensing):
+
+   ```bash
+   conda config --add channels conda-forge
+   ```
+
+4. Close and reopen the terminal to apply changes.
+
+---
+
+### Create a Conda Environment
+
+You can create a minimal environment for Fobench with the following command:
+
+```bash
+conda create --name fobench_env python=3.11
+```
+
+Once created, activate the environment:
+
+```bash
+conda activate fobench_env
+```
+
+When you're done, deactivate the environment by running:
+
+```bash
+conda deactivate
+```
+
+---
+
+## Installing Fobench
+
+With the environment activated, install Fobench using `pip`:
+
+```bash
+pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
+```
+
+Once installed, you're ready to start using the code in your Python environment!
+
+---
+
+## Contributing
+
+Your feedback is crucial to the development of this code. If you have suggestions, please feel free to reach out or submit an issue. You can contact:
+
+- Alexander Jordan: [alex@gfz-potsdam.de](mailto:alex@gfz-potsdam.de)
+
+All contributions are welcome, including code improvements, bug reports, and feature suggestions!
+
+
+
+
+<!-- ########################### BENCH TESTING FOR FIBER OPTIC SENSING CODE #################################
 
 Dear User! 
 
@@ -59,9 +146,4 @@ Activate the environment, and then you can install this code by runing in the co
 
 And then you have it ready for importing it and use it!
 
-ALL COMMENTS AND SUGGESTIONS ARE ENCOURAGED AND WELCOME. THAT'S THE ONLY WAY THIS CODE CAN IMPROVE!
-
-
-
-
-
+ALL COMMENTS AND SUGGESTIONS ARE ENCOURAGED AND WELCOME. THAT'S THE ONLY WAY THIS CODE CAN IMPROVE! -->
