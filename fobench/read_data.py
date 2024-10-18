@@ -291,7 +291,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         time_length = end_time - start_time
         gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
         channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
-        units = 'strain' if str(dataset.attrs['units'])[2:-1] == 'nanostrain' else str(dataset.attrs['units'])[2:-1] # for inmediate conversion to strain instead of nanostrain.
+        units = [key for key in file_file.keys()][1]
         conv_factor = None # conversion factor if given explicitly
         
     else:

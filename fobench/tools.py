@@ -4,6 +4,8 @@ from obspy.core.stream import Stream
 from obspy.core import UTCDateTime as UTC
 from datetime import datetime
 
+import functools
+import inspect
 import warnings
 import numpy as np
 import scipy.signal as signal
@@ -32,6 +34,72 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 '''
 TOOLS USED EXCLUSIVE FOR Fiber CLASS
 '''
+STRAIN_UNIT_MAP = {
+-1: 'integrated strain',
+0: 'strain',
+1: 'strain-rate',
+2: 'strain-acceleration',
+3: 'strain-jerk'}
+
+TEMP_UNIT_MAP = {
+-1: 'integrated temperature',
+0: 'temperature',
+1: 'temperature rate',
+2: 'temperature acceleration'}
+
+
+def _update_processing(func):
+	'''
+	Co-authors: Jonas Pätzel
+	Description: 
+		internal decorator function that updates the Fiber.processing attribute after each processing function
+		in case of integration or differentiation of the data also updates Fiber.units
+	:Params:
+		-func(type: function): preprocessing function that will be logged
+	:Return:
+		- NA
+	'''
+
+	@functools.wraps(func)
+	def wrapper(*args, **kwargs):
+		
+		func_name = func.__name__
+		
+		# extract all arguments
+		bound_arguments = inspect.signature(func).bind(*args, **kwargs)
+		bound_arguments.apply_defaults()
+		args_dict = bound_arguments.arguments
+		args_dict.pop('self')
+		
+		# function call
+		result = func(*args, **kwargs)
+		
+		# append info to fiber instance
+		fiber = args[0]
+		fiber.processing.append({func_name : args_dict})
+		
+		if func_name in ['integrate', 'differentiate'] and args_dict['dim']=='t':
+			if (fiber.sensing == 'das' or fiber.sensing == 'dss'): unit_map = STRAIN_UNIT_MAP
+			elif fiber.sensing == 'dts': unit_map = TEMP_UNIT_MAP
+			
+			# find current unit
+			try: key = [i for i in unit_map if unit_map[i] == fiber.units][0]
+			except: key = fiber.units[2]
+
+				# depending on operation change key
+			if func_name == 'integrate': key -= 1
+			elif func_name == 'differentiate': key += 1
+
+				# assign new unit
+			try: fiber.units = unit_map[key]
+			except: fiber.units = f'd^{key}/dt {unit_map[0]} [dm/m]'
+			
+		return result
+	return wrapper
+
+
+
+
 
 
 # NEW DATA INSTRUMENT CORRECTION

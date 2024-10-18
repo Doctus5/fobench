@@ -81,10 +81,10 @@ class Fiber(object):
 		self.channels_num = attributes.chans_nums
 		self.total_channels = attributes.list_chans_num
 		self.sampling_frequency = attributes.sampling_frequency # sampling rate of the data.
-		self.dt = 1 / self.sampling_frequency # calculated time stamp.
+		self.dt = 1 / self.sampling_frequency # calculated time step.
 		self.start_time = attributes.start_time # start time of the data in file.
 		self.end_time = attributes.end_time # end time of the data in file.
-		self.spatial_interval = attributes.spatial_interval # channel spaciong or spatial interval between channels [m].
+		self.spatial_interval = attributes.spatial_interval # channel spacing or spatial interval between channels [m].
 		self.time_length = self.end_time - self.start_time
 		self.num_points = attributes.num_points # int(self.time_length/self.dt)
 		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
@@ -93,8 +93,8 @@ class Fiber(object):
 		self.data = attributes.data
 		self.corrected = False
 		self.sensing = sensing
-		self.units = attributes.units
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
+		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
 
 		# Attributed not initialized since beginning. Required further processing to be initialized
 		self.ch_coord = None # coordinates of channels.
@@ -133,7 +133,6 @@ recording parameters:
 {self.gauge_length = }
 '''
 	
-
 	def __iadd__(self, other):
 		'''
 		Co-authors: Jonas Pätzel
@@ -145,7 +144,7 @@ recording parameters:
 			- NA.  
 		'''
 		if not isinstance(other, Fiber):
-			raise TypeError
+			raise TypeError('Object to add must be instance of Fiber class')
 		return self.concatenate(other, fill_gaps=0)
 	
 	
@@ -267,7 +266,7 @@ recording parameters:
 		return copy.deepcopy(self)
 		
 	
-	#Performs instrument correction on the data to get the strain rate values.	
+	#Performs instrument correction on the data to get the strain rate values.
 	def instr_correct(self, target='strain-rate'):
 		'''
 		Co-authors: --
@@ -361,6 +360,7 @@ recording parameters:
 		self.data = self.data[:,ch0:chf+1]
 		self.channels = self.channels[ch0:chf+1]
 		self.channels_num = self.channels_num[ch0:chf+1]
+		if hasattr(self, 'distances'): self.distances = self.distances[ch0:chf+1]
 		self.total_channels = len(self.channels_num)
 		
 		return self
@@ -371,7 +371,7 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Attach coordinates of specified channels for the class instance. Necessary for plotting the fibre path and other spacial operations.
+			Attach coordinates of specified channels for the class instance. Necessary for plotting the fibre path and other spatial operations.
 		:Params:
 			- n_ch(type:Numpy): 1D array of channel number.
 			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
@@ -394,6 +394,21 @@ recording parameters:
 		self.ch_coord = ch_coord
 		
 		return self
+
+
+	def append_distances(self, offset=None):
+		'''
+		Co-authors: Jonas Pätzel
+		Description:
+			Attach optical distances channels for the class instance
+		:Params:
+			offset(type: float) offset to add to all channel distances, if None, Fiber.channel_offset is added
+		:Return:
+			- NA.  
+		'''
+		if offset is None:
+			offset = self.channel_offset
+		self.distances = [(num * self.spatial_interval) + offset for num in self.channels_num]
 
 
 	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
@@ -516,16 +531,14 @@ recording parameters:
 		tf = first.end_time + first.dt
 		num_t = int((second.start_time + second.dt - first.end_time) / first.dt) - 1
 		
-		if num_t < 0:
-			
-			num_t = abs(num_t)
-			second.data = second.data[num_t:,:]
-		
-		if num_t > 0:
-		
-			fill = np.zeros((num_t, first.total_channels))
-			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
-			first.data = np.concatenate((first.data, fill), axis=axis)
+# 		if num_t < 0:
+# 			num_t = abs(num_t)
+# 			second.data = second.data[num_t:,:]
+# 		
+# 		if num_t > 0:
+# 			fill = np.zeros((num_t, first.total_channels))
+# 			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
+# 			first.data = np.concatenate((first.data, fill), axis=axis)
 			
 		self.data = np.concatenate((first.data, second.data), axis=axis)
 		self.start_time = first.start_time
@@ -589,6 +602,7 @@ recording parameters:
 
 		
 	#function for upsampling spatially by double/half depending if it is upsampling or downsampling spatially.
+	@tools._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
 		Co-authors: --
@@ -633,6 +647,7 @@ recording parameters:
 
 
 	#Function for detrending the data
+	@tools._update_processing
 	def detrend(self, order=1, dim='t'):
 		'''
 		Co-authors: --
@@ -663,6 +678,7 @@ recording parameters:
 
 
 	#Function for demeaning the data
+	@tools._update_processing
 	def demean(self, dim='t'):
 		'''
 		Co-authors: --
@@ -680,6 +696,7 @@ recording parameters:
 		return self
 	
 	#Function for tappering the data
+	@tools._update_processing
 	def taper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
@@ -706,6 +723,7 @@ recording parameters:
 		
 	
 	#Function to decimate the data by any frequency below the original. Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...). The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
+	@tools._update_processing
 	def decimate(self, new_freq=None, ftype='fir-remez'):
 		'''
 		Co-authors: --
@@ -743,15 +761,20 @@ recording parameters:
 
 
 	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
-	def normalize(self, method='absolute max', dim='d'):
+	@tools._update_processing
+	def normalize(self, method='absolute max', dim='d', ram_window=None):
 		'''
 		Co-authors:Jonas Pätzel
 		Description:
-			min-max normalizes the data according to the chosen method
+			normalizes the data according to the chosen method
 		:Params:
-			- method (type:String): normalization either with respect to 
-			the whole record ('absolute max', default) or for each channel/timestep individually ('trace max').
+			- method (type:String):type of normalization can be:
+				-'absolute max': with respect to the whole record (default)
+				-'trace max': for each channel/timestep individually
+				-'running mean': running absolute mean normalization
+				-'1bit': 1-bit normalization
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
+			-ram_window (type: int): window length in seconds, only for running absolute mean normalization
 		:Return:
 			- NA.  
 		'''
@@ -759,23 +782,52 @@ recording parameters:
 		axis = self.__axis__(dim)
 
 		if method == 'absolute max':
-      
+
 			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min())
 			normalized_data = normalized_data * 2 -1 
    
 		elif method == 'trace max':
-      
+
 			channel_min = self.data.min(axis=axis, keepdims=True)
 			channel_max = self.data.max(axis=axis, keepdims=True)
 			normalized_data = (self.data - channel_min)/(channel_max - channel_min)
 			normalized_data = normalized_data * 2 -1
-		
+
+		elif method == 'running mean':
+
+			if ram_window is None:
+				raise TypeError('please provide a window length for the running absolute mean normalization')
+			
+			normalized_data = self.data.copy()
+			
+			w_len = int(self.sampling_frequency * ram_window)
+
+			for i in range(self.total_channels):
+				segment_start = 0
+				segment_end = w_len 
+                
+				while segment_end < self.num_points:
+					segment = normalized_data[:,i][segment_start:segment_end]
+					weight = np.mean(np.abs(segment)) / (2 * w_len + 1)
+					normalized_data[:,i][segment_start + w_len // 2] /= weight
+
+					segment_start += 1
+					segment_end += 1
+
+		elif method == '1bit':
+
+			normalized_data = np.sign(self.data).astype(np.float64)
+
+		else:
+			raise ValueError(f'"{method}" is not a valid normalization method')
+
 		self.data = normalized_data
 		
 		return self
 
 
 	# Function for filtering. Shall we also declare dimensionality options here?
+	@tools._update_processing
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
 		Co-authors: --
@@ -805,6 +857,7 @@ recording parameters:
 
 
 	# Function to make a fk-filter based on the input parameters.
+	@tools._update_processing
 	def fk_filter(self, freq_min, freq_max, k_min, k_max):
 		'''
 		Co-authors: --
@@ -836,6 +889,7 @@ recording parameters:
 		
 		
 	#Function for integrating the signal
+	@tools._update_processing
 	def integrate(self, method='cum_trapezoid', dim='t', taper=True):
 		'''
 		Co-authors: --
@@ -854,7 +908,7 @@ recording parameters:
 		dx = self.dt if axis == 0 else self.spatial_interval
 		
 		if taper == True:
-			self.taper(axis=axis)
+			self.taper(dim=dim)
 		
 		if method == 'cum_trapezoid':
 			res = integrate.cumulative_trapezoid(y=self.data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
@@ -866,12 +920,12 @@ recording parameters:
 		#	self.detaper(axis=axis)
 		
 		self.data = res
-		self.units = 'Strain'
 		
 		return self
 	
 	
 	#Function for differentiating the signal
+	@tools._update_processing
 	def differentiate(self, method='gradient', dim='t'):
 		'''
 		Co-authors: --
@@ -887,17 +941,17 @@ recording parameters:
 		axis = self.__axis__(dim)
 		res = np.gradient(self.data, self.dt, axis=axis)
 		self.data = res
-		self.units = 'Strain acc. [1/s$^{2}$]'
 		
 		return self
 		
 		
 	#Function to detaper...
+	@tools._update_processing
 	def detaper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
 		Description:
-			Tapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
+			Detapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
 		:Params:
 			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
@@ -939,7 +993,7 @@ recording parameters:
 		
 		
 	#Function for plotting or returning the Root-Mean-Square amplitude (RMS-A) of the data.
-	def rmsa(self, window=None, overlap=None, dim='t'):
+	def rmsa(self, window=None, overlap=None, dim='t', make_plot=False):
 		'''
 		Co-authors: --
 		Description:
@@ -948,6 +1002,7 @@ recording parameters:
 			- window(type:Float): moving window length in seconds to use for the RMS-A calculation. Default is the time length of the data.
 			- overlap(type:Float): overlapping time between windows. Still under construction. DO NOT USE.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
+			- make_plot(type: Bool): if set to True plot of the RMSA witll be generated
 		:Return:
 			- times(type:Numpy): array of the new times per each RMS-A value.
 			- rms_a(type:Numpy): array containing the RMS-A values.
@@ -965,6 +1020,9 @@ recording parameters:
 			rms = np.sqrt(np.mean(subdata**2, axis=axis))
 			rms_a.append(rms)
 			
+		if make_plot:
+			plot.gen_DAS_plot(data=np.array(rms_a), t=times, channels=self.channels, cmap='inferno', title = f'RMSA for {window}s window')
+
 		return times, np.array(rms_a)
 
 
