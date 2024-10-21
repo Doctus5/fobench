@@ -15,15 +15,13 @@ Last modification on 2024-06-28 19:17:00
 """
 
 
-
-
 #Necessary packages to import
 import numpy as np
 import copy
 
 import scipy.signal as signal
 import scipy.integrate as integrate
-from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2
+from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2, fft, ifft
 
 from obspy.core import UTCDateTime as UTC
 from obspy.core.trace import Trace as oTrace
@@ -93,6 +91,7 @@ class Fiber(object):
 		self.data = attributes.data
 		self.corrected = False
 		self.sensing = sensing
+		self.units = attributes.units
 		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
 		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
 
@@ -121,17 +120,15 @@ class Fiber(object):
 		:Return:
 			- NA.  
 		'''
-		return f'''Instance of Fiber class \n
+
+		attributes = ['units', 'start_time', 'end_time', 'total_channels', 
+					'spatial_interval', 'sampling_frequency', 'gauge_length']
+
+		return f'''\nInstance of Fiber class
 recording parameters:
----------------------------------------------------------------------
-{self.units = }
-{self.start_time = }
-{self.end_time = }
-{self.total_channels = }
-{self.spatial_interval = }
-{self.sampling_frequency = }
-{self.gauge_length = }
-'''
+{'-'*65}
+''' + '\n'.join(f'{attr.ljust(25)} = {getattr(self, attr)}' for attr in attributes)
+
 	
 	def __iadd__(self, other):
 		'''
@@ -824,6 +821,29 @@ recording parameters:
 		self.data = normalized_data
 		
 		return self
+
+	@tools._update_processing
+	def whiten(self):
+		'''
+		Co-authors: Jonas Pätzel
+		Description:
+		performs spectral whitening of all channels, signals should be adequatly preprocessed
+		(at the moment very basic, only weighting the spectrum by its absolute values, 
+		TODO: implement running mean smoothing of magnitude spectrum)
+		:Params:
+			-
+		:Return:
+			- Fiber instance with whitened data
+		'''
+
+		if not any('filter' in preprocessing for preprocessing in self.processing):
+			print('WARNING: Data has possibly not been filtered before whitening! Check preprocessing and results!')
+	
+		data_spec = fft(self.data, axis=1)    
+		magnitude_spec = np.abs(data_spec)
+		magnitude_spec[magnitude_spec == 0] = 1e-9
+		
+		self.data = ifft(data_spec / magnitude_spec, axis=1).real
 
 
 	# Function for filtering. Shall we also declare dimensionality options here?

@@ -79,7 +79,7 @@ Once installed, you're ready to start using the code in your Python environment!
 Your feedback is crucial to the development of this code. If you have suggestions, please feel free to reach out or submit an issue. You can contact:
 
 - Sergio Diaz-Meza: [sergioad@gfz-potsdam.de](mailto:sergioad@gfz-potsdam.de)
-- Jonas Pätzel: [jonas.patzel@ulb.be](mailto:sjonas.patzel@ulb.be)
+- Jonas Pätzel: [jonas.patzel@ulb.be](mailto:jonas.patzel@ulb.be)
 
 All contributions are welcome, including code improvements, bug reports, and feature suggestions!
 
