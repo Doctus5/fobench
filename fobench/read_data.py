@@ -79,34 +79,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = properties['OffsetLength']
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
-    
-    # Required checking! Contact providers! TEST!
-    elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
-    
-        print('Reading H5 file (Febus Format)...')
-        LAG = 201 #important parameter! Sometimes the data is repeated in batches. This number indicates the position in the minibatch where the data begins to be repeated.
-        file_file = h5.File(filepath,'r')
-        instrument = list(file_file.keys())[0]
-        properties = file_file[instrument]['Source1']['Zone1'].attrs
-        fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
-        meassure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
-        dataset = file_file[instrument]['Source1']['Zone1'][meassure_type]
-        chans_nums = [i for i in range(dataset.shape[2])]
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums[range_ch]), LAG) if load_data == True else None
-        sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
-        dt = 1/sampling_frequency
-        start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
-        end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * LAG)
-        spatial_interval = properties['Spacing'][0]
-        time_length = end_time - start_time
-        num_points = int(time_length/dt) # check!
-        gauge_length = properties['GaugeLength'] # CHECK THIS!!
-        channel_offset = 0 # FIX THIS!!
-        units = 'counts'
-        conv_factor = None # conversion factor if given explicitly
-
+        
     elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
     
         print('Reading H5 file (Silixa Format)...')
@@ -148,53 +121,32 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = abs(properties['PreTriggerSamples'])
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
-        
-    elif format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
     
-        print('File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.')
-        file_file = None
-        properties = None
-        chans = None
-        dataset = np.load(filepath)
-        chans_nums = [i for i in range(dataset.shape[1])]
+    # Required checking! Contact providers! TEST!
+    elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
+    
+        print('Reading H5 file (Febus Format)...')
+        LAG = 201 #important parameter! Sometimes the data is repeated in batches. This number indicates the position in the minibatch where the data begins to be repeated.
+        file_file = h5.File(filepath,'r')
+        instrument = list(file_file.keys())[0]
+        properties = file_file[instrument]['Source1']['Zone1'].attrs
+        fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
+        meassure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
+        dataset = file_file[instrument]['Source1']['Zone1'][meassure_type]
+        chans_nums = [i for i in range(dataset.shape[2])]
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
-        fiber = 'La Chida'
-        sampling_frequency = 100000
+        data = __data__(dataset, format, company, list(chans_nums[range_ch]), LAG) if load_data == True else None
+        sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
         dt = 1/sampling_frequency
-        start_time = UTC('2023-03-01T00:00:00')
-        spatial_interval = 0.4
-        num_points = int(dataset.shape[0])
-        end_time = UTC(start_time + num_points*dt)
+        start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
+        end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * LAG)
+        spatial_interval = properties['Spacing'][0]
         time_length = end_time - start_time
-        gauge_length = 2
-        channel_offset = None
-        units = None
-        conv_factor = None # conversion factor if given explicitly
-
-    elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
-    
-        print('File format is a Numpy Zip Class. No Gaueg Length specified. Do not attempt to convert to Stran-Rate.')
-        file_file = None
-        properties = None
-        chans = None
-        dataset = np.load(filepath)
-        chans_nums = [i for i in range(len(dataset['distance']))]
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
-        fiber = 'La Chida'
-        sampling_frequency = dataset['freq']
-        dt = 1/sampling_frequency
-        start_time = UTC('2023-03-01T00:00:00')
-        spatial_interval = dataset['distance'][1] - dataset['distance'][0]
-        num_points = int(dataset['time'][:-2].shape[0])
-        end_time = UTC(start_time + num_points*dt)
-        time_length = end_time - start_time
-        gauge_length = 2
-        channel_offset = None
-        units = None
+        num_points = int(time_length/dt) # check!
+        gauge_length = properties['GaugeLength'] # CHECK THIS!!
+        channel_offset = 0 # FIX THIS!!
+        units = 'counts'
         conv_factor = None # conversion factor if given explicitly
     
     #file_file.close()
@@ -292,6 +244,58 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
         channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
         units = [key for key in file_file.keys()][1]
+        conv_factor = None # conversion factor if given explicitly
+        
+	# ####################################################
+	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
+	# ####################################################
+    
+    elif format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+    
+        print('File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.')
+        file_file = None
+        properties = None
+        chans = None
+        dataset = np.load(filepath)
+        chans_nums = [i for i in range(dataset.shape[1])]
+        chans = np.array(chans_nums)
+        # loading the data conditioned
+        data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
+        fiber = 'La Chida'
+        sampling_frequency = 100000
+        dt = 1/sampling_frequency
+        start_time = UTC('2023-03-01T00:00:00')
+        spatial_interval = 0.4
+        num_points = int(dataset.shape[0])
+        end_time = UTC(start_time + num_points*dt)
+        time_length = end_time - start_time
+        gauge_length = 2
+        channel_offset = None
+        units = None
+        conv_factor = None # conversion factor if given explicitly
+
+    elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+    
+        print('File format is a Numpy Zip Class. No Gaueg Length specified. Do not attempt to convert to Stran-Rate.')
+        file_file = None
+        properties = None
+        chans = None
+        dataset = np.load(filepath)
+        chans_nums = [i for i in range(len(dataset['distance']))]
+        chans = np.array(chans_nums)
+        # loading the data conditioned
+        data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
+        fiber = 'La Chida'
+        sampling_frequency = dataset['freq']
+        dt = 1/sampling_frequency
+        start_time = UTC('2023-03-01T00:00:00')
+        spatial_interval = dataset['distance'][1] - dataset['distance'][0]
+        num_points = int(dataset['time'][:-2].shape[0])
+        end_time = UTC(start_time + num_points*dt)
+        time_length = end_time - start_time
+        gauge_length = 2
+        channel_offset = None
+        units = None
         conv_factor = None # conversion factor if given explicitly
         
     else:
