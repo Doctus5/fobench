@@ -61,7 +61,7 @@ class Dataset(object):
         self.gauge_length = None
         self.units = None #units of meassure.
         self.total_channels = None
-        self.sampling_interval = None
+        self.spatial_interval = None
         self.pulse_rate = None
         self.pulse_width = None
         
@@ -119,7 +119,7 @@ class Dataset(object):
                             "pulse_width": None,
                             "pulse_width_unit": 'meter',
                             "comment": 'NA',
-                            "datatabse": None
+                            "database": None
                         },
                         "AttributeDefinitions": {
                             "acquisition_id": "Unique identifier of the data acquisition, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash). One identifier per acquisition settings.",
@@ -163,7 +163,7 @@ class Dataset(object):
                         }
                     }
 
-        return metadata
+        return metadata 
     
 
     # Define metadata structure for JSON.
@@ -173,10 +173,43 @@ class Dataset(object):
 		Description: 
 			Fill the arguments on the metadata.
 		:Params:
-			- NA.
+			- NA. 
 		:Return:
 			- metadata(type:Dict): dictionary which is the metadata parameters.
 		'''
+
+        # Fill values in attributes
+        self.files = self.database['files'].size
+        self.start_time = self.database['start_time']
+        self.end_time = self.database['end_time']
+        self.sampling_frequency = self.database['sampling_frequency']
+        self.gauge_length = self.database['gauge_length']
+        self.units = None # units of meassure.
+        self.total_channels = self.database['total_channels']
+        self.spatial_interval = self.database['spatial_interval']
+        self.pulse_rate = None
+        self.pulse_width = None
+    
+        # Fill values in metadata file
+        self.metadata['Attributes']["acquisition_id"] = None
+        self.metadata['Attributes']["interrogator_id"] = None
+        self.metadata['Attributes']["acquisition_start_time"] = self.start_time
+        self.metadata['Attributes']["acquisition_end_time"] = self.end_time
+        self.metadata['Attributes']["acquisition_sample_rate"] = self.sampling_frequency
+        self.metadata['Attributes']["acquisition_sample_rate_unit"] = "Hz",
+        self.metadata['Attributes']["gauge_length"] = self.gauge_length
+        self.metadata['Attributes']["gauge_length_unit"] = "meter"
+        self.metadata['Attributes']["unit_of_measure"] = None
+        self.metadata['Attributes']["number_of_channels"] = self.total_channels
+        self.metadata['Attributes']["spatial_sampling_interval"] = self.spatial_interval
+        self.metadata['Attributes']["spatial_sampling_interval_unit"] = "meter"
+        self.metadata['Attributes']["pulse_rate"] = 'NA'
+        self.metadata['Attributes']["pulse_rate_unit"] = "Hz"
+        self.metadata['Attributes']["pulse_width"] = self.pulse_width
+        self.metadata['Attributes']["pulse_width_unit"] = 'meter'
+        self.metadata['Attributes']["comment"] = 'NA'
+        self.metadata['Attributes']["database"] = self.database
+        
         
 
     '''

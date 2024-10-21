@@ -108,7 +108,7 @@ class Unit(object):
 			- NA.
 		'''
 
-		files = manager.scan_folder(self.__folder_path__, format=format) # remove the limitations.
+		files = manager.scan_folder(self.__folder_path__, format=format)[:300] # remove the limitations.
 
 		# calculate in parallel mode
 		if parallels != None:
