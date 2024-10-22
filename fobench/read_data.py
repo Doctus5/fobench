@@ -113,7 +113,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         sampling_frequency = properties['OutputDataRate']
         dt = 1/sampling_frequency
         start_time = UTC(properties['PartStartTime'])
-        end_time = UTC(start_time + properties['Count']*dt)
+        end_time = UTC(start_time + (properties['Count']-1)*dt)
         spatial_interval = properties['SpatialResolution']
         time_length = end_time - start_time
         num_points = properties['Count']
@@ -298,6 +298,29 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = None
         conv_factor = None # conversion factor if given explicitly
         
+    elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # .h5 format for Michelle INGV's decimated files from Silixa.
+
+        print('Reading HDF5 file (Michelle INGV decimated Format)...')
+        file_file = h5.File(filepath,'r')
+        properties = file_file.attrs
+        dataset = file_file['Fiber']
+        chans_nums = file_file['ChannelMap'] if range_ch == None else range_ch
+        chans = np.array(chans_nums)
+        # loading the data conditioned
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        fiber = properties['Fibre Type'].decode('UTF-8')
+        dt = float(properties['Sampletime'][0])
+        sampling_frequency = 1 / dt
+        num_points = int(dataset.shape[0])
+        start_time = UTC(properties['StartTime_txt'].decode('UTF-8')) if properties['StartTime_txt'] else UTC(properties['CPUTimeStamp_txt'].decode('UTF-8'))
+        end_time = UTC(start_time + (num_points-1) * dt)
+        spatial_interval = float(properties['SpatialResolution[m]'][0])
+        time_length = end_time - start_time
+        gauge_length = float(properties['GaugeLength'][0])
+        channel_offset = int(properties['OffsetLength'])
+        units = 'units'
+        conv_factor = None # conversion factor if given explicitly 
+
     else:
         
         # Terminate if file format can not be handled.
@@ -389,14 +412,6 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     if (format == 'h5' or format == 'hdf5') and company == 'silixa':
 
         values = np.array(extract_point[:,range_ch])
-        
-    if format == 'npy' and company == 'bam':
-    
-        values = np.load(extract_point)[:,range_ch]
-
-    if format == 'npz' and company == 'bam':
-    
-        values = np.load(extract_point)['ph'][:,range_ch]
 
     if (format == 'h5' or format == 'hdf5') and company == 'terra15':
 
@@ -413,5 +428,21 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     if (format == 'h5' or format == 'hdf5') and company == 'aragon':
 
         values = np.array(extract_point)*(10**-9)
+        
+	# ####################################################
+	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
+	# ####################################################
+        
+    if format == 'npy' and company == 'bam':
+    
+        values = np.load(extract_point)[:,range_ch]
+
+    if format == 'npz' and company == 'bam':
+    
+        values = np.load(extract_point)['ph'][:,range_ch]
+        
+    if (format == 'h5' or format == 'hdf5') and company == 'michelle':
+
+        values = np.array(extract_point[:,range_ch])
 
     return values.astype('float')
