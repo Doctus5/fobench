@@ -119,6 +119,7 @@ class Dataset(object):
                             "pulse_width": None,
                             "pulse_width_unit": 'meter',
                             "comment": 'NA',
+                            "database_path": 'NA',
                             "database": None
                         },
                         "AttributeDefinitions": {
@@ -139,6 +140,7 @@ class Dataset(object):
                             "pulse_width": "Width of the pulse sent down the fiber in unit of time.",
                             "pulse_width_unit": "Unit of pulse width.",
                             "comment": "Additional comments.",
+                            "database_path": "Central path fot he files of the Databse",
                             "database": "DataFrame of parameters and location of files. Only for processing."
                         },
                         "AttributeRequirements": {
@@ -159,7 +161,8 @@ class Dataset(object):
                             "pulse_width": False,
                             "pulse_width_unit": False,
                             "comment": False,
-                            "database":True
+                            "database_path": True,
+                            "database": True
                         }
                     }
 
@@ -208,6 +211,7 @@ class Dataset(object):
         self.metadata['Attributes']["pulse_width"] = self.pulse_width
         self.metadata['Attributes']["pulse_width_unit"] = 'meter'
         self.metadata['Attributes']["comment"] = 'NA'
+        self.metadata['Attributes']["database_path"] = self.__filepath__
         self.metadata['Attributes']["database"] = self.database
         
         
@@ -251,6 +255,7 @@ class Dataset(object):
         database_files = manager.chrono_order(database_files) # aranges in a chronological order.
         
         self.database = database_files
+        self.__fill_metadata__()
         self.__builded__ = True # its now builded.
 
         return self
