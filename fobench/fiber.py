@@ -79,6 +79,7 @@ class Fiber(object):
 		self.channels_num = attributes.chans_nums
 		self.total_channels = attributes.list_chans_num
 		self.sampling_frequency = attributes.sampling_frequency # sampling rate of the data.
+		self.o_sampling_frequency = attributes.o_sampling_frequency if attributes.o_sampling_frequency != None else attributes.sampling_frequency # original sampling frequency. Important for conversion factor.
 		self.dt = 1 / self.sampling_frequency # calculated time step.
 		self.start_time = attributes.start_time # start time of the data in file.
 		self.end_time = attributes.end_time # end time of the data in file.
