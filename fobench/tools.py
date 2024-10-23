@@ -151,6 +151,17 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
         
 			factor = 1E-6 / 18.4 # strain per count (WEIRD!)
 			data = np.multiply(data,factor)
+
+	if (format == 'h5' or format == 'hdf5') and company == 'michelle': # Michelle HDF5 decimated from Silixa
+
+		if units == 'counts' and target == 'strain-rate':
+
+			i_cst = 116E-9 # meters per radians.
+			gauge_L = attributes['gauge_length'] # gauge lenght in meters.
+			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
+			fs = attributes['sampling_frequency'] # sampling frequency, which can be 1000 Hz for raw data.
+			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
+			data = np.multiply(data,factor)
     
 	if (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
         
