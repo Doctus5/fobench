@@ -70,6 +70,12 @@ With the environment activated, install Fobench using `pip`:
 pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
 ```
 
+If you already have an installed version of Fobench, we recommend to constantly update it and we constantly release updated on fixing bugs. To update, use the following command:
+
+```bash
+pip install --upgrade git+https://git.gfz-potsdam.de/sergioad/fobench.git
+```
+
 Once installed, you're ready to start using the code in your Python environment!
 
 ---
