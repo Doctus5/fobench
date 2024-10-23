@@ -19,6 +19,9 @@ from setuptools import setup
 
 setup(
     name ='fobench',
+    author='Sergio Diaz-Meza',
+    author_email='sergioad@gfz-potsdam.de',
+    description='A fiber optic sensing toolbox',
     version = '0.0.2',
     packages = ['fobench'],
     install_requires = [

@@ -1364,15 +1364,26 @@ recording parameters:
 		Description:
 			Plot the DAS data as multiple seismograms in the same image (record section).
 		:Params:
-			- channels(type: list): List of the channels to plot into the record section. If not, all of them will be plotted as Default.
+			- channels(type: tuple or list): channels to plot into the record section,
+			if tuple all channels in the range will be plotted
+			if list all channels given in the list will be plotted
 		:Return:
 			- NA.
 		'''
 
-		ch0, chf = int(channels[0]), int(channels[1])
-		ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
-		das_data = self.data[:,ch0:chf+1]
-		das_channels = self.channels_num[ch0:chf+1]
+		if isinstance(channels, tuple):
+			ch0, chf = int(channels[0]), int(channels[1])
+			ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
+			das_data = self.data[:,ch0:chf+1]
+			das_channels = self.channels_num[ch0:chf+1]
+		
+		elif isinstance(channels, list):
+			channels = [int(channel) for channel in channels]
+			ch_i = [self.channels_num.index(channel) for channel in channels]
+			ch_i.sort()
+			das_data = self.data[:, ch_i]
+			das_channels = [self.channels_num[ind] for ind in ch_i]
+		
 		t = self.times('matplotlib')
 		date = self.times()[0].isoformat()[:10]
 
