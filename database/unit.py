@@ -17,6 +17,7 @@ Last modification on 2024-07-08 15:59:00
 """
 
 # Necessary packages to import
+import copy
 import pandas as pd
 
 # Fobench classes
@@ -58,12 +59,10 @@ class Unit(object):
 		# Public attributes
 		self.sensing = sensing
 		self.company = company
+		self.earliest_usage = None # earliest start date of meassurements with the unit.
+		self.latest_usage = None # latest end date of meassurements with the unit.
 
-		# run initial build methods
-		# if metadata_file == None:
-
-
-		# else:
+		self.metadata = self.__json_metadata__()
     
 
 
@@ -74,7 +73,7 @@ class Unit(object):
 	'''
 
 	#Creates the basic variables of the DAS object with its characteristics
-	def __build_from_metafile__(self, json_file=None, sensing='das'):
+	def __build_from_metafile__(self, json_file=None):
 		'''
 		Co-authors: --
 		Description: 
@@ -86,6 +85,78 @@ class Unit(object):
 		'''
 
 		return 0
+    
+    
+    # Define metadata structure for JSON.
+	def __json_metadata__(self):
+		'''
+		Co-authors: --
+		Description: 
+			Define the metadata structure.
+		:Params:
+			- NA.
+		:Return:
+			- metadata(type:Dict): dictionary which is the metadata parameters.
+		'''
+
+		metadata = {
+                    "Attributes": {
+						"interrogator_id": None,
+						"manufacturer": 'NA',
+						"sensing": 'NA',
+						"model": 'NA',
+						"serial_number": None,
+						"firmware_version": None,
+						"comment": None,
+						"interrogator_path": 'NA'
+						},
+					"AttributeDefinitions": {
+						"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
+						"manufacturer": "Manufacturer name of the interrogator.",
+						"sensing": 'Sensing technique of the unit. Determines the type of data.',
+						"model": "Model number of the interrogator.",
+						"serial_number": "Serial number of the interrogator.",
+						"firmware_version": "Firmware version of the software used within the interrogator.",
+						"comment": "Additional comments",
+						"interrogator_path": "Folder path of the files adquired with this interrogator or unit."
+						},
+					"AttributeRequirements": {
+						"interrogator_id": True,
+						"manufacturer": True,
+						"sensing": True,
+						"model": True,
+						"serial_number": False,
+						"firmware_version": False,
+						"comment": False,
+						"interrogator_path": True
+						},
+					"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
+                    }
+
+		return metadata 
+    
+
+    # Define metadata structure for JSON.
+	def __fill_metadata__(self):
+		'''
+		Co-authors: --
+		Description: 
+			Fill the arguments on the metadata.
+		:Params:
+			- NA. 
+		:Return:
+			- metadata(type:Dict): dictionary which is the metadata parameters.
+		'''
+
+		# Fill values in metadata file
+		self.metadata['Attributes']["interrogator_id"] = None
+		self.metadata['Attributes']["manufacturer"] = self.company
+		self.metadata['Attributes']["sensing"] = self.sensing
+		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
+		# self.metadata['Attributes']["model"] = 'NA'
+		# self.metadata['Attributes']["serial_number"] = 'NA'
+		# self.metadata['Attributes']["firmware_version"] = 'NA'
+		self.metadata['Datasets'] = [data_set.metadata for data_set in self.datasets] # populate with metadata
   
 
 	'''
@@ -93,6 +164,20 @@ class Unit(object):
 	Public Functions
 	######################################################
 	'''
+ 
+
+	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
+	def copy(self):
+		'''
+		Co-authors: --
+		Description: Returns a deep copy of the class in the moment of execution.
+		:Params:
+			- NA.
+		:Return:
+			- (type:Unit Class): Same Unit Class in the state when the method is called.  
+		'''
+	
+		return copy.deepcopy(self)
 
 
 	#Creates the basic variables of the DAS object with its characteristics
@@ -115,9 +200,7 @@ class Unit(object):
 
 			hpc = Parallel(params=parallels) # initialize parallel process.
 			results = hpc.submit(manager.files2database, files, self.company) # run.
-			
-			# now lets joint the results
-			database_files = pd.concat(results, ignore_index=True)
+			database_files = pd.concat(results, ignore_index=True) # joint the results
 
 		# in serial mode
 		else:
@@ -132,6 +215,19 @@ class Unit(object):
     
 			self.datasets.append( Dataset(folder_path=self.__folder_path__, company=self.company, sensing=self.sensing, database=chunk) )
 
+		if self.datasets:
+
+			earlier, later = [], []
+
+			for dataset in self.datasets: # loop over existing datasets.
+
+				earlier.append(dataset.start_time)
+				later.append(dataset.end_time)
+    
+			self.earliest_usage = min(earlier)
+			self.latest_usage = max(later)
+
+		self.__fill_metadata__()
 		self.__builded__ = True # its now builded.
 
 		return self

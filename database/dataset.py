@@ -16,6 +16,7 @@ Last modification on 2024-07-08 16:26:00
 """
 
 # Necessary packages to import
+import copy
 import pandas as pd
 
 # Fobench classes
@@ -50,6 +51,7 @@ class Dataset(object):
         self.__filepath__ = folder_path # filepath where the data is located (a folder).
         self.__builded__ = False # is there a metadata file for it.
         
+        # This variable might be redundant with the variables in metadata. Check this to reduce memory!
         self.database = database # DataFrame format of available files corresponding to the curent Dataset.
         self.files = 0
         
@@ -74,7 +76,7 @@ class Dataset(object):
 	'''
 
 	#Creates the basic variables of the DAS object with its characteristics
-    def __build_from_metafile__(self, json_file=None, sensing='das'):
+    def __build_from_metafile__(self, json_file=None):
         '''
 		Co-authors: --
 		Description: 
@@ -119,8 +121,7 @@ class Dataset(object):
                             "pulse_width": None,
                             "pulse_width_unit": 'meter',
                             "comment": 'NA',
-                            "database_path": 'NA',
-                            "database": None
+                            "database_path": 'NA'
                         },
                         "AttributeDefinitions": {
                             "acquisition_id": "Unique identifier of the data acquisition, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash). One identifier per acquisition settings.",
@@ -140,8 +141,7 @@ class Dataset(object):
                             "pulse_width": "Width of the pulse sent down the fiber in unit of time.",
                             "pulse_width_unit": "Unit of pulse width.",
                             "comment": "Additional comments.",
-                            "database_path": "Central path fot he files of the Databse",
-                            "database": "DataFrame of parameters and location of files. Only for processing."
+                            "database_path": "Central path fot he files of the Databse"
                         },
                         "AttributeRequirements": {
                             "acquisition_id": True,
@@ -162,15 +162,15 @@ class Dataset(object):
                             "pulse_width_unit": False,
                             "comment": False,
                             "database_path": True,
-                            "database": True
-                        }
+                        },
+                        "Database": None # DataFrame of parameters and location of files. Only for processing.
                     }
 
         return metadata 
     
 
     # Define metadata structure for JSON.
-    def __fill_metadata__(self, params):
+    def __fill_metadata__(self):
         '''
 		Co-authors: --
 		Description: 
@@ -212,7 +212,7 @@ class Dataset(object):
         self.metadata['Attributes']["pulse_width_unit"] = 'meter'
         self.metadata['Attributes']["comment"] = 'NA'
         self.metadata['Attributes']["database_path"] = self.__filepath__
-        self.metadata['Attributes']["database"] = self.database
+        self.metadata['Database'] = self.database
         
         
 
@@ -222,6 +222,19 @@ class Dataset(object):
 	######################################################
 	'''
 
+
+    #Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
+    def copy(self):
+        '''
+        Co-authors: --
+        Description: Returns a deep copy of the class in the moment of execution.
+        :Params:
+            - NA.
+        :Return:
+            - (type:Dataset Class): Same Dataset Class in the state when the method is called.  
+        '''
+
+        return copy.deepcopy(self)
 
 	#Creates the basic variables of the DAS object with its characteristics
     def build(self, format=None, parallels=None):

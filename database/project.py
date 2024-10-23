@@ -17,6 +17,8 @@ Last modification on 2024-07-08 15:59:00
 """
 
 # Necessary packages to import
+import copy
+import json
 
 # Fobench classes
 
@@ -31,7 +33,7 @@ class Project(object):
 	'''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-	def __init__(self, metadata_file=None):
+	def __init__(self, folder_path=None, metadata_file=None):
 		'''
 		Co-authors: --
 		Description: 
@@ -44,8 +46,204 @@ class Project(object):
 			- NA.  
 		'''
 
+		# Private attributes
+		self.__folder_path__ = folder_path # central folder path of files
+		self.__builded__ = False # is there a metadata file for it.
+
+		# Public attributes
+		
 		# In case class is initialized first time or empty (no metadata).
 		self.units = [] # list of units/interrogators used. Each one is a Unit class that contains Datasets class.
+		self.metadata = self.__json_metadata__()
 
-		# Private attributes
+	'''
+	######################################################
+	Private Functions
+	######################################################
+	'''
+
+	def __build_from_metafile__(self, json_file=None):
+		'''
+		Co-authors: --
+		Description: 
+			Builds from a given metadata file.
+		:Params:
+			- json_file(type:String): complete path where the single/multiple datasets are located.
+		:Return:
+			- NA.
+		'''
+
+		return 0
+    
+    
+    # Define metadata structure for JSON.
+	def __json_metadata__(self):
+		'''
+		Co-authors: --
+		Description: 
+			Define the metadata structure.
+		:Params:
+			- NA.
+		:Return:
+			- metadata(type:Dict): dictionary which is the metadata parameters.
+		'''
+
+		metadata = {
+                    "Attributes": {
+						"network_code": "NA",
+						"location": "NA",
+						"country": "NA",
+						"principal_investigator_name": "NA",
+						"principal_investigator_email": "NA",
+						"principal_investigator_address": "NA",
+						"point_of_contact": "NA",
+						"point_of_contact_email": "NA",
+						"point_of_contact_address": "NA",
+						"start_date": "NA",
+						"end_date": "NA",
+						"funding_agency": "NA",
+						"project_number": "NA",
+						"digital_object_identifier": "NA",
+						"purpose_of_data_collection": "NA",
+						"comment": None
+						},
+					"AttributeDefinitions": {
+						"network_code": "Unique network name for the installation with a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
+						"location": "Name of the geographic location of the installation.",
+						"country": "Country where the installation is located. Use ISO 3166-1 alpha-3 three-letter country code.",
+						"principle_investigator_name": "Name of principal investigator (last name, first name) for the installation.",
+						"principle_investigator_email": "Email address of principal investigator.",
+						"principle_investigator_address": "Physical address and institution of principal investigator.",
+						"point_of_contact": "Point of contact (last name, first name) for the metadata.",
+						"point_of_contact_email": "Email address of point of contact.",
+						"point_of_contact_address": "Physical address and institution of point of contact.",
+						"start_date": "Start date of data collection at the installation in UTC.",
+						"end_date": "End date of data collection at the installation in UTC. If installation is still in operation, use a future date (e.g. 2999-01-01).",
+						"funding_agency": "Name(s) of agency that funded the experiment.",
+						"project_number": "Funding project number. Should be supplied if a number has been assigned by funding agency(s).",
+						"digital_object_identifier": "Digital Object Identifier that uniquely identifies the metadata, this identifier may only become available following archiving.",
+						"purpose_of_data_collection": "Brief explanation of the purpose of the experiment.",
+						"comment": "Additional comments."
+						},
+					"AttributeRequirements": {
+						"network_code": True,
+						"location": True,
+						"country": True,
+						"principle_investigator_name": True,
+						"principle_investigator_email": True,
+						"principle_investigator_address": True,
+						"point_of_contact": True,
+						"point_of_contact_email": True,
+						"point_of_contact_address": True,
+						"start_date": True,
+						"end_date": True,
+						"funding_agency": True,
+						"project_number": True,
+						"digital_object_identifier": True,
+						"purpose_of_data_collection": True,
+						"comment": False
+						},
+					"Interrogator": []
+					}
+
+		return metadata 
+    
+
+    # Define metadata structure for JSON.
+	def __fill_metadata__(self):
+		'''
+		Co-authors: --
+		Description: 
+			Fill the arguments on the metadata.
+		:Params:
+			- NA. 
+		:Return:
+			- metadata(type:Dict): dictionary which is the metadata parameters.
+		'''
+
+		# Fill values in metadata file
+		self.metadata['Attributes']["interrogator_id"] = None
+		self.metadata['Attributes']["manufacturer"] = self.company
+		self.metadata['Attributes']["sensing"] = self.sensing
+		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
+		# self.metadata['Attributes']["model"] = 'NA'
+		# self.metadata['Attributes']["serial_number"] = 'NA'
+		# self.metadata['Attributes']["firmware_version"] = 'NA'
+		self.metadata['Interrogator'] = [unit.metadata for unit in self.units] # populate with metadata
+  
 		
+	'''
+	######################################################
+	Public Functions
+	######################################################
+	'''
+
+	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
+	def copy(self):
+		'''
+		Co-authors: --
+		Description: Returns a deep copy of the class in the moment of execution.
+		:Params:
+			- NA.
+		:Return:
+			- (type:Project Class): Same Project Class in the state when the method is called.  
+		'''
+	
+		return copy.deepcopy(self)
+
+	# Adding Units to the Project.
+	def add_unit(self, unit):
+		'''
+		Co-authors: --
+		Description: 
+			Fill the arguments on the metadata.
+		:Params:
+			- NA. 
+		:Return:
+			- metadata(type:Dict): dictionary which is the metadata parameters.
+		'''
+
+		self.units.append(unit)
+
+		return self
+
+	# Builds the Project object and parameters.
+	def build(self, format=None, parallels=None):
+		'''
+		Co-authors: --
+		Description: 
+			Builds from a given metadata file.
+		:Params:
+			- parallel_params(type:Dict): dictionary containing the parameters for parallelization. If parameters are
+			given, then the building method runs in parallel. If None, it runs in serial.
+		:Return:
+			- NA.
+		'''
+
+		self.__fill_metadata__()
+		self.__builded__ = True # its now builded.
+
+		return self
+
+
+	def save_metadata(self, save_path='', filename='project_meta'):
+		'''
+		Co-authors: --
+		Description: 
+			Saves the metadata file for future usage and not building from scratch the project.
+		:Params:
+			- save_path(type:String): path to where to store the metadata as JSON file. If no path is given,
+			it uses the path where the code is being currently executed.
+			- filename(type:String): file name of the metadata file. If not given, Default = 'project_meta'
+		:Return: 
+			- NA.
+		'''
+
+		# Convert all DataFrames from every subclass into json.
+
+		# Save metadata.
+		with open(save_path + filename + '.json', 'w') as file:
+
+			json.dump(self.metadata)
+
+
