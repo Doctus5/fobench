@@ -69,6 +69,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         data = __data__(file_file['Measurement'], format, company, chans_nums) if load_data == True else None
         fiber = properties['name'].split('_')[0]
         sampling_frequency = properties['SamplingFrequency[Hz]']
+        o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
         start_time = UTC(properties['ISO8601 Timestamp'])
         end_time = UTC(start_time + (len(chans[0])-1)*dt)
@@ -111,6 +112,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         data = __data__(dataset, format, company, list(chans_nums[range_ch])) if load_data == True else None
         fiber = properties['FibreType']
         sampling_frequency = properties['OutputDataRate']
+        o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
         start_time = UTC(properties['PartStartTime'])
         end_time = UTC(start_time + (properties['Count']-1)*dt)
@@ -138,6 +140,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         # loading the data conditioned
         data = __data__(dataset, format, company, list(chans_nums[range_ch]), LAG) if load_data == True else None
         sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
+        o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
         start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
         end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * LAG)
@@ -164,6 +167,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         fiber = 'standard'
         dt = float(properties['dt_computer'])
         sampling_frequency = 1 / dt
+        o_sampling_frequency = sampling_frequency
         num_points = int(properties['nt'])
         print(properties['nt'])
         start_time = UTC(properties['file_start_gps_time']) if properties['file_start_gps_time'] else UTC(properties['file_start_computer_time'])
@@ -188,6 +192,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         fiber = 'standard'
         dt = float(file_file['header']['dt'][()])
         sampling_frequency = 1 / dt
+        o_sampling_frequency = sampling_frequency
         num_points = int(file_file['header']['dimensionRanges']['dimension0']['size'][()])
         start_time = UTC(float(file_file['header']['time'][()]))
         end_time = UTC(start_time + num_points * dt)
@@ -211,6 +216,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         data = __data__(dataset['RawData'], format, company, list(chans_nums)) if load_data == True else None
         fiber = 'standard'
         sampling_frequency = float(dataset.attrs['OutputDataRate'])
+        o_sampling_frequency = sampling_frequency
         dt = 1 / sampling_frequency
         num_points = int(file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs['Count'])
         start_time = UTC(str(properties['MeasurementStartTime'])[2:-1])
@@ -235,6 +241,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
         fiber = 'standard'
         sampling_frequency = float(properties['trigger_frequency'][0])
+        o_sampling_frequency = sampling_frequency
         dt = 1 / sampling_frequency
         num_points = int(file_file['time'].size)
         start_time = UTC(properties['Global_FileSaveIO_TimeStamp_s'][0])
@@ -263,6 +270,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
         fiber = 'La Chida'
         sampling_frequency = 100000
+        o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
         start_time = UTC('2023-03-01T00:00:00')
         spatial_interval = 0.4
@@ -287,6 +295,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
         fiber = 'La Chida'
         sampling_frequency = dataset['freq']
+        o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
         start_time = UTC('2023-03-01T00:00:00')
         spatial_interval = dataset['distance'][1] - dataset['distance'][0]
@@ -311,6 +320,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         fiber = properties['Fibre Type'].decode('UTF-8')
         dt = float(properties['Sampletime'][0])
         sampling_frequency = 1 / dt
+        o_sampling_frequency = properties['SamplingFrequency[Hz]']
         num_points = int(dataset.shape[0])
         start_time = UTC(properties['StartTime_txt'].decode('UTF-8')) if properties['StartTime_txt'] else UTC(properties['CPUTimeStamp_txt'].decode('UTF-8'))
         end_time = UTC(start_time + (num_points-1) * dt)
@@ -340,6 +350,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'chans_nums',
         'list_chans_num',
         'sampling_frequency',
+        'o_sampling_frequency',
         'dt',
         'start_time',
         'end_time',
@@ -362,6 +373,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
                 chans_nums, 
                 len(chans_nums),
                 sampling_frequency,
+                o_sampling_frequency,
                 dt,
                 start_time,
                 end_time,
@@ -427,7 +439,8 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     
     if (format == 'h5' or format == 'hdf5') and company == 'aragon':
 
-        values = np.array(extract_point[:,range_ch])*(10**-9)
+        values = np.array(extract_point[:,range_ch])
+        values *= (10**-9) # from nanostrain to strain.
         
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
