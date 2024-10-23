@@ -407,7 +407,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     if (format == 'h5' or format == 'hdf5') and company == 'febus':
     
         dims = extract_point.shape
-        values = extract_point[:,:LAG,:].reshape(int(dims[0]*LAG),dims[2])
+        values = extract_point[:,:LAG,:].reshape(int(dims[0]*LAG),dims[2])[:,range_ch]
 
     if (format == 'h5' or format == 'hdf5') and company == 'silixa':
 
@@ -415,19 +415,19 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
     if (format == 'h5' or format == 'hdf5') and company == 'terra15':
 
-        values = np.array(extract_point)[:,range_ch]
+        values = np.array(extract_point[:,range_ch])
 
     if (format == 'h5' or format == 'hdf5') and company == 'asn':
 
-        values = np.array(extract_point)[:,range_ch]
+        values = np.array(extract_point[:,range_ch])
 
     if (format == 'h5' or format == 'hdf5') and company == 'quantx':
 
-        values = np.array(extract_point)[:,range_ch]
+        values = np.array(extract_point[:,range_ch])
     
     if (format == 'h5' or format == 'hdf5') and company == 'aragon':
 
-        values = np.array(extract_point)*(10**-9)
+        values = np.array(extract_point[:,range_ch])*(10**-9)
         
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
