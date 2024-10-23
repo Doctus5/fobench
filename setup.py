@@ -23,9 +23,9 @@ setup(
     packages = ['fobench'],
     install_requires = [
         # Here goes the dependencies !!
+        'numpy<2.0.0', # we can check later why is not working with upper versions of numpy. Conflict with other packages. Which one?
         'h5py',
         'nptdms',
-        'numpy',
         'matplotlib',
         'scipy',
         'obspy',
