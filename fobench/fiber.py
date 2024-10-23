@@ -638,7 +638,7 @@ recording parameters:
 		self.channels_num = new_channels_num
 		self.total_channels = len(self.channels_num)
 		
-		print(data.shape, )
+		# print(data.shape, )
 		
 		return self
 
@@ -837,9 +837,12 @@ recording parameters:
 		'''
 
 		if not any('filter' in preprocessing for preprocessing in self.processing):
-			print('WARNING: Data has possibly not been filtered before whitening! Check preprocessing and results!')
-	
-		data_spec = fft(self.data, axis=1)    
+    
+			raise Warning('Data has possibly not been filtered before whitening! Check preprocessing and results!')	
+
+		axis = self.__axis__('t') # in case you need to map easily to any dimension without thinking. If the user also can apply this to space, he can use this as argument.
+
+		data_spec = fft(self.data, axis=1) # add axis here   
 		magnitude_spec = np.abs(data_spec)
 		magnitude_spec[magnitude_spec == 0] = 1e-9
 		
