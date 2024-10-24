@@ -5,10 +5,11 @@ So far it recieves TDMS format (Silixa) and H5 format (Febus).
 Created on 2022-08-19 12:07:17
 Last modification on 2024-06-28 19:17:00
 
-:author:
+:authors:
 	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-:contributors:
 	- Jonas Pätzel (jonas.patzel@ulb.be)
+
+:contributors:
 	- Christopher Wollin (wollin@gfz-potsdam.de)
 :license:
 
@@ -18,6 +19,7 @@ Last modification on 2024-06-28 19:17:00
 #Necessary packages to import
 import numpy as np
 import copy
+from warnings import warn
 
 import scipy.signal as signal
 import scipy.integrate as integrate
@@ -824,7 +826,7 @@ recording parameters:
 		return self
 
 	@tools._update_processing
-	def whiten(self):
+	def whiten(self, dim='d'):
 		'''
 		Co-authors: Jonas Pätzel
 		Description:
@@ -832,22 +834,22 @@ recording parameters:
 		(at the moment very basic, only weighting the spectrum by its absolute values, 
 		TODO: implement running mean smoothing of magnitude spectrum)
 		:Params:
-			-
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
 		:Return:
 			- Fiber instance with whitened data
 		'''
 
 		if not any('filter' in preprocessing for preprocessing in self.processing):
     
-			raise Warning('Data has possibly not been filtered before whitening! Check preprocessing and results!')	
+			warn('Data has possibly not been filtered before whitening! Check preprocessing and results carefully!\ncontinuing...')
+		
+		axis = self.__axis__(dim)
 
-		axis = self.__axis__('t') # in case you need to map easily to any dimension without thinking. If the user also can apply this to space, he can use this as argument.
-
-		data_spec = fft(self.data, axis=1) # add axis here   
+		data_spec = fft(self.data, axis=axis) # add axis here   
 		magnitude_spec = np.abs(data_spec)
 		magnitude_spec[magnitude_spec == 0] = 1e-9
 		
-		self.data = ifft(data_spec / magnitude_spec, axis=1).real
+		self.data = ifft(data_spec / magnitude_spec, axis=axis).real
 
 
 	# Function for filtering. Shall we also declare dimensionality options here?
