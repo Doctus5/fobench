@@ -22,13 +22,14 @@ setup(
     author='Sergio Diaz-Meza',
     author_email='sergioad@gfz-potsdam.de',
     description='A fiber optic sensing toolbox',
-    version = '0.0.2',
+    version = '0.0.21',
     packages = ['fobench'],
     install_requires = [
         # Here goes the dependencies !!
         'numpy<2.0.0', # we can check later why is not working with upper versions of numpy. Conflict with other packages. Which one?
         'h5py',
         'nptdms',
+        'pandas',
         'matplotlib',
         'scipy',
         'obspy',
