@@ -235,7 +235,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
         dataset = file_file['strain']
-        chans_nums = [i for i in range(file_file['position'].size)] if range_ch == None else range_ch
+        chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         # loading the data conditioned
         data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
