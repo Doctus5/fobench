@@ -69,6 +69,11 @@ class Dataset(object):
         
         self.metadata = self.__json_metadata__()
         
+        if database is not None:
+            
+            self.__fill_metadata__()
+            self.__builded__ = True # its now builded.
+        
     '''
 	######################################################
 	Private Functions
@@ -182,14 +187,14 @@ class Dataset(object):
 		'''
 
         # Fill values in attributes
-        self.files = self.database['files'].size
-        self.start_time = self.database['start_time']
-        self.end_time = self.database['end_time']
-        self.sampling_frequency = self.database['sampling_frequency']
-        self.gauge_length = self.database['gauge_length']
+        self.files = self.database['file'].size
+        self.start_time = self.database['start_time'].iloc[0]
+        self.end_time = self.database['end_time'].iloc[-1]
+        self.sampling_frequency = self.database['sampling_frequency'].iloc[0]
+        self.gauge_length = self.database['gauge_length'].iloc[0]
         self.units = None # units of meassure.
-        self.total_channels = self.database['total_channels']
-        self.spatial_interval = self.database['spatial_interval']
+        self.total_channels = self.database['total_channels'].iloc[0]
+        self.spatial_interval = self.database['spatial_interval'].iloc[0]
         self.pulse_rate = None
         self.pulse_width = None
     

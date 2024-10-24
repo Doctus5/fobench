@@ -193,7 +193,7 @@ class Unit(object):
 			- NA.
 		'''
 
-		files = manager.scan_folder(self.__folder_path__, format=format)[:300] # remove the limitations.
+		files = manager.scan_folder(self.__folder_path__, format=format)[:500] # remove the limitations.
 
 		# calculate in parallel mode
 		if parallels != None:
@@ -212,7 +212,7 @@ class Unit(object):
 
 		# loop over the found chunks to initialize them as Datasets
 		for chunk in chunks:
-    
+
 			self.datasets.append( Dataset(folder_path=self.__folder_path__, company=self.company, sensing=self.sensing, database=chunk) )
 
 		if self.datasets:

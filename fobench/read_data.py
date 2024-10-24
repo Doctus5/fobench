@@ -328,7 +328,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         time_length = end_time - start_time
         gauge_length = float(properties['GaugeLength'][0])
         channel_offset = int(properties['OffsetLength'])
-        units = 'units'
+        units = 'counts'
         conv_factor = None # conversion factor if given explicitly 
 
     else:
