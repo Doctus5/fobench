@@ -313,7 +313,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
         dataset = file_file['Fiber']
-        chans_nums = np.array(file_file['ChannelMap']) if range_ch == None else range_ch
+        chans_nums = list(file_file['ChannelMap']) if range_ch == None else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
         data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
