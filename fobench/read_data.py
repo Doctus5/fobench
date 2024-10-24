@@ -320,7 +320,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         fiber = properties['Fibre Type'].decode('UTF-8')
         dt = float(properties['Sampletime'][0])
         sampling_frequency = 1 / dt
-        o_sampling_frequency = properties['SamplingFrequency[Hz]']
+        o_sampling_frequency = properties['SamplingFrequency[Hz]'][0]
         num_points = int(dataset.shape[0])
         start_time = UTC(properties['StartTime_txt'].decode('UTF-8')) if properties['StartTime_txt'] else UTC(properties['CPUTimeStamp_txt'].decode('UTF-8'))
         end_time = UTC(start_time + (num_points-1) * dt)
