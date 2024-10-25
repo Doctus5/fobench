@@ -17,6 +17,7 @@ Last modification on 2024-07-08 16:50:00
 import os
 import glob
 import pandas as pd
+import numpy as np
 
 # inside packaged
 from ..fobench.fiber import Fiber
@@ -122,11 +123,14 @@ def database_discontinuities(df, split=True):
     # End time of file i + dt must match the start time of file i+1 
     df['start_time'] = pd.to_datetime(df['start_time'])
     df['end_time'] = pd.to_datetime(df['end_time'])
-    continuity = df[['end_time', 'dt']].apply(lambda x: x.iloc[0] + pd.Timedelta(seconds=x.iloc[1]), axis=1)
-    continuity = continuity == df['start_time'].shift(-1)
-    continuity.iloc[-1] = True # force last value to be True. Can't be a false one.
+    
+    # check chrono continuity
+    expected_start = df['end_time'] + pd.to_timedelta(df['dt'], unit='s')
+    continuity = expected_start.shift(1) == df['start_time']
+    continuity.iloc[0] = True
+    continuity.iloc[-1] = True
 
-    # check discontinuities in others properties.
+    # # check discontinuities in others properties.
     for variable in var_conditions[1:]:
         
         continuity *= df[variable].shift(1, fill_value=df[variable].iloc[0]) == df[variable]
@@ -151,7 +155,54 @@ def database_discontinuities(df, split=True):
         
         return database_chunks
     
+
+def metadates_2_isoformat(dataframe, reverse=False):
+    '''
+    Co-authors: --
+    Description: 
+        Transforms the dates of the Dataset files metadata into isoformat. 
+        Convenient for saving since Timestamp objects can not be saved in JSONs.
+    :Params:
+        - dataframe(type:DataFrame): DataFrame object to find times and manipulate.
+        - reverse(type:Boolean): if True, it transform from isoformat to Timestamp object.
+    :Return:
+        - dataframe(typeDataFrame): modified Dataframe object.
+    '''
     
+    # Find these start time and end time columns in the DataFrame.
+    if reverse == False:
+    
+        dataframe['start_time'] = dataframe['start_time'].apply(lambda x: x.isoformat())
+        dataframe['end_time'] = dataframe['end_time'].apply(lambda x: x.isoformat())
+        
+    else:
+        
+        dataframe['start_time'] = pd.to_datetime(dataframe['start_time'])
+        dataframe['end_time'] = pd.to_datetime(dataframe['end_time'])
+        
+    return dataframe
+    
+    
+# Recursive function to convert types in a dictionary
+def convert_types(input_dict):
+    
+    output_dict = {}
+    for key, value in input_dict.items():
+        if isinstance(value, dict):
+            # Recursively convert nested dictionaries
+            output_dict[key] = convert_types(value)
+        elif isinstance(value, np.int64):
+            output_dict[key] = int(value)  # Convert to standard int
+        elif value is None:
+            output_dict[key] = None  # Keep as None (will be serialized as null in JSON)
+        elif isinstance(value, list):
+            # Convert any int64 or None in lists
+            output_dict[key] = [convert_types(v) if isinstance(v, dict) else int(v) if isinstance(v, np.int64) else v for v in value]
+        else:
+            output_dict[key] = value  # Keep other types as is
+    return output_dict
+
+
 def write_json_metadata(df, split=True):
     '''
     Co-authors: --
