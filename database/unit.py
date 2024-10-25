@@ -42,7 +42,7 @@ class Unit(object):
 		Description: 
 			Initializes a "Unit" Class which keeps track of Datasets associated to an interrogator or sensing system.
 		:Params:
-			- folder_path(type:String): compelte path where the single/multiple data files are located.
+			- folder_path(type:String): complete path where the single/multiple data files are located.
 			- metadata_file(type:String): complete path where the metadata JSON file is located. This file is generated once
 			the Unit class was run for the first time scanning files.
 		:Return:
@@ -157,7 +157,29 @@ class Unit(object):
 		# self.metadata['Attributes']["serial_number"] = 'NA'
 		# self.metadata['Attributes']["firmware_version"] = 'NA'
 		self.metadata['Datasets'] = [data_set.metadata for data_set in self.datasets] # populate with metadata
-  
+
+
+    # Define metadata structure for JSON.
+	def __metadates_2_isoformat__(self, reverse=False):
+		'''
+		Co-authors: --
+		Description: 
+			Transforms the dates of the Dataset files metadata into isoformat. 
+			Convenient for saving since Timestamp objects can not be saved in JSONs.
+		:Params:
+			- reverse(type:Boolean): if True, it transform from isoformat to Timestamp object.
+		:Return:
+			- NA.
+		'''
+
+		if self.datasets:
+
+			for dataset_meta in self.metadata['Datasets']:
+
+				dataset_meta['Database'] = manager.metadates_2_isoformat(dataset_meta['Database'], reverse=reverse)
+
+		return self
+    
 
 	'''
 	######################################################
@@ -193,7 +215,7 @@ class Unit(object):
 			- NA.
 		'''
 
-		files = manager.scan_folder(self.__folder_path__, format=format)[:500] # remove the limitations.
+		files = manager.scan_folder(self.__folder_path__, format=format)[:400] # remove the limitations.
 
 		# calculate in parallel mode
 		if parallels != None:
@@ -202,7 +224,7 @@ class Unit(object):
 			results = hpc.submit(manager.files2database, files, self.company) # run.
 			database_files = pd.concat(results, ignore_index=True) # joint the results
 
-		# in serial mode
+		# calculate in serial mode
 		else:
 
 			database_files = manager.files2database(files, self.company) # organize it as a Dataframe. Use Fiber Class.

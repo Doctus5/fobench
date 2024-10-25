@@ -53,13 +53,14 @@ class Dataset(object):
         
         # This variable might be redundant with the variables in metadata. Check this to reduce memory!
         self.database = database # DataFrame format of available files corresponding to the curent Dataset.
-        self.files = 0
+        self.total_files = 0
         
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
         self.sensing = sensing # sensing target of the dataset.
         self.start_time = None
         self.end_time = None
         self.sampling_frequency = None
+        self.dt = None
         self.gauge_length = None
         self.units = None #units of meassure.
         self.total_channels = None
@@ -115,6 +116,7 @@ class Dataset(object):
                             "acquisition_end_time": None,
                             "acquisition_sample_rate": None,
                             "acquisition_sample_rate_unit": "Hz",
+                            "time_stamp": None,
                             "gauge_length": None,
                             "gauge_length_unit": "meter",
                             "unit_of_measure": None,
@@ -135,6 +137,7 @@ class Dataset(object):
                             "acquisition_end_time": "End time of this data acquisition in UTC. if data acquisition is still in operation, use a date in the future (e.g. 2999-01-01T00:00:00.000Z).",
                             "acquisition_sample_rate": "The rate at which the interrogator provides output data.",
                             "acquisition_sample_rate_unit": "Unit of acquisition sample rate.",
+                            "time_stamp": "time stamp length.",
                             "gauge_length": "The averaging length along the fiber for a measurement, determined at experiment setup and used during acquisition.",
                             "gauge_length_unit": "Unit of gauge length.",
                             "unit_of_measure": "Unit of measure of archived data set. This may be the same unit as the Interrogator Unit of Measure if the data are raw.",
@@ -155,6 +158,7 @@ class Dataset(object):
                             "acquisition_end_time": True,
                             "acquisition_sample_rate": True,
                             "acquisition_sample_rate_unit": True,
+                            "time_stamp": True,
                             "gauge_length": True,
                             "gauge_length_unit": True,
                             "unit_of_measure": True,
@@ -171,8 +175,26 @@ class Dataset(object):
                         "Database": None # DataFrame of parameters and location of files. Only for processing.
                     }
 
-        return metadata 
+        return metadata
+
+
+    # Define metadata structure for JSON.
+    def __metadates_2_isoformat__(self, reverse=False):
+        '''
+		Co-authors: --
+		Description: 
+			Transforms the dates of the Dataset files metadata into isoformat. 
+            Convenient for saving since Timestamp objects can not be saved in JSONs.
+		:Params:
+			- reverse(type:Boolean): if True, it transform from isoformat to Timestamp object.
+		:Return:
+			- NA.
+		'''
+
+        self.metadata['Database'] = manager.metadates_2_isoformat(self.metadata['Database'], reverse=reverse)
     
+        return self
+
 
     # Define metadata structure for JSON.
     def __fill_metadata__(self):
@@ -187,10 +209,11 @@ class Dataset(object):
 		'''
 
         # Fill values in attributes
-        self.files = self.database['file'].size
+        self.total_files = self.database['file'].size
         self.start_time = self.database['start_time'].iloc[0]
         self.end_time = self.database['end_time'].iloc[-1]
         self.sampling_frequency = self.database['sampling_frequency'].iloc[0]
+        self.dt = self.database['dt'].iloc[0]
         self.gauge_length = self.database['gauge_length'].iloc[0]
         self.units = None # units of meassure.
         self.total_channels = self.database['total_channels'].iloc[0]
@@ -201,10 +224,11 @@ class Dataset(object):
         # Fill values in metadata file
         self.metadata['Attributes']["acquisition_id"] = None
         self.metadata['Attributes']["interrogator_id"] = None
-        self.metadata['Attributes']["acquisition_start_time"] = self.start_time
-        self.metadata['Attributes']["acquisition_end_time"] = self.end_time
+        self.metadata['Attributes']["acquisition_start_time"] = self.start_time.isoformat()
+        self.metadata['Attributes']["acquisition_end_time"] = self.end_time.isoformat()
         self.metadata['Attributes']["acquisition_sample_rate"] = self.sampling_frequency
-        self.metadata['Attributes']["acquisition_sample_rate_unit"] = "Hz",
+        self.metadata['Attributes']["acquisition_sample_rate_unit"] = "Hz"
+        self.metadata['Attributes']["time_stamp"] = self.dt
         self.metadata['Attributes']["gauge_length"] = self.gauge_length
         self.metadata['Attributes']["gauge_length_unit"] = "meter"
         self.metadata['Attributes']["unit_of_measure"] = None
@@ -217,7 +241,7 @@ class Dataset(object):
         self.metadata['Attributes']["pulse_width_unit"] = 'meter'
         self.metadata['Attributes']["comment"] = 'NA'
         self.metadata['Attributes']["database_path"] = self.__filepath__
-        self.metadata['Database'] = self.database
+        self.metadata['Database'] = manager.metadates_2_isoformat(self.database).to_dict(orient='list')
         
         
 

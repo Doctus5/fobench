@@ -23,6 +23,7 @@ import json
 # Fobench classes
 
 # Inner functions
+from . import manager as manager
 
 
 
@@ -32,7 +33,7 @@ class Project(object):
 	with the method copy() before performing any processing or changes.
 	'''
 	
-	#Creates the basic variables of the DAS object with its characteristics
+	#Creates the basic variables of the Project object with its characteristics
 	def __init__(self, folder_path=None, metadata_file=None):
 		'''
 		Co-authors: --
@@ -162,10 +163,6 @@ class Project(object):
 		'''
 
 		# Fill values in metadata file
-		self.metadata['Attributes']["interrogator_id"] = None
-		self.metadata['Attributes']["manufacturer"] = self.company
-		self.metadata['Attributes']["sensing"] = self.sensing
-		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
 		# self.metadata['Attributes']["model"] = 'NA'
 		# self.metadata['Attributes']["serial_number"] = 'NA'
 		# self.metadata['Attributes']["firmware_version"] = 'NA'
@@ -239,11 +236,12 @@ class Project(object):
 			- NA.
 		'''
 
-		# Convert all DataFrames from every subclass into json.
-
 		# Save metadata.
-		with open(save_path + filename + '.json', 'w') as file:
+		filename = save_path + filename + '.json' # complete path and name of the future metadata file.
 
-			json.dump(self.metadata)
+		with open(filename, 'w') as file:
+
+			dump_metadata = manager.convert_types(self.metadata)
+			json.dump(dump_metadata, file, indent=4)
 
 
