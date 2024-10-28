@@ -16,6 +16,7 @@ Last modification on 2024-07-08 16:50:00
 # Necessary packages to import
 import os
 import glob
+import json
 import pandas as pd
 import numpy as np
 
@@ -35,9 +36,18 @@ def scan_folder(folder_path, format=None):
         - files(type:List): list of paths of each of the files.  
 	'''
     
-    format = '*' if format == None else '*.' + format
-    files = glob.glob(folder_path + format)
+    # Old method of scanning. No recursivity though.
+    # format = '*' if format == None else '*.' + format
+    # files = glob.glob(folder_path + format)
     
+    if not format.startswith("."):
+        
+        format = "." + format
+        
+    # Use glob to recursively match files ending with the given extension
+    search_pattern = os.path.join(folder_path, '**', f'*{format}')
+    files = glob.glob(search_pattern, recursive=True)
+                
     return files
 
 
@@ -83,6 +93,41 @@ def files2database(files, company):
     database = pd.DataFrame.from_dict(database)
     
     return database
+
+
+def init_dataframe(dictionary):
+    '''
+    Co-authors: --
+    Description: 
+        Initialize a DataFrame from dictionary and converts the dates in isoformat to datetime for management. 
+    :Params:
+        - dictionary(type:Dict): database from metadata as dictionary.
+    :Return:
+        - database(type:DataFrame): DataFrame version of the database.  
+	'''
+
+    database = pd.DataFrame(dictionary)
+    database = metadates_2_isoformat(database, reverse=True)
+    
+    return database
+
+
+def open_metadatafile(json_file):
+    '''
+    Co-authors: --
+    Description: 
+        Opens a metadata JSON file. 
+    :Params:
+        - json_file(type:String): dataframe indicating paths and essential metadata from each file.
+    :Return:
+        - metadata(type:Dict): metadata as dictionary.  
+	'''
+
+    with open(json_file, 'r') as file:
+        
+        metadata = json.load(file)
+    
+    return metadata
 
 
 def chrono_order(database):
