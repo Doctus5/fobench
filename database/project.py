@@ -19,10 +19,12 @@ Last modification on 2024-07-08 15:59:00
 # Necessary packages to import
 import copy
 import json
+from obspy.core import UTCDateTime as UTC
 
 # Fobench classes
 
 # Inner functions
+from .unit import Unit
 from . import manager as manager
 
 
@@ -57,24 +59,16 @@ class Project(object):
 		self.units = [] # list of units/interrogators used. Each one is a Unit class that contains Datasets class.
 		self.metadata = self.__json_metadata__()
 
+		if metadata_file is not None: # check the case in which a metadata is introduced. Initialization from here is needed.
+
+			self.__build_from_metafile__(metadata_file)
+			self.__builded__ = True
+
 	'''
 	######################################################
 	Private Functions
 	######################################################
 	'''
-
-	def __build_from_metafile__(self, json_file=None):
-		'''
-		Co-authors: --
-		Description: 
-			Builds from a given metadata file.
-		:Params:
-			- json_file(type:String): complete path where the single/multiple datasets are located.
-		:Return:
-			- NA.
-		'''
-
-		return 0
     
     
     # Define metadata structure for JSON.
@@ -167,6 +161,56 @@ class Project(object):
 		# self.metadata['Attributes']["serial_number"] = 'NA'
 		# self.metadata['Attributes']["firmware_version"] = 'NA'
 		self.metadata['Interrogator'] = [unit.metadata for unit in self.units] # populate with metadata
+
+
+	def __build_from_metafile__(self, json_file=None):
+		'''
+		Co-authors: --
+		Description: 
+			Builds from a given metadata file.
+		:Params:
+			- json_file(type:String): complete path where the single/multiple datasets are located.
+		:Return:
+			- NA.
+		'''
+
+		# Check if just the path of the metadata is being indicated.
+		if isinstance(json_file, str):
+
+			meta_dict = manager.open_metadatafile(json_file)
+
+		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+
+			meta_dict = json_file
+
+		self.metadata = meta_dict
+		self.__metadata_to_attributes__()
+
+		if meta_dict['Interrogator']:
+
+			for mes_unit in meta_dict['Interrogator']:
+
+				ind_unit = Unit(self, metadata_file=mes_unit) # Initialize the Units.
+				self.add_unit( ind_unit )
+
+		return self
+
+
+	def __metadata_to_attributes__(self):
+		'''
+		Co-authors: --
+		Description: 
+			Fills Project attributes (build) from metadata.
+		:Params:
+			- NA.
+		:Return:
+			- NA.
+		'''
+
+		# Fill values in attributes
+		# self.__folder_path__ = self.metadata['Attributes']['interrogator_path']
+
+		return self
   
 		
 	'''
@@ -193,11 +237,11 @@ class Project(object):
 		'''
 		Co-authors: --
 		Description: 
-			Fill the arguments on the metadata.
+			Add units class to the current Project object.
 		:Params:
-			- NA. 
+			- unit(type:Unit Class): Unit Class or Object to add to current Project class. 
 		:Return:
-			- metadata(type:Dict): dictionary which is the metadata parameters.
+			- NA.
 		'''
 
 		self.units.append(unit)
@@ -223,22 +267,19 @@ class Project(object):
 		return self
 
 
-	def save_metadata(self, save_path='', filename='project_meta'):
+	def save_metadata(self, filename='project_meta.json'):
 		'''
 		Co-authors: --
 		Description: 
 			Saves the metadata file for future usage and not building from scratch the project.
 		:Params:
-			- save_path(type:String): path to where to store the metadata as JSON file. If no path is given,
-			it uses the path where the code is being currently executed.
-			- filename(type:String): file name of the metadata file. If not given, Default = 'project_meta'
+			- filename(type:String): file name with complete path and format of the metadata file. If not given, Default = 'project_meta.json',
+			which means it is saved in the local folder of code execution.
 		:Return: 
 			- NA.
 		'''
 
 		# Save metadata.
-		filename = save_path + filename + '.json' # complete path and name of the future metadata file.
-
 		with open(filename, 'w') as file:
 
 			dump_metadata = manager.convert_types(self.metadata)

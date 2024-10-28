@@ -18,6 +18,7 @@ Last modification on 2024-07-08 16:26:00
 # Necessary packages to import
 import copy
 import pandas as pd
+from obspy.core import UTCDateTime as UTC
 
 # Fobench classes
 from .parallel import Parallel
@@ -34,7 +35,7 @@ class Dataset(object):
     '''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-    def __init__(self, folder_path, company='silixa', sensing='das', database=None):
+    def __init__(self, folder_path, company='silixa', sensing='das', database=None, metadata_file=None):
         '''
         Co-authors: --
         Description: 
@@ -70,30 +71,21 @@ class Dataset(object):
         
         self.metadata = self.__json_metadata__()
         
-        if database is not None:
+        if database is not None: # build from database (initial scanning).
             
             self.__fill_metadata__()
             self.__builded__ = True # its now builded.
+            
+        if metadata_file is not None: # build from metadata (metadata open).
+            
+            self.__build_from_metafile__(metadata_file)
+            self.__builded__ = True
         
     '''
 	######################################################
 	Private Functions
 	######################################################
 	'''
-
-	#Creates the basic variables of the DAS object with its characteristics
-    def __build_from_metafile__(self, json_file=None):
-        '''
-		Co-authors: --
-		Description: 
-			Builds from a given metadata file.
-		:Params:
-			- json_file(type:String): complete path where the single/multiple datasets are located.
-		:Return:
-			- NA.
-		'''
-
-        return 0
     
     
     # Define metadata structure for JSON.
@@ -194,6 +186,66 @@ class Dataset(object):
         self.metadata['Database'] = manager.metadates_2_isoformat(self.metadata['Database'], reverse=reverse)
     
         return self
+    
+
+	#Creates the basic variables of the DAS object with its characteristics
+    def __build_from_metafile__(self, json_file):
+        '''
+		Co-authors: --
+		Description: 
+			Builds from a given metadata file.
+		:Params:
+			- metadata(type:Dict): dictionary of metadata.
+		:Return:
+			- NA.
+		'''
+
+		# Check if just the path of the metadata is being indicated.
+        if isinstance(json_file, str):
+
+            meta_dict = manager.open_metadatafile(json_file)
+
+        if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+
+            meta_dict = json_file
+
+        # Initialize Database
+        self.metadata = meta_dict
+        self.database = manager.init_dataframe(meta_dict['Database']) # initialize the Dataframe of the database.
+        self.__database_to_attributes__()
+
+        # Fill attributes
+        self.__filepath__ = meta_dict['Attributes']['database_path']
+
+        return 0
+    
+
+	#Creates the basic variables of the DAS object with its characteristics
+    def __database_to_attributes__(self):
+        '''
+		Co-authors: --
+		Description: 
+			Fills Dataset attributes (build) from database DataFrame.
+		:Params:
+			- NA.
+		:Return:
+			- NA.
+		'''
+
+        # Fill values in attributes
+        self.total_files = self.database['file'].size
+        self.start_time = UTC(self.database['start_time'].iloc[0])
+        self.end_time = UTC(self.database['end_time'].iloc[-1])
+        self.sampling_frequency = self.database['sampling_frequency'].iloc[0]
+        self.dt = self.database['dt'].iloc[0]
+        self.gauge_length = self.database['gauge_length'].iloc[0]
+        self.units = None # units of meassure.
+        self.total_channels = self.database['total_channels'].iloc[0]
+        self.spatial_interval = self.database['spatial_interval'].iloc[0]
+        self.pulse_rate = None
+        self.pulse_width = None        
+
+        return self
 
 
     # Define metadata structure for JSON.
@@ -208,18 +260,8 @@ class Dataset(object):
 			- metadata(type:Dict): dictionary which is the metadata parameters.
 		'''
 
-        # Fill values in attributes
-        self.total_files = self.database['file'].size
-        self.start_time = self.database['start_time'].iloc[0]
-        self.end_time = self.database['end_time'].iloc[-1]
-        self.sampling_frequency = self.database['sampling_frequency'].iloc[0]
-        self.dt = self.database['dt'].iloc[0]
-        self.gauge_length = self.database['gauge_length'].iloc[0]
-        self.units = None # units of meassure.
-        self.total_channels = self.database['total_channels'].iloc[0]
-        self.spatial_interval = self.database['spatial_interval'].iloc[0]
-        self.pulse_rate = None
-        self.pulse_width = None
+        # Fill attributes
+        self.__database_to_attributes__()
     
         # Fill values in metadata file
         self.metadata['Attributes']["acquisition_id"] = None
@@ -241,7 +283,7 @@ class Dataset(object):
         self.metadata['Attributes']["pulse_width_unit"] = 'meter'
         self.metadata['Attributes']["comment"] = 'NA'
         self.metadata['Attributes']["database_path"] = self.__filepath__
-        self.metadata['Database'] = manager.metadates_2_isoformat(self.database).to_dict(orient='list')
+        self.metadata['Database'] = manager.metadates_2_isoformat(self.database, reverse=False).to_dict(orient='list')
         
         
 

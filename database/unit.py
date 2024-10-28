@@ -19,6 +19,7 @@ Last modification on 2024-07-08 15:59:00
 # Necessary packages to import
 import copy
 import pandas as pd
+from obspy.core import UTCDateTime as UTC
 
 # Fobench classes
 from .dataset import Dataset
@@ -63,6 +64,11 @@ class Unit(object):
 		self.latest_usage = None # latest end date of meassurements with the unit.
 
 		self.metadata = self.__json_metadata__()
+
+		if metadata_file is not None: # check the case in which a metadata is introduced. Initialization from here is needed.
+
+			self.__build_from_metafile__(metadata_file)
+			self.__builded__ = True
     
 
 
@@ -71,20 +77,6 @@ class Unit(object):
 	Private Functions
 	######################################################
 	'''
-
-	#Creates the basic variables of the DAS object with its characteristics
-	def __build_from_metafile__(self, json_file=None):
-		'''
-		Co-authors: --
-		Description: 
-			Builds from a given metadata file.
-		:Params:
-			- json_file(type:String): complete path where the single/multiple datasets are located.
-		:Return:
-			- NA.
-		'''
-
-		return 0
     
     
     # Define metadata structure for JSON.
@@ -104,6 +96,8 @@ class Unit(object):
 						"interrogator_id": None,
 						"manufacturer": 'NA',
 						"sensing": 'NA',
+						"earliest_usage": None,
+						"latest_usage": None,
 						"model": 'NA',
 						"serial_number": None,
 						"firmware_version": None,
@@ -114,6 +108,8 @@ class Unit(object):
 						"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
 						"manufacturer": "Manufacturer name of the interrogator.",
 						"sensing": 'Sensing technique of the unit. Determines the type of data.',
+						"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
+						"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
 						"model": "Model number of the interrogator.",
 						"serial_number": "Serial number of the interrogator.",
 						"firmware_version": "Firmware version of the software used within the interrogator.",
@@ -124,6 +120,8 @@ class Unit(object):
 						"interrogator_id": True,
 						"manufacturer": True,
 						"sensing": True,
+						"earliest_usage": True,
+						"latest_usage": True,
 						"model": True,
 						"serial_number": False,
 						"firmware_version": False,
@@ -133,7 +131,65 @@ class Unit(object):
 					"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
                     }
 
-		return metadata 
+		return metadata
+
+
+	#Creates the basic variables of the DAS object with its characteristics
+	def __build_from_metafile__(self, json_file=None):
+		'''
+		Co-authors: --
+		Description: 
+			Builds from a given metadata file.
+		:Params:
+			- json_file(type:String): complete path where the single/multiple datasets are located.
+		:Return:
+			- NA.
+		'''
+
+		# Check if just the path of the metadata is being indicated.
+		if isinstance(json_file, str):
+
+			meta_dict = manager.open_metadatafile(json_file)
+
+		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+
+			meta_dict = json_file
+
+		# Initialize/Fill the Unit attributes.
+		self.metadata = json_file
+		self.__metadata_to_attributes__()
+
+		# Initialize the Datasets.
+		if meta_dict['Datasets']: # check Datasets.
+
+			for meta_dataset in meta_dict['Datasets']:
+
+				self.add_dataset( Dataset(self, metadata_file=meta_dataset) )# Initialize the Units. )
+
+		return self
+
+
+	#Creates the basic variables of the DAS object with its characteristics
+	def __metadata_to_attributes__(self):
+		'''
+		Co-authors: --
+		Description: 
+			Fills Unit attributes (build) from metadata.
+		:Params:
+			- NA.
+		:Return:
+			- NA.
+		'''
+
+		# Fill values in attributes
+		self.__folder_path__ = self.metadata['Attributes']['interrogator_path'] # central folder path of files.
+
+		self.sensing = self.metadata['Attributes']['sensing']
+		self.company = self.metadata['Attributes']['manufacturer']
+		self.earliest_usage = UTC(self.metadata['Attributes']['earliest_usage']) # earliest start date of meassurements with the unit.
+		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the unit.
+
+		return self
     
 
     # Define metadata structure for JSON.
@@ -152,6 +208,8 @@ class Unit(object):
 		self.metadata['Attributes']["interrogator_id"] = None
 		self.metadata['Attributes']["manufacturer"] = self.company
 		self.metadata['Attributes']["sensing"] = self.sensing
+		self.metadata['Attributes']["earliest_usage"] = self.earliest_usage.isoformat()
+		self.metadata['Attributes']["latest_usage"] = self.latest_usage.isoformat()
 		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
 		# self.metadata['Attributes']["model"] = 'NA'
 		# self.metadata['Attributes']["serial_number"] = 'NA'
@@ -202,6 +260,23 @@ class Unit(object):
 		return copy.deepcopy(self)
 
 
+	# Adding Datasets to the Unit.
+	def add_dataset(self, dataset):
+		'''
+		Co-authors: --
+		Description: 
+			Add Dataset objects to the current Unit Class.
+		:Params:
+			- dataset(type:Dataset Class): Dataset Class or Object to add to current Unit class. 
+		:Return:
+			- NA.
+		'''
+
+		self.datasets.append(dataset)
+
+		return self
+
+
 	#Creates the basic variables of the DAS object with its characteristics
 	def build(self, format=None, parallels=None):
 		'''
@@ -215,7 +290,7 @@ class Unit(object):
 			- NA.
 		'''
 
-		files = manager.scan_folder(self.__folder_path__, format=format)[:400] # remove the limitations.
+		files = manager.scan_folder(self.__folder_path__, format=format)#[:400] # remove the limitations.
 
 		# calculate in parallel mode
 		if parallels != None:
@@ -246,8 +321,8 @@ class Unit(object):
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
     
-			self.earliest_usage = min(earlier)
-			self.latest_usage = max(later)
+			self.earliest_usage = UTC(min(earlier))
+			self.latest_usage = UTC(max(later))
 
 		self.__fill_metadata__()
 		self.__builded__ = True # its now builded.
