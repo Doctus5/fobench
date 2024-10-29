@@ -2,6 +2,7 @@ import obspy as ob
 from obspy.core.stream import Stream
 #from obspy.core.trace import Trace
 from obspy.core import UTCDateTime as UTC
+from obspy.signal.util import stack
 from datetime import datetime
 
 import functools
@@ -31,6 +32,7 @@ def scan_hdf5(path, recursive=True, tab_step=2):
         scan_node(f)
         
         
+
 '''
 TOOLS USED EXCLUSIVE FOR Fiber CLASS
 '''
@@ -86,11 +88,11 @@ def _update_processing(func):
 			try: key = [i for i in unit_map if unit_map[i] == fiber.units][0]
 			except: key = fiber.units[2]
 
-				# depending on operation change key
+			# depending on operation change key
 			if func_name == 'integrate': key -= 1
 			elif func_name == 'differentiate': key += 1
 
-				# assign new unit
+			# assign new unit
 			try: fiber.units = unit_map[key]
 			except: fiber.units = f'd^{key}/dt {unit_map[0]} [dm/m]'
 			
@@ -525,7 +527,25 @@ def spatial_downsampling(das_class):
 	#new_channels_num = das_class.channels_num[:int(len(das_class.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 		
 	return new_data, new_channels_num
+		
+		
+def stack_2D(data, stack_type=None):
+	'''
+	Co-authors: Jonas Pätzel
+	Description: stacks data given as 2D array with dimensions (n_channels, n_samples)
+	calls obspy.signal.util.stack
+	e.g. for stacking channel data
+	:Params:
+		- stack_type (type: String or Tuple(str, int)): type of stack
+		options are: 'linear', ('pws', order) or ('root', order)
+	:Return:
+		- stacked data
+	'''
+	if not stack_type:
+		raise ValueError('Please provide a stack type')
+	return stack(data, stack_type)
 
+# def stack_3D():
 
 
 
