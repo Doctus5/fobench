@@ -532,10 +532,12 @@ def spatial_downsampling(das_class):
 def stack_2D(data, stack_type=None):
 	'''
 	Co-authors: Jonas Pätzel
-	Description: stacks data given as 2D array with dimensions (n_channels, n_samples)
-	calls obspy.signal.util.stack
-	e.g. for stacking channel data
+	Description: 
+		stacks data given as 2D array with dimensions (n_signals, n_samples)
+		calls obspy.signal.util.stack
+		e.g. for stacking channel data
 	:Params:
+		- data: (type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
 		options are: 'linear', ('pws', order) or ('root', order)
 	:Return:
@@ -545,7 +547,48 @@ def stack_2D(data, stack_type=None):
 		raise ValueError('Please provide a stack type')
 	return stack(data, stack_type)
 
-# def stack_3D():
+
+def stack_3D(data, stack_type=None):
+	"""
+	Co-authors: Jonas Pätzel
+	Description:
+		adapted version of obspy.signal.util.stack 
+		stacks data given as 3D array with dimensions (n_signals, n_samples, n_windows)
+		implemented are linear and phase-weighted stacking
+		function is optimized for saving memory not for speed, phase stack in calculated iteratively
+	:Params:
+		- data:(type: numpy): data to stack
+		- stack_type (type: String or Tuple(str, int)): type of stack
+		options are: 'linear', ('pws', order) or ('root', order)
+	:return: 
+		stacked data (type: numpy(n_signals, n_samples))
+	"""
+	# linear stack
+	if stack_type == 'linear':
+		return np.mean(data, axis=2)
+
+	# PWS stack
+	elif isinstance(stack_type, tuple) and stack_type[0] == 'pw':
+
+		order = stack_type[1]
+		n_samples = data.shape[1]
+
+		phase_stack = np.zeros((data.shape[0], n_samples), dtype=np.float32)
+		linear_stack = np.mean(data, axis=2)
+
+		# Compute phase stack iteratively
+		for i in range(data.shape[2]):
+			analytic_signal = hilbert(data[:, :, i], axis=1)[:, :n_samples]
+			np.divide(analytic_signal, np.abs(analytic_signal) + 10**-9, out=analytic_signal)
+			phase_stack += (np.abs(np.mean(analytic_signal, axis=1))[:, np.newaxis] ** order)
+
+		phase_stack /= data.shape[2]
+		np.multiply(linear_stack, phase_stack, out=linear_stack)
+
+		return linear_stack
+
+	else:
+		raise ValueError('Please provide a stacking method of either "linear" or ("pw", order)')
 
 
 
