@@ -740,6 +740,9 @@ recording parameters:
 		'''
 	
 		axis = self.__axis__('t') # axis to apply, default is time.
+
+		if self.sampling_frequency % new_freq != 0:
+			warn(f'Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead')
 		down_factor = int(self.sampling_frequency / new_freq)
 		new_freq = self.sampling_frequency / down_factor
 		
