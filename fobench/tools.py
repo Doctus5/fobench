@@ -467,7 +467,7 @@ def psd(o_signal, sampling_rate, pre_processing=True, order=1, n=None):
 		- pre_processing(type:Boolean): if True, signal will be detrend, demean, and tapered. Default is True.
 	:Return:
 		- positive_freqs(type:Numpy): frequency values of the PSD curve.
-        - magnitude(type:Numpy): amplitude values of PSD curve of the signal.
+		- magnitude(type:Numpy): amplitude values of PSD curve of the signal.
 	'''
 
 	if pre_processing == True:
@@ -483,7 +483,8 @@ def psd(o_signal, sampling_rate, pre_processing=True, order=1, n=None):
 def spatial_upsampling(das_class):
 	'''
 	Co-authors: --
-	Description: Tool for upscaling spatialy the DDSS (DAS) data by double. Creates an interpolation between consecutive 
+	Description: 
+		Tool for upscaling spatialy the DDSS (DAS) data by double. Creates an interpolation between consecutive 
 	channels to simulate an increase spatial resolution.
 	:Params:
 		- das_class(type:DAS): an initialized DAS Class with data.
@@ -512,13 +513,14 @@ def spatial_upsampling(das_class):
 def spatial_downsampling(das_class):
 	'''
 	Co-authors: --
-	Description: Tool for downscaling spatialy the DDSS (DAS) data by half. Erase one channel between consecutive 
-	channels to simulate a decrease spatial resolution.
+	Description: 
+		Tool for downscaling spatialy the DDSS (DAS) data by half. Erase one channel between consecutive 
+		channels to simulate a decrease spatial resolution.
 	:Params:
 		- das_class(type:DAS): an initialized DAS Class with data.
 	:Return:
 		- new_data(type:numpy): 2D matrix containing the new spatial downsampled data.
-		- new_channels_num(type_numpy): a list containing the new numbers of the channels, where the inermediate ones are eliminated.  
+		- new_channels_num(type: numpy): a list containing the new numbers of the channels, where the inermediate ones are eliminated.  
 	'''
 	
 	new_data = das_class.data[:,::2]
@@ -568,7 +570,7 @@ def stack_3D(data, stack_type=None):
 		return np.mean(data, axis=2)
 
 	# PWS stack
-	elif isinstance(stack_type, tuple) and stack_type[0] == 'pw':
+	elif isinstance(stack_type, tuple) and stack_type[0] == 'pws':
 
 		order = stack_type[1]
 		n_samples = data.shape[1]
