@@ -146,61 +146,6 @@ recording parameters:
 		if not isinstance(other, Fiber):
 			raise TypeError('Object to add must be instance of Fiber class')
 		return self.concatenate(other, fill_gaps=0)
-	
-	
-	# #Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
-	# def __data__(self):
-	# 	'''
-	# 	Co-authors: --
-	# 	Description: 
-	# 		Extracts the data depending on the file type. This is done automatically during initialization of the class.
-	# 	:Params:
-	# 		- NA.
-	# 	:Return:
-	# 		- values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.  
-	# 	'''
-	
-	# 	values = []
-		
-	# 	if self.format == 'tdms' and self.company == 'silixa':
-			
-	# 		values = np.array(self.channels).T # Old slow method.
-	# 		# values = self.base['Measurement'].as_dataframe().to_numpy() # New way to load data. Cuts time by half.
-			
-	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'febus':
-		
-	# 		dims = self.dataset.shape
-	# 		values = self.dataset[:,:self.LAG,:].reshape(int(dims[0]*self.LAG),dims[2])
-   
-	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'silixa':
-
-	# 		values = np.array(self.dataset[:,self.channels])
-			
-	# 	if self.format == 'npy' and self.company == 'bam':
-		
-	# 		values = np.load(self.__filepath__)
-
-	# 	if self.format == 'npz' and self.company == 'bam':
-		
-	# 		values = np.load(self.__filepath__)['ph']
-   
-	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'terra15':
-
-	# 		values = np.array(self.dataset['data'])
-
-	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'asn':
-
-	# 		values = np.array(self.dataset)
-
-	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'quantx':
-
-	# 		values = np.array(self.dataset['RawData'])
-		
-	# 	if (self.format == 'h5' or self.format == 'hdf5') and self.company == 'aragon':
-
-	# 		values = np.array(self.dataset)*(10**-9)
-
-	# 	return values.astype('float')
 
 
 	# Translates the string inout dimension into numerical axis of numpy.
@@ -216,6 +161,7 @@ recording parameters:
 			- axis(type: Int): integer value which denotes in numpy dimension where is time and distance.  
 		'''
 		
+		# Axis 0 in a matrix is the row dimension (downwards) and the 1 is column-wise (rightwards, elements inside each sub-array.)
 		axial = {'t':0, 'd':1}
     
 		return axial[dim]

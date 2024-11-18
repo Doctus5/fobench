@@ -109,7 +109,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans = [i for i in range(properties['NumberOfLoci'])] if not range_ch else range_ch
         chans_nums = np.array(chans)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums[range_ch])) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
         fiber = properties['FibreType']
         sampling_frequency = properties['OutputDataRate']
         o_sampling_frequency = sampling_frequency
@@ -135,10 +135,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
         meassure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
         dataset = file_file[instrument]['Source1']['Zone1'][meassure_type]
-        chans_nums = [i for i in range(dataset.shape[2])]
+        chans_nums = [i for i in range(dataset.shape[2])] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums[range_ch]), LAG) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums), LAG) if load_data == True else None
         sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
         o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
@@ -264,10 +264,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         properties = None
         chans = None
         dataset = np.load(filepath)
-        chans_nums = [i for i in range(dataset.shape[1])]
+        chans_nums = [i for i in range(dataset.shape[1])] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
+        data = __data__(filepath, format, company, list(chans_nums)) if load_data == True else None
         fiber = 'La Chida'
         sampling_frequency = 100000
         o_sampling_frequency = sampling_frequency
@@ -289,10 +289,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         properties = None
         chans = None
         dataset = np.load(filepath)
-        chans_nums = [i for i in range(len(dataset['distance']))]
+        chans_nums = [i for i in range(len(dataset['distance']))] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(filepath, format, company, list(chans_nums[range_ch])) if load_data == True else None
+        data = __data__(filepath, format, company, list(chans_nums)) if load_data == True else None
         fiber = 'La Chida'
         sampling_frequency = dataset['freq']
         o_sampling_frequency = sampling_frequency
