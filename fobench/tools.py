@@ -276,6 +276,34 @@ Signal Analysis functions below...
 ####################################################
 '''
 
+def auto_cascf(in_fs, out_fs):
+	'''
+	Gives the optimal cascadian decimation factors based on initial sampling frequency and final sampling frequency.
+	:Params(type):
+		- data(type:numpy): matrix data (2D) of the DAS Class.
+		- in_fs(type:int or float): original (input) sampling frequency.
+		- out_fs(type:int or float): desired (output) sampling frequency.
+	:Return(type):
+		- factors(type:list): list of factors to use to get from input to output frequencies.  
+	'''
+
+	factors = []
+	pref_factors = [2, 3, 4, 5] # prefered decimation factors in order of preference.
+	n = in_fs / out_fs # overall decimation factor
+
+	for d in pref_factors:
+		
+		while n % d == 0:
+			
+			factors.append(d)
+			n //= d
+			
+	if n > 1:
+		
+		factors.append(n)  # Include any remaining prime factor
+		
+	return factors
+
 
 def hilbert(data, axis=0):
 	'''
