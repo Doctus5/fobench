@@ -71,31 +71,31 @@ class Fiber(object):
 		self.company = company
 		self.format = filepath.split('.')[-1]
   
-		attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
-		
-		self.base = attributes.file
-		self.fiber = attributes.fiber
-		self.dataset = attributes.dataset
-		self.properties = attributes.properties
-		self.channels = attributes.chans
-		self.channels_num = attributes.chans_nums
-		self.total_channels = attributes.list_chans_num
-		self.sampling_frequency = attributes.sampling_frequency # sampling rate of the data.
-		self.o_sampling_frequency = attributes.o_sampling_frequency if attributes.o_sampling_frequency != None else attributes.sampling_frequency # original sampling frequency. Important for conversion factor.
+		self.attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)		
+  
+		self.base = self.attributes['file']
+		self.fiber = self.attributes['fiber']
+		self.dataset = self.attributes['dataset']
+		self.properties = self.attributes['properties']
+		self.channels = self.attributes['chans']
+		self.channels_num = self.attributes['chans_nums']
+		self.total_channels = self.attributes['list_chans_num']
+		self.sampling_frequency = self.attributes['sampling_frequency'] # sampling rate of the data.
+		self.o_sampling_frequency = self.attributes['o_sampling_frequency'] if self.attributes['o_sampling_frequency'] != None else self.attributes['sampling_frequency'] # original sampling frequency. Important for conversion factor.
 		self.dt = 1 / self.sampling_frequency # calculated time step.
-		self.start_time = attributes.start_time # start time of the data in file.
-		self.end_time = attributes.end_time # end time of the data in file.
-		self.spatial_interval = attributes.spatial_interval # channel spacing or spatial interval between channels [m].
+		self.start_time = self.attributes['start_time'] # start time of the data in file.
+		self.end_time = self.attributes['end_time'] # end time of the data in file.
+		self.spatial_interval = self.attributes['spatial_interval'] # channel spacing or spatial interval between channels [m].
 		self.time_length = self.end_time - self.start_time
-		self.num_points = attributes.num_points # int(self.time_length/self.dt)
-		self.gauge_length = attributes.gauge_length # gauge length used in the measurement [m].
-		self.channel_offset = attributes.channel_offset # offset where measurement started. It will not always record at channel 0 or distance 0.
+		self.num_points = self.attributes['num_points'] # int(self.time_length/self.dt)
+		self.gauge_length = self.attributes['gauge_length'] # gauge length used in the measurement [m].
+		self.channel_offset = self.attributes['channel_offset'] # offset where measurement started. It will not always record at channel 0 or distance 0.
 		# self.data = self.__data__() if load_data == True else None
-		self.data = attributes.data
+		self.data = self.attributes['data']
 		self.corrected = False
 		self.sensing = sensing
-		self.units = attributes.units
-		self.conv_factor = attributes.conv_factor # Extra variables (ONLY FOR ASN HDF5)
+		self.units = self.attributes['units']
+		self.conv_factor = self.attributes['conv_factor'] # Extra variables (ONLY FOR ASN HDF5)
 		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
 
 		# Attributed not initialized since beginning. Required further processing to be initialized
@@ -522,7 +522,7 @@ recording parameters:
 				trace.stats.sampling_rate = self.sampling_frequency
 				trace.stats.delta = self.dt
 				trace.stats.starttime = self.start_time
-				trace.stats.calib = tools.instr_corr(np.array(1), d_type='das')
+				trace.stats.calib = tools.instr_corr(np.array(1), attributes=vars(self))
 				#trace.stats.endtime = self.end_time
 
 				stream += trace

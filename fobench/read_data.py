@@ -341,8 +341,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     file_file = None
     
     # Attributed for the Fiber class.
-    result_tuple = namedtuple('attributes',[
+    attr_keys = [
         'file',
+        'format',
+        'company',
         'fiber',
         'dataset',
         'properties',
@@ -362,10 +364,11 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'data',
         'units',
         'conv_factor'
-    ])
+        ]
     
-    attributes = result_tuple(
-                file_file, 
+    attributes = [file_file,
+                format,
+                company,
                 fiber,
                 dataset, 
                 h5_to_dict(properties), 
@@ -385,7 +388,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
                 data,
                 units,
                 conv_factor
-                )
+                ]
+    
+    attributes = dict(zip(attr_keys,attributes))
 
     return attributes
 
