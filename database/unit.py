@@ -2,7 +2,6 @@
 Class "Unit" for visualizing and handling data within a project.
 a Project is understood as a field campaing in an specific location where several Datasets are collected
 from deployments.
-So far it recieves TDMS format (Silixa) and H5 format (Febus).
 
 Created on 2022-08-19 12:07:17
 Last modification on 2024-07-08 15:59:00
@@ -27,6 +26,7 @@ from .parallel import Parallel
 
 # Inner functions
 from . import manager as manager
+from .plotters import unit_plots as uni_plots
 
 
 
@@ -60,6 +60,7 @@ class Unit(object):
 		# Public attributes
 		self.sensing = sensing
 		self.company = company
+		self.total_files = 0 # total files that the unit produced.
 		self.earliest_usage = None # earliest start date of meassurements with the unit.
 		self.latest_usage = None # latest end date of meassurements with the unit.
 
@@ -98,6 +99,7 @@ class Unit(object):
 						"sensing": 'NA',
 						"earliest_usage": None,
 						"latest_usage": None,
+						"total_files": 0,
 						"model": 'NA',
 						"serial_number": None,
 						"firmware_version": None,
@@ -110,6 +112,7 @@ class Unit(object):
 						"sensing": 'Sensing technique of the unit. Determines the type of data.',
 						"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
 						"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
+						"total_files": "Total number of files produced by this unit.",
 						"model": "Model number of the interrogator.",
 						"serial_number": "Serial number of the interrogator.",
 						"firmware_version": "Firmware version of the software used within the interrogator.",
@@ -122,6 +125,7 @@ class Unit(object):
 						"sensing": True,
 						"earliest_usage": True,
 						"latest_usage": True,
+						"total_files": True,
 						"model": True,
 						"serial_number": False,
 						"firmware_version": False,
@@ -186,6 +190,7 @@ class Unit(object):
 
 		self.sensing = self.metadata['Attributes']['sensing']
 		self.company = self.metadata['Attributes']['manufacturer']
+		self.company = self.metadata['Attributes']['total_files']
 		self.earliest_usage = UTC(self.metadata['Attributes']['earliest_usage']) # earliest start date of meassurements with the unit.
 		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the unit.
 
@@ -210,6 +215,7 @@ class Unit(object):
 		self.metadata['Attributes']["sensing"] = self.sensing
 		self.metadata['Attributes']["earliest_usage"] = self.earliest_usage.isoformat()
 		self.metadata['Attributes']["latest_usage"] = self.latest_usage.isoformat()
+		self.metadata['Attributes']["total_files"] = self.total_files
 		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
 		# self.metadata['Attributes']["model"] = 'NA'
 		# self.metadata['Attributes']["serial_number"] = 'NA'
@@ -315,11 +321,13 @@ class Unit(object):
 		if self.datasets:
 
 			earlier, later = [], []
+			self.total_files = 0 # reset the variable to start summing.
 
 			for dataset in self.datasets: # loop over existing datasets.
 
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
+				self.total_files += dataset.total_files # adding to total number of files.
     
 			self.earliest_usage = UTC(min(earlier))
 			self.latest_usage = UTC(max(later))
@@ -328,3 +336,27 @@ class Unit(object):
 		self.__builded__ = True # its now builded.
 
 		return self
+
+
+	'''
+	####################################################
+	Plotting functions below...
+	####################################################
+	'''
+
+
+	def view_avail(self):
+		'''
+		Co-authors: --
+		Description: 
+			Function for plotting and viewing the available Datasets and their time coverage.
+		:Params:
+			- parallel_params(type:Dict): dictionary containing the parameters for parallelization. If parameters are
+			given, then the building method runs in parallel. If None, it runs in serial.
+		:Return:
+			- NA.
+		'''
+
+		dataset_infos = [[dataset.start_time, dataset.end_time] for dataset in self.datasets]
+
+		uni_plots.plot_data_coverage(dataset_infos, (self.earliest_usage, self.latest_usage))

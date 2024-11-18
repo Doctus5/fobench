@@ -18,6 +18,7 @@ import subprocess as terminal
 import numpy as np
 from itertools import chain
 from functools import partial
+import sys
 
 
 class Parallel(object):
@@ -174,17 +175,24 @@ class Parallel(object):
                 self.mpi_comm.Barrier() # wait for all to finish.
                 results = self.mpi_comm.gather(batch_result, root=0)
                 self.mpi_comm.Barrier() # wait for all to finish.
+                sys.stdout.flush() # Flush all output of other cores that are not the central.
                 
                 if self.mpi_rank != 0:
                     
                     self._MODE_.Finalize()
                     exit()
+                    
+            sys.stdout.flush() # flush out the central core messages
             
         # for Multiprocessing.
         if self.mode == 'multiprocessing':
         
             results = []
             ids = np.arange(self.n_cores)
+            
+            for i in range(self.n_cores):
+            
+                print(f'Processing in core {i} a batch of {arguments_chunk[i].size} tasks.')
             
             with self._MODE_.Pool() as pool:
                 

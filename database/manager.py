@@ -16,6 +16,7 @@ Last modification on 2024-07-08 16:50:00
 # Necessary packages to import
 import os
 import glob
+import warnings
 import json
 import pandas as pd
 import numpy as np
@@ -47,6 +48,10 @@ def scan_folder(folder_path, format=None):
     # Use glob to recursively match files ending with the given extension
     search_pattern = os.path.join(folder_path, '**', f'*{format}')
     files = glob.glob(search_pattern, recursive=True)
+    
+    if not files:
+        
+        warnings.warn(f'No files with the specified format .{format} or files at all were found.', category=UserWarning)
                 
     return files
 
