@@ -51,6 +51,8 @@ def point_filter(f_type=None, data=None, df=None, freq=None, **options):
 		result = lowpass(data=data, df=df, freq=freq, **options)
 	if f_type == 'highpass':
 		result = highpass(data=data, df=df, freq=freq, **options)
+	if f_type == 'median':
+		result = median_filter(data=data, **options)
 						
 	return result
 	
