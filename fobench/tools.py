@@ -589,7 +589,7 @@ def stack_3D(data, stack_type=None):
 	:Params:
 		- data:(type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear', ('pws', order) or ('root', order)
+		options are: 'linear'or ('pws', order)
 	:return: 
 		stacked data (type: numpy(n_signals, n_samples))
 	"""

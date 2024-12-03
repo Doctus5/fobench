@@ -28,6 +28,7 @@ from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2, fft, iff
 from obspy.core import UTCDateTime as UTC
 from obspy.core.trace import Trace as oTrace
 from obspy.core.stream import Stream
+from obspy.signal.cross_correlation import correlate
 
 from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
@@ -1339,3 +1340,26 @@ recording parameters:
 		date = self.times()[0].isoformat()[:10]
 
 		plot.plot_record_section(signals=das_data, t=t, channels=das_channels, date=date)
+    
+	def acf_profile(self, max_shift, dim='t', make_plot=False, **imshow_kwargs):
+		'''
+		Co-authors: Jonas Pätzel
+		Description: 
+			computes the autocorrelation either for each channel or each time sample, calls obspy.signal.cross_correlation.correlate
+		:Params:
+			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
+			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
+			- **imshow_kwargs: kwargs to be passed to plt.imshow
+		:Return:
+			- acfs(type:numpy): 2D matrix containing the positive lag-time/space, normalized autocorrelation functions
+		'''
+
+		axis = self.__axis__(dim)
+		if (dim == 't' and max_shift >= self.das.num_points) or (dim == 'd' and max_shift >= self.total_channels):
+			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
+		autocorrelate1D = lambda x: correlate(x, x, max_shift)[max_shift:]
+
+		result = np.apply_along_axis(autocorrelate1D, axis=axis, arr=self.data)
+		if make_plot:
+			plot.plot_acfs(acfs=result, dim=dim, meta=self.attributes, max_shift=max_shift, **imshow_kwargs)
+		return result
