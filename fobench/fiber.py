@@ -1355,7 +1355,7 @@ recording parameters:
 		'''
 
 		axis = self.__axis__(dim)
-		if (dim == 't' and max_shift >= self.das.num_points) or (dim == 'd' and max_shift >= self.total_channels):
+		if (dim == 't' and max_shift >= self.num_points) or (dim == 'd' and max_shift >= self.total_channels):
 			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
 		autocorrelate1D = lambda x: correlate(x, x, max_shift)[max_shift:]
 

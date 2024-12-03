@@ -343,13 +343,13 @@ def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
 
 	if dim == 't':
 		extent = [meta['chans'][0], meta['chans'][-1], max_shift/meta['sampling_frequency'], 0]
-		ylabel = 'Lag (s)'
-		xlabel = 'Channel Number'
+		y_label = 'Lag (s)'
+		x_label = 'Channel Number'
 	elif dim == 'd':
 		total_time = meta['num_points']/meta['sampling_frequency']
 		extent = [0, max_shift*meta['spatial_interval'], total_time, 0]
-		ylabel = 'Recording Time (s)'
-		xlabel = 'Lag (m)'
+		y_label = 'Recording Time (s)'
+		x_label = 'Lag (m)'
 
 	im = plt.imshow(acfs, aspect='auto', origin='upper', extent=extent, **imshow_kwargs)
 	
@@ -366,8 +366,8 @@ def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
 		extend = 'neither'
 
 	plt.colorbar(im, label='Auto-correlation Coefficient', extend=extend)
-	plt.xlabel(xlabel)
-	plt.ylabel(ylabel)
+	plt.xlabel(x_label)
+	plt.ylabel(y_label)
 	plt.tight_layout()
 	plt.show()
 
