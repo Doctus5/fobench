@@ -24,7 +24,7 @@ import warnings
 import numpy as np
 from scipy.fftpack import hilbert
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
-                          remez)
+                          remez, medfilt2d)
 import scipy.signal as signal
 import os
 
@@ -214,6 +214,18 @@ def highpass(data, freq, df, corners=4, zerophase=False):
     else:
         return sosfilt(sos, data, axis=0)
 
+def median_filter(data, kernel_size=3):
+	'''
+	Co-authors: Jonas Pätzel
+	Description: 
+		applies 2 dimensional median filter to data, calls scipy.signal.medfilt2d
+	:Params:
+		- data(type: numpy): array to filter
+		- kernel_size(type: int or lst): size of filter kernel, must be off, if scalar then used as size in each dimension, default is 3x3
+	:Return:
+		- filtered data
+	'''
+	return medfilt2d(data, kernel_size)
 
 def envelope(data):
     """
