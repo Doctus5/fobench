@@ -334,22 +334,21 @@ def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
 	:Params:
 		- acfs (type: numpy): array containing the acfs
 		- meta (type: dict): Fiber.attributes dict
-		- max_shift (type:int): the maximum shift use for the acf computation
+		- max_shift (type:int): the maximum shift used for the acf computation
 		- dim(type: String): dimension along which acfs were computed
-		- **imshow_kwargs: kwargs to be passed to plt.imshow
+		- **imshow_kwargs: kwargs to be passed to plt.imshow()
 	:Return:
 		-
 	'''
 
 	if dim == 't':
 		extent = [meta['chans'][0], meta['chans'][-1], max_shift/meta['sampling_frequency'], 0]
-		y_label = 'Lag (s)'
+		y_label = 'Lag/TWT [s]'
 		x_label = 'Channel Number'
 	elif dim == 'd':
-		total_time = meta['num_points']/meta['sampling_frequency']
-		extent = [0, max_shift*meta['spatial_interval'], total_time, 0]
-		y_label = 'Recording Time (s)'
-		x_label = 'Lag (m)'
+		extent = [0, max_shift*meta['spatial_interval'], meta['time_length'], 0]
+		y_label = 'Recording Time [s]'
+		x_label = 'Lag [m]'
 
 	im = plt.imshow(acfs, aspect='auto', origin='upper', extent=extent, **imshow_kwargs)
 	

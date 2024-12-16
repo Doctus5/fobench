@@ -569,7 +569,7 @@ def stack_2D(data, stack_type=None):
 	:Params:
 		- data: (type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear', ('pws', order) or ('root', order)
+		options are: 'linear', ('pw', order) or ('root', order)
 	:Return:
 		- stacked data
 	'''
@@ -589,7 +589,7 @@ def stack_3D(data, stack_type=None):
 	:Params:
 		- data:(type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear'or ('pws', order)
+		options are: 'linear'or ('pw', order)
 	:return: 
 		stacked data (type: numpy(n_signals, n_samples))
 	"""
@@ -598,7 +598,7 @@ def stack_3D(data, stack_type=None):
 		return np.mean(data, axis=2)
 
 	# PWS stack
-	elif isinstance(stack_type, tuple) and stack_type[0] == 'pws':
+	elif isinstance(stack_type, tuple) and stack_type[0] == 'pw':
 
 		order = stack_type[1]
 		n_samples = data.shape[1]
