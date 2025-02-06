@@ -124,7 +124,7 @@ class Fiber(object):
 			- NA.  
 		'''
 
-		attributes = ['units', 'start_time', 'end_time', 'total_channels', 
+		attributes = ['units', 'start_time', 'end_time', 'num_points', 'total_channels', 
 					'spatial_interval', 'sampling_frequency', 'gauge_length']
 
 		return f'''\nInstance of Fiber class

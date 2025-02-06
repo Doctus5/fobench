@@ -128,7 +128,6 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
     
         print('Reading H5 file (Febus Format)...')
-        LAG = 201 #important parameter! Sometimes the data is repeated in batches. This number indicates the position in the minibatch where the data begins to be repeated.
         file_file = h5.File(filepath,'r')
         instrument = list(file_file.keys())[0]
         properties = file_file[instrument]['Source1']['Zone1'].attrs
@@ -138,16 +137,19 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = [i for i in range(dataset.shape[2])] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums), LAG) if load_data == True else None
+        #LAG = properties['BlockOverlap'][0] # 201 is standard. How much the data is repeated in batches.
         sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
         o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
+        SEMILAG = properties['BlockRate'][0]*1e-3 if getattr(properties['BlockRate'], "size", 0) == 1 else properties['BlockRate']*1e-3 # unpacking value sif is inside list.
+        SEMILAG = int(np.round((1/SEMILAG) / dt))
+        data = __data__(dataset, format, company, list(chans_nums), SEMILAG) if load_data == True else None
         start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
-        end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * LAG)
+        end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * SEMILAG)
         spatial_interval = properties['Spacing'][0]
         time_length = end_time - start_time
         num_points = int(time_length/dt) # check!
-        gauge_length = properties['GaugeLength'] # CHECK THIS!!
+        gauge_length = properties['GaugeLength'][0] # CHECK THIS!!
         channel_offset = 0 # FIX THIS!!
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
@@ -424,7 +426,15 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     if (format == 'h5' or format == 'hdf5') and company == 'febus':
     
         dims = extract_point.shape
+        
+        # experimental based on real block overlap values.
+        # LAG = int(dims[1]*LAG)
+        # n_dim = int((dims[1] - LAG)*dims[0])
+        # values = extract_point[:,:LAG,:].reshape(int(n_dim),dims[2])[:,range_ch]
+        
         values = extract_point[:,:LAG,:].reshape(int(dims[0]*LAG),dims[2])[:,range_ch]
+        
+        # values = extract_point[:,:LAG,:].reshape(int(dims[0]*LAG),dims[2])[:,range_ch]
 
     if (format == 'h5' or format == 'hdf5') and company == 'silixa':
 
