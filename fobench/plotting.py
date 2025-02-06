@@ -326,5 +326,49 @@ def plot_record_section(signals, t, channels, date):
 	plt.show()
 
 
-				
+def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
+	'''
+	Co-authors: Jonas Pätzel
+	Description: 
+		plots the result of Fiber.acf_profile
+	:Params:
+		- acfs (type: numpy): array containing the acfs
+		- meta (type: dict): Fiber.attributes dict
+		- max_shift (type:int): the maximum shift used for the acf computation
+		- dim(type: String): dimension along which acfs were computed
+		- **imshow_kwargs: kwargs to be passed to plt.imshow()
+	:Return:
+		-
+	'''
+
+	if dim == 't':
+		extent = [meta['chans'][0], meta['chans'][-1], max_shift/meta['sampling_frequency'], 0]
+		y_label = 'Lag/TWT [s]'
+		x_label = 'Channel Number'
+	elif dim == 'd':
+		extent = [0, max_shift*meta['spatial_interval'], meta['time_length'], 0]
+		y_label = 'Recording Time [s]'
+		x_label = 'Lag [m]'
+
+	im = plt.imshow(acfs, aspect='auto', origin='upper', extent=extent, **imshow_kwargs)
+	
+	vmin = imshow_kwargs.get('vmin')
+	vmax = imshow_kwargs.get('vmax')
+	
+	if vmin is not None and vmax is not None:
+		extend = 'both'
+	elif vmin is not None:
+		extend = 'min'
+	elif vmax is not None:
+		extend = 'max'
+	else:
+		extend = 'neither'
+
+	plt.colorbar(im, label='Auto-correlation Coefficient', extend=extend)
+	plt.xlabel(x_label)
+	plt.ylabel(y_label)
+	plt.tight_layout()
+	plt.show()
+
+
 

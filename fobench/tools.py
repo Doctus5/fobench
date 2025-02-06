@@ -569,7 +569,7 @@ def stack_2D(data, stack_type=None):
 	:Params:
 		- data: (type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear', ('pws', order) or ('root', order)
+		options are: 'linear', ('pw', order) or ('root', order)
 	:Return:
 		- stacked data
 	'''
@@ -585,11 +585,11 @@ def stack_3D(data, stack_type=None):
 		adapted version of obspy.signal.util.stack 
 		stacks data given as 3D array with dimensions (n_signals, n_samples, n_windows)
 		implemented are linear and phase-weighted stacking
-		function is optimized for saving memory not for speed, phase stack in calculated iteratively
+		function is optimized for saving memory not for speed, phase stack is calculated iteratively
 	:Params:
 		- data:(type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear', ('pws', order) or ('root', order)
+		options are: 'linear'or ('pw', order)
 	:return: 
 		stacked data (type: numpy(n_signals, n_samples))
 	"""
@@ -598,7 +598,7 @@ def stack_3D(data, stack_type=None):
 		return np.mean(data, axis=2)
 
 	# PWS stack
-	elif isinstance(stack_type, tuple) and stack_type[0] == 'pws':
+	elif isinstance(stack_type, tuple) and stack_type[0] == 'pw':
 
 		order = stack_type[1]
 		n_samples = data.shape[1]

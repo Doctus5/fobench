@@ -28,6 +28,7 @@ from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2, fft, iff
 from obspy.core import UTCDateTime as UTC
 from obspy.core.trace import Trace as oTrace
 from obspy.core.stream import Stream
+from obspy.signal.cross_correlation import correlate
 
 from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
@@ -163,7 +164,7 @@ recording parameters:
 		
 		# Axis 0 in a matrix is the row dimension (downwards) and the 1 is column-wise (rightwards, elements inside each sub-array.)
 		axial = {'t':0, 'd':1}
-    
+		
 		return axial[dim]
 
 
@@ -526,7 +527,7 @@ recording parameters:
 				#trace.stats.endtime = self.end_time
 
 				stream += trace
-    
+	
 			if t_type == 'pyrocko':
 
 				trace = pTrace(ydata=self.data[:,i])
@@ -611,13 +612,13 @@ recording parameters:
 		M = self.total_channels if axis == 0 else self.num_points
 
 		for i in range(M): # I think there is a way to do this matrix wise, and coefficients might appear per column. See numpy.polyfit()
-    
+	
 			if axis == 0: # if it's time sample
-    
+	
 				self.data[:,i] = tools.detrend_signal(self.data[:,i], order)
-    
+	
 			if axis == 1: # if it's space sample
-    
+	
 				self.data[i,:] = tools.detrend_signal(self.data[i,:], order)
 		
 		return self
@@ -754,7 +755,7 @@ recording parameters:
 			for i in range(self.total_channels):
 				segment_start = 0
 				segment_end = w_len 
-                
+				
 				while segment_end < self.num_points:
 					segment = normalized_data[:,i][segment_start:segment_end]
 					weight = np.mean(np.abs(segment)) / (2 * w_len + 1)
@@ -789,7 +790,7 @@ recording parameters:
 		'''
 
 		if not any('filter' in preprocessing for preprocessing in self.processing):
-    
+	
 			warn('Data has possibly not been filtered before whitening! Check preprocessing and results carefully!\ncontinuing...')
 		
 		axis = self.__axis__(dim)
@@ -824,7 +825,7 @@ recording parameters:
 			self.detrend(order=order)
 			self.demean()
 			self.taper(frac=frac)
-    
+	
 		new_data = filter.point_filter(f_type=f_type, data=self.data, df=self.sampling_frequency, freq=freq, **options)
 		self.data = new_data
 		
@@ -859,7 +860,7 @@ recording parameters:
 
 		# Apply inverse 2D Fourier transform to obtain the filtered data
 		filt_data = np.abs(fftshift(ifft2(ifftshift(filt_fk))))
-    
+	
 		return np.abs(data_fk) #filt_data
 		
 		
@@ -1084,7 +1085,7 @@ recording parameters:
 		spectrogram = np.array(spectrogram).T
 		
 		if results == True:
-    
+	
 			return freqs, spectrogram
 
 		else:
@@ -1094,7 +1095,7 @@ recording parameters:
 		
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
 	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True, 
-              file_name=None, where=None, legend=True, results=False, **kwargs):
+			  file_name=None, where=None, legend=True, results=False, **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1157,16 +1158,16 @@ recording parameters:
 			#fft_values = signal.savgol_filter(fft_values,15,2) smooth curve
 
 			if s_type == 'spectrum':
-       
+	   
 				freqs, fft_values = tools.spectrum(o_signal, self.sampling_frequency, pre, order, pad, nfft)
 				y_units = self.units
-    
+	
 			if s_type == 'psd':
-       
+	   
 				freqs, fft_values = tools.psd(o_signal, self.sampling_frequency, pre, order, nfft)
 				y_units = self.units.split(' ')[-1]
 				y_units = y_units+'$^{2}$/Hz'
-    
+	
 			fft_values = fft_values/fft_values.max() if norm == True else fft_values
 			#fft_values = signal.savgol_filter(fft_values,15,2) smooth curve
 			spectrums.append(fft_values)
@@ -1178,7 +1179,7 @@ recording parameters:
 			return freqs, np.array(spectrums)
 		else:
 			plot.simple_spectrum(spectrums=np.array(spectrums), freqs=freqs, channels=channels, y_units=y_units, legend=legend, figsize=figsize, 
-                        title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
+						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
 
 
@@ -1339,3 +1340,49 @@ recording parameters:
 		date = self.times()[0].isoformat()[:10]
 
 		plot.plot_record_section(signals=das_data, t=t, channels=das_channels, date=date)
+
+
+	def acf_profile(self, max_shift, dim='t', make_plot=False, deconvolve=False, window_size=None, **imshow_kwargs):
+		'''
+		Co-authors: Jonas Pätzel
+		Description: 
+			Computes the autocorrelation either for each channel or each time sample, 
+			and optionally deconvolves the autocorrelation source term using a moving window. 
+			Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record
+		:Params:
+			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
+			- dim (type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
+		- deconvolve (type: bool): Whether to apply deconvolution. Default is False.
+			- window_size (type: int or None): The size of the moving window to compute the average autocorrelation. 
+			  If None, the average of all autocorrelations is used. Default is None.
+			- **imshow_kwargs: kwargs to be passed to plt.imshow
+		:Return:
+			- acfs (type:numpy): 2D matrix containing the positive lag-time/space, normalized autocorrelation functions
+		'''
+		
+		axis = self.__axis__(dim)
+		if (dim == 't' and max_shift >= self.num_points) or (dim == 'd' and max_shift >= self.total_channels):
+			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
+		
+		autocorrelate1D = lambda x: correlate(x, x, max_shift)[max_shift:]
+		
+		result = np.apply_along_axis(autocorrelate1D, axis=axis, arr=self.data)
+		
+		if deconvolve and dim=='t':
+			if window_size is None: 
+				avg_acf = np.mean(result, axis=1)
+				avg_acf = avg_acf[:, np.newaxis] 
+			else:
+				avg_acf = []
+				half_window = window_size // 2
+				for i in range(self.total_channels):
+					start_ch = max(0, i - half_window)
+					end_ch = min(self.total_channels, i + half_window + 1)
+					avg_acf.append(np.mean(result[:, start_ch:end_ch], axis=1))
+					avg_acf = np.array(avg_acf).T
+
+			result -= avg_acf
+		if make_plot:
+			plot.plot_acfs(acfs=result, dim=dim, meta=self.attributes, max_shift=max_shift, **imshow_kwargs)
+			
+		return result
