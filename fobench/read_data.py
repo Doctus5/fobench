@@ -38,6 +38,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         - 'hdf5':'asn'
         - 'npy':'bam' (non-commercial. Errors can be present during reading).
         - 'hdf5':'quantx'
+        - 'h5' : 'aragon'
     :Params:
         - filepath(type:String): compelte path fot he file to be read.
         - company(type:String): manufacturer or the instrument that generates the data.
@@ -206,7 +207,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = str(file_file['header']['sensitivityUnits'][()])[3:-2]
         conv_factor = file_file['header']['sensitivities'][0,0]
         
-    elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptoaSense HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptaSense HDF5
         
         print('Reading HDF5 file (QuantX Format)...')
         file_file = h5.File(filepath,'r')

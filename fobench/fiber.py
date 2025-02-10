@@ -423,7 +423,7 @@ recording parameters:
 			Return an array containing each time-step in the specified format option.
 		:Params:
 			- time_type(type:String): specific format of the time-steps. Options are: 1) UTCDateTime, 2) isoformat string, 3) matplotlib-dates (date-time)
-			normally for plots. Default = 'UTCDateTime'
+			4) Unix timstamps, 3) and 4) for matplotlib and pyqt plots respectively. Default = 'UTCDateTime'
 		:Return:
 			- t(type:Numpy): a 1D array containing time-steps of the data in the specified format.  
 		'''
@@ -439,6 +439,10 @@ recording parameters:
 		elif time_type == 'matplotlib':
 		
 			t = np.array([(self.start_time + (i*self.dt)).matplotlib_date for i in range(self.data.shape[0])])
+
+		elif time_type == 'unix':
+				
+			t = np.array([(self.start_time + (i * self.dt)).timestamp for i in range(self.data.shape[0])])
 			
 		else:
 		
