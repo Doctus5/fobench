@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+'''
 Created on Thu Feb  6 22:16:43 2025
 
 @author: joni
-"""
-
+'''
 
 import sys
 sys.path.append('/home/joni/Dokumente/GEO4D/Software/fobench/')
@@ -15,6 +14,7 @@ sys.path.append('/home/joni/Dokumente/GEO4D/Software/fobench/')
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtGui
 from PyQt5 import QtCore
+from pathlib import Path
 
 # imports only for testing
 from fobench.fiber import Fiber
@@ -44,23 +44,24 @@ def plot_timeseries(timestamps, data, y_label='', title=''):
     app = QtWidgets.QApplication(sys.argv)
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(title)
+    win.setWindowIcon(QtGui.QIcon(str(Path.cwd() / 'logo.png'))) 
     win.setBackground('w') # white bg
     
     plot = win.addPlot(title=title)
-    plot.setTitle(title, size="20pt", color='k')
-    plot.setLabel("left", y_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.setTitle(title, size='20pt', color='k')
+    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.plot(timestamps, data, pen=pg.mkPen('k', width=1))
     
     # y axis
-    y_axis = plot.getAxis("left")
+    y_axis = plot.getAxis('left')
     y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont("Arial", 14))
+    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
     y_axis.setTextPen(pg.mkPen('k'))  
 
     # x-axis
     plot.setAxisItems({'bottom': pg.DateAxisItem()})
-    x_axis = plot.getAxis("bottom")
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont("Arial", 14))
+    x_axis = plot.getAxis('bottom')
+    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
     x_axis.setPen(pg.mkPen('k', width=2))
     x_axis.setTextPen(pg.mkPen('k'))
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
@@ -89,10 +90,11 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     app = QtWidgets.QApplication(sys.argv)
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(title)
+    win.setWindowIcon(QtGui.QIcon(str(Path.cwd() / 'logo.png'))) 
     win.setBackground('w')
     
     plot = win.addPlot(title=title)
-    plot.setTitle(title, size="20pt", color='k')
+    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
@@ -109,16 +111,16 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
     
     # y axis
-    y_axis = plot.getAxis("left")
+    y_axis = plot.getAxis('left')
     # y_axis.setTicks([[(y, str(y)) for y in y_ticks]])
     y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont("Arial", 14))
+    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
     y_axis.setTextPen(pg.mkPen('k'))
 
     # x axis
     plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)}) # when is utcoffset necessary??
-    x_axis = plot.getAxis("bottom")
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont("Arial", 14))
+    x_axis = plot.getAxis('bottom')
+    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
     x_axis.setTextPen(pg.mkPen('k'))
     x_axis.setPen(pg.mkPen('k', width=2))
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
@@ -152,7 +154,7 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     level_val = max(abs(data.min()), data.max())
     
     histo.setLevels(color_fraction * -level_val, color_fraction * level_val)
-    win.addItem(histo)
+    win.addItem(histo) 
 
     sys.exit(app.exec_())
 #%% TESTING
@@ -166,3 +168,4 @@ data = das.data[:, ch]
 # plot_timeseries(das.times(time_type='unix'), data, y_label=das.units, title=f'Channel {ch} at Distance {das.distances[ch]} m')
 
 # plot_2d_timeseries(das.times(time_type='unix'), das.distances, das.data, y_label='optical distance [m]', title='data plot', color_fraction=0.1)
+

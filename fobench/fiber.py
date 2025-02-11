@@ -58,7 +58,7 @@ class Fiber(object):
 			an obspy class for this takes long time in their processing tools.
 		:Params:
 			- filepath(type:String): complete path of the file to be read.
-			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting "silixa" (Default), "febus", and "bam".
+			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting 'silixa' (Default), 'febus'', 'bam', 'aragon', 'quantx','asn' and 'terra15'
 			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
 			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
 		:Return:
@@ -780,31 +780,55 @@ recording parameters:
 		return self
 
 	@tools._update_processing
-	def whiten(self, dim='d'):
+	def whiten(self, freq_min=0.01, freq_max=100):
 		'''
-		Co-authors: Jonas Pätzel
+		Co-authors: Jonas Pätzel, adapted code from: https://github.com/seismo-live/seismo_live
 		Description:
-		performs spectral whitening of all channels, signals should be adequatly preprocessed
-		(at the moment very basic, only weighting the spectrum by its absolute values, 
-		TODO: implement running mean smoothing of magnitude spectrum)
+			performs spectral whitening of all channels, signals should be adequatly preprocessed
 		:Params:
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
+			- freq_min, freq_max(type: float): minimum and maximum frequency of band in which to perform whitening
 		:Return:
-			- Fiber instance with whitened data
+			- NA
 		'''
-
+		
 		if not any('filter' in preprocessing for preprocessing in self.processing):
-	
 			warn('Data has possibly not been filtered before whitening! Check preprocessing and results carefully!\ncontinuing...')
-		
-		axis = self.__axis__(dim)
 
-		data_spec = fft(self.data, axis=axis) # add axis here   
-		magnitude_spec = np.abs(data_spec)
-		magnitude_spec[magnitude_spec == 0] = 1e-9
-		
-		self.data = ifft(data_spec / magnitude_spec, axis=axis).real
+		whitened_matrix = np.zeros_like(self.data, dtype='float32')
 
+		for i in range(self.total_channels):
+			channel = self.data[i, :]
+			n = len(channel)
+
+			f_range = float(freq_max) - float(freq_min)
+			nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / self.sampling_frequency))
+			f = np.arange(n) * self.sampling_frequency / (n - 1.0)
+			JJ = ((f > float(freq_min)) & (f < float(freq_max))).nonzero()[0]
+
+			# channel FFT
+			FFTs = np.fft.fft(channel)
+			FFTsW = np.zeros(n, dtype=complex)
+
+			# apodization left
+			smo1 = (np.cos(np.linspace(np.pi / 2, np.pi, nsmo + 1)) ** 2)
+			FFTsW[JJ[0]:JJ[0] + nsmo + 1] = smo1 * np.exp(1j * np.angle(FFTs[JJ[0]:JJ[0] + nsmo + 1]))
+
+			# boxcar
+			FFTsW[JJ[0] + nsmo + 1:JJ[-1] - nsmo] = np.ones(len(JJ) - 2 * (nsmo + 1)) * \
+				np.exp(1j * np.angle(FFTs[JJ[0] + nsmo + 1:JJ[-1] - nsmo]))
+
+			# apodization to the right
+			smo2 = (np.cos(np.linspace(0.0, np.pi / 2.0, nsmo + 1)) ** 2)
+			espo = np.exp(1j * np.angle(FFTs[JJ[-1] - nsmo:JJ[-1] + 1]))
+			FFTsW[JJ[-1] - nsmo:JJ[-1] + 1] = smo2 * espo
+
+			# channel IFFT 
+			whitedata = 2.0 * np.fft.ifft(FFTsW).real
+			whitened_matrix[i, :] = np.require(whitedata, dtype='float32')
+
+		self.data = whitened_matrix
+		
+		return self
 
 	# Function for filtering. Shall we also declare dimensionality options here?
 	@tools._update_processing
@@ -912,14 +936,20 @@ recording parameters:
 		Description:
 			Differentiates the data in time (dim='t') or in space (dim='d').
 		:Params:
-			- method(type:String): sets the prefered method for differentiation. Default and only one is "gradient".
+			- method(type:String): sets the prefered method for differentiation. can be 'gradient' or 'diff', when using 'diff' data is prepended with inital value along specified axis
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
 			- NA.  
 		'''
 
 		axis = self.__axis__(dim)
-		res = np.gradient(self.data, self.dt, axis=axis)
+		if method == 'gradient':
+			res = np.gradient(self.data, self.dt, axis=axis)
+		elif method == 'diff':
+			padding = np.take(self.data, [0], axis=axis)
+			res = np.diff(self.data, axis=axis, prepend=padding) / self.dt
+		else:
+			raise ValueError(f'{method} is not a valid differentiation method, choose "gradient" or "diff"')
 		self.data = res
 		
 		return self
@@ -1356,7 +1386,7 @@ recording parameters:
 		:Params:
 			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
 			- dim (type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		- deconvolve (type: bool): Whether to apply deconvolution. Default is False.
+			- deconvolve (type: bool): Whether to apply deconvolution. Default is False.
 			- window_size (type: int or None): The size of the moving window to compute the average autocorrelation. 
 			  If None, the average of all autocorrelations is used. Default is None.
 			- **imshow_kwargs: kwargs to be passed to plt.imshow

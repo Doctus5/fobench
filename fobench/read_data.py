@@ -34,7 +34,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         - 'tmds':'silixa'
         - 'hdf5':'silixa'
         - 'hdf5':'febus'
-        - 'hfd5':'tera15'
+        - 'hfd5':'terra15'
         - 'hdf5':'asn'
         - 'npy':'bam' (non-commercial. Errors can be present during reading).
         - 'hdf5':'quantx'
