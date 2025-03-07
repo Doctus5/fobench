@@ -36,14 +36,20 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 '''
 TOOLS USED EXCLUSIVE FOR Fiber CLASS
 '''
-STRAIN_UNIT_MAP = {
+STRAIN_UNIT_MAP = {      # mapping for strain(rate) data
 -1: 'integrated strain',
 0: 'strain',
 1: 'strain-rate',
 2: 'strain-acceleration',
 3: 'strain-jerk'}
 
-TEMP_UNIT_MAP = {
+VEL_UNIT_MAP = {         # mapping for velocity data, e.g. Terra15 output
+-1: 'm',
+0: 'm/s',
+1: 'm/s^2',
+2: 'm/s^3'}
+
+TEMP_UNIT_MAP = {        # mapping for temperature data
 -1: 'integrated temperature',
 0: 'temperature',
 1: 'temperature rate',
@@ -81,12 +87,17 @@ def _update_processing(func):
 		fiber.processing.append({func_name : args_dict})
 		
 		if func_name in ['integrate', 'differentiate'] and args_dict['dim']=='t':
-			if (fiber.sensing == 'das' or fiber.sensing == 'dss'): unit_map = STRAIN_UNIT_MAP
-			elif fiber.sensing == 'dts': unit_map = TEMP_UNIT_MAP
+			# determine unit map
+			if (fiber.sensing == 'das' or fiber.sensing == 'dss'):
+				unit_map = STRAIN_UNIT_MAP
+				if fiber.company == 'terra15':
+					if fiber.attributes['properties']['data_product'] == 'velocity': unit_map = VEL_UNIT_MAP
+			elif fiber.sensing == 'dts':
+				unit_map = TEMP_UNIT_MAP
 			
 			# find current unit
 			try: key = [i for i in unit_map if unit_map[i] == fiber.units][0]
-			except: key = fiber.units[2]
+			except: key = int(fiber.units[2])
 
 			# depending on operation change key
 			if func_name == 'integrate': key -= 1
@@ -94,7 +105,7 @@ def _update_processing(func):
 
 			# assign new unit
 			try: fiber.units = unit_map[key]
-			except: fiber.units = f'd^{key}/dt {unit_map[0]} [dm/m]'
+			except: fiber.units = f'd^{key}/dt {unit_map[0]}'
 			
 		return result
 	return wrapper
@@ -570,6 +581,7 @@ def stack_2D(data, stack_type=None):
 		- data: (type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
 		options are: 'linear', ('pw', order) or ('root', order)
+		- 'linear' stack refers to mean stack, not sum!
 	:Return:
 		- stacked data
 	'''
@@ -584,18 +596,24 @@ def stack_3D(data, stack_type=None):
 	Description:
 		adapted version of obspy.signal.util.stack 
 		stacks data given as 3D array with dimensions (n_signals, n_samples, n_windows)
-		implemented are linear and phase-weighted stacking
+		implemented are linear(mean), sum and phase-weighted stacking
 		function is optimized for saving memory not for speed, phase stack is calculated iteratively
 	:Params:
 		- data:(type: numpy): data to stack
 		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear'or ('pw', order)
+		options are: 'linear', 'sum' or ('pw', order)
+		- 'linear' stack refers to mean stack to be consistent with obspy
 	:return: 
 		stacked data (type: numpy(n_signals, n_samples))
 	"""
-	# linear stack
+	# linear/mean stack
 	if stack_type == 'linear':
 		return np.mean(data, axis=2)
+
+	# sum 
+	if stack_type == 'sum': 
+		return np.sum(data, axis=2)
+
 
 	# PWS stack
 	elif isinstance(stack_type, tuple) and stack_type[0] == 'pw':
@@ -621,26 +639,3 @@ def stack_3D(data, stack_type=None):
 		raise ValueError('Please provide a stacking method of either "linear" or ("pw", order)')
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-	
-	
-	
-	
-
-
-	 

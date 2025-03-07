@@ -75,14 +75,16 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     '''
     Co-authors: Jonas Pätzel
     Description: 
-        generate generic matrix plot where one dimension represents time, e.g. waterfall visualisation of data or Spectrograms,PSDs, RMSA ...
+        generate generic matrix plot where one dimension represents time, e.g. 
+        waterfall visualisation of data or spectrograms,PSDs, RMSA ...
     :Params:
         - timestamps(type:numpy): array containing Unix timestamps of data
         - data(type: numpy 2D): array containing data to plot
         - y_label(type: str): y-axis label
         - title(type: str): title of plot
         - color_fraction(type: int): determines min and max value of the colorbar. 
-          fraction of the minimum or maximum of the full data, depending on which has the larger absolute value
+              fraction of the minimum or maximum of the full data, depending on 
+              which has the larger absolute value
     :Return:
         - NA
     '''
@@ -100,8 +102,7 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
     plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)  # One-button
-    
-   
+       
     x_min, x_max = timestamps[0], timestamps[-1]
     y_min, y_max = y_ticks[0], y_ticks[-1]
     
@@ -142,7 +143,7 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     # colorbar and histogram
-    cmap = pg.colormap.get('seismic', source='matplotlib') 
+    cmap = pg.colormap.get('seismic', source='matplotlib')
     histo = pg.HistogramLUTItem()
     histo.setImageItem(image)
     histo.gradient.setColorMap(cmap)
@@ -159,13 +160,13 @@ def plot_2d_timeseries(timestamps, y_ticks, data, y_label='', title='', color_fr
     sys.exit(app.exec_())
 #%% TESTING
 
-das = Fiber('/home/joni/Schreibtisch/Dalvik/data/2024_08_30_02h55m29s_HDAS_2DRawData_Strain.h5', 'aragon')
-das.append_distances()
-das.differentiate()
-ch = 250
-data = das.data[:, ch]
+# das = Fiber('/home/joni/Schreibtisch/Dalvik/data/2024_08_30_02h55m29s_HDAS_2DRawData_Strain.h5', 'aragon')
+# das.append_distances()
+# das.differentiate()
+# ch = 250
+# data = das.data[:, ch]
 
-# plot_timeseries(das.times(time_type='unix'), data, y_label=das.units, title=f'Channel {ch} at Distance {das.distances[ch]} m')
+# # plot_timeseries(das.times(time_type='unix'), data, y_label=das.units, title=f'Channel {ch} at Distance {das.distances[ch]} m')
 
 # plot_2d_timeseries(das.times(time_type='unix'), das.distances, das.data, y_label='optical distance [m]', title='data plot', color_fraction=0.1)
 

@@ -326,7 +326,7 @@ def plot_record_section(signals, t, channels, date):
 	plt.show()
 
 
-def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
+def plot_acfs(acfs, dim, meta, max_shift, distances=None, **imshow_kwargs):
 	'''
 	Co-authors: Jonas Pätzel
 	Description: 
@@ -345,6 +345,10 @@ def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
 		extent = [meta['chans'][0], meta['chans'][-1], max_shift/meta['sampling_frequency'], 0]
 		y_label = 'Lag/TWT [s]'
 		x_label = 'Channel Number'
+		if distances is not None:
+			extent = extent = [distances[0], distances[-1], max_shift/meta['sampling_frequency'], 0]
+			x_label = 'Optical Distance [m]'
+
 	elif dim == 'd':
 		extent = [0, max_shift*meta['spatial_interval'], meta['time_length'], 0]
 		y_label = 'Recording Time [s]'
@@ -365,8 +369,9 @@ def plot_acfs(acfs, dim, meta, max_shift, **imshow_kwargs):
 		extend = 'neither'
 
 	plt.colorbar(im, label='Auto-correlation Coefficient', extend=extend)
-	plt.xlabel(x_label)
-	plt.ylabel(y_label)
+	plt.xlabel(x_label, fontsize=16)
+	plt.ylabel(y_label, fontsize=16)
+	plt.gca().tick_params(axis='both', labelsize=16)
 	plt.tight_layout()
 	plt.show()
 

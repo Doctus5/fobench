@@ -287,7 +287,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
     
-        print('File format is a Numpy Zip Class. No Gaueg Length specified. Do not attempt to convert to Stran-Rate.')
+        print('File format is a Numpy Zip Class. No Gauge Length specified. Do not attempt to convert to Strain-Rate.')
         file_file = None
         properties = None
         chans = None

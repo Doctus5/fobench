@@ -51,7 +51,7 @@ def point_filter(f_type=None, data=None, df=None, freq=None, **options):
 		result = lowpass(data=data, df=df, freq=freq, **options)
 	if f_type == 'highpass':
 		result = highpass(data=data, df=df, freq=freq, **options)
-	if f_type == 'median':
+	if f_type == 'median': # time domain filter!
 		result = median_filter(data=data, **options)
 						
 	return result
@@ -223,7 +223,7 @@ def median_filter(data, kernel_size=3):
 		applies 2 dimensional median filter to data, calls scipy.signal.medfilt2d
 	:Params:
 		- data(type: numpy): array to filter
-		- kernel_size(type: int or lst): size of filter kernel, must be off, if scalar then used as size in each dimension, default is 3x3
+		- kernel_size(type: int or lst): size of filter kernel, must be odd, if scalar then used as size in each dimension, default is 3x3
 	:Return:
 		- filtered data
 	'''

@@ -797,7 +797,7 @@ recording parameters:
 		whitened_matrix = np.zeros_like(self.data, dtype='float32')
 
 		for i in range(self.total_channels):
-			channel = self.data[i, :]
+			channel = self.data[:, i]
 			n = len(channel)
 
 			f_range = float(freq_max) - float(freq_min)
@@ -824,7 +824,7 @@ recording parameters:
 
 			# channel IFFT 
 			whitedata = 2.0 * np.fft.ifft(FFTsW).real
-			whitened_matrix[i, :] = np.require(whitedata, dtype='float32')
+			whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
 
 		self.data = whitened_matrix
 		
@@ -836,18 +836,19 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Filters the data based on a specified type of filter (lowpass, bandpass, highpass) and the values. Filters are based on Obspy codes 
+			Filters the data based on a specified type of filter (lowpass, bandpass, highpass, bandstop, median) and the values. Filters are based on Obspy codes 
 			and so the multiple options are also.
 		:Params:
-			- f_type(type:String): type of filter to apply. Options are: 'lowpass', 'bandpass', 'highpass'.
+			- f_type(type:String): type of filter to apply. Options are: 'lowpass', 'bandpass', 'highpass', 'bandstop' and 'median'
 			- freq(type:Int, Float, Tuple): cut-off value for the filter in 'lowpass' and 'highpass'. If it for 'bandpass', then it must be a tuple containing the cut-offs of the bandwith.
-			- pre_process(type:Boolean): to use to detren, demean and tape before filtering. Default is True.
+			- pre_process(type:Boolean): to use to detren, demean and tape before filtering. Default is True. Automatically set to False when using median filter
 			- frac(type:Float): see description in method "taper".
 			- order(type:Int): order of polynomuial fit for detrending.
 		:Return:
 			- NA.  
 		'''
-
+		if f_type == 'median': 
+			pre_process = False
 		if pre_process == True:		
   
 			self.detrend(order=order)
@@ -1273,7 +1274,7 @@ recording parameters:
 		
 		
 	#Function for plotting single channel spectrogram
-	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, **kwargs):
+	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1290,6 +1291,7 @@ recording parameters:
 			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
+			- verbose(type:bool): if set to true result (Spectrum, frequencies, time) is returned
 		:Return:
 			- NA.  
 		'''
@@ -1309,8 +1311,12 @@ recording parameters:
 		Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 		trace = spec if trace == True else None
 		
+
 		plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units, trace=trace, figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel), show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
-		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
+		
+		if verbose is True:
+			return Sxx, f, t
+        #simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 		
 		
 	def interactive_plot(self, channel=None, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, **kwargs):
@@ -1413,7 +1419,7 @@ recording parameters:
 					start_ch = max(0, i - half_window)
 					end_ch = min(self.total_channels, i + half_window + 1)
 					avg_acf.append(np.mean(result[:, start_ch:end_ch], axis=1))
-					avg_acf = np.array(avg_acf).T
+				avg_acf = np.array(avg_acf).T
 
 			result -= avg_acf
 		if make_plot:
