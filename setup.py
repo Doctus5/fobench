@@ -33,7 +33,7 @@ setup(
         'matplotlib',
         'scipy',
         'obspy',
-        'pyrocko'
+        'pyrocko',
         'pyqtgraph'
     ]
 )
