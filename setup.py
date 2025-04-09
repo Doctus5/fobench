@@ -34,5 +34,6 @@ setup(
         'scipy',
         'obspy',
         'pyrocko'
+        'pyqtgraph'
     ]
 )
