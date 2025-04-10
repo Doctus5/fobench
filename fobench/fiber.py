@@ -1,3 +1,20 @@
+"""
+Class "Fiber" for creating, storing and manipulating fiber optic sensing data. 
+So far it recieves TDMS format (Silixa) and H5 format (Febus).
+
+Created on 2022-08-19 12:07:17
+Last modification on 2024-06-28 19:17:00
+
+:authors:
+	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
+	- Jonas Pätzel (jonas.patzel@ulb.be)
+
+:contributors:
+	- Christopher Wollin (wollin@gfz-potsdam.de)
+:license:
+
+"""
+
 #Necessary packages to import
 import numpy as np
 import copy
