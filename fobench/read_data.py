@@ -443,7 +443,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
     if (format == 'h5' or format == 'hdf5') and company == 'terra15':
 
-        values = np.array(extract_point[:,range_ch])
+        values = np.array(extract_point[:,range_ch[0]:range_ch[1]])
 
     if (format == 'h5' or format == 'hdf5') and company == 'asn':
 

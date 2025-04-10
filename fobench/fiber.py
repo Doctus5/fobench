@@ -1,21 +1,3 @@
-"""
-Class "Fiber" for creating, storing and manipulating fiber optic sensing data. 
-So far it recieves TDMS format (Silixa) and H5 format (Febus).
-
-Created on 2022-08-19 12:07:17
-Last modification on 2024-06-28 19:17:00
-
-:authors:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-
-:contributors:
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
-
-"""
-
-
 #Necessary packages to import
 import numpy as np
 import copy
@@ -38,13 +20,14 @@ from . import read_data as read
 from . import tools as tools
 from . import filter as filter
 from . import plotting as plot
+from . import plotting_pyqt as plot_pyqt
 
 
 
 class Fiber(object):
 	'''
-	IMPORTANT INFO: Most of the methods perform changes within the class permanently. Therefore is usefull to make a copy of the class
-	with the method copy() before performing any processing or changes.
+	IMPORTANT INFO: Most of the methods perform changes within the class permanently. Therefore it is useful to make a copy of the fiber instance
+	with the method .copy() before performing any processing or changes.
 	'''
 	
 	#Creates the basic variables of the DAS object with its characteristics
@@ -109,7 +92,7 @@ class Fiber(object):
 
 	'''
 	####################################################
-	Internal functions...
+	Internal methods
 	####################################################
 	'''
 
@@ -170,7 +153,7 @@ recording parameters:
 
 	'''
 	####################################################
-	Standard functions...
+	Standard methods
 	####################################################
 	'''
 
@@ -249,28 +232,18 @@ recording parameters:
 		t0, tf = UTC(t0), UTC(tf)
 
 		# in case one of the triming times is beyond the range of the start and end times of the data, it redefines the limits to the ones of the data.
-		t0 = self.start_time if t0 <= self.start_time else t0
-		tf  = self.end_time if tf >= self.end_time else tf
+		t0 = max(t0, self.start_time)
+		tf = min(tf, self.end_time)
+
+		if tf < t0: raise ValueError("End time (tf) must be after start time (t0).")
 
 		t = self.times()
-		t0_new, tf_new, t0_pos, tf_pos = None, None, None, None
-		i = 0
+		t0_pos = max(0, np.searchsorted(t, t0, side='right') - 1)
+		tf_pos = max(0, np.searchsorted(t, tf, side='right') - 1)
+		t0_new = t[t0_pos]
+		tf_new = t[tf_pos]
 
-		for spec_time in t:
-
-			if tf >= spec_time:
-			
-				tf_new = spec_time
-				tf_pos = i
-				
-			if t0 >= spec_time:
-			
-				t0_new = spec_time
-				t0_pos = i
-			
-			i += 1
-								
-		self.data = self.data[t0_pos:tf_pos,:]
+		self.data = self.data[t0_pos:tf_pos, :]
 		self.start_time = t0_new
 		self.end_time = tf_new
 		self.time_length = self.end_time - self.start_time
@@ -347,7 +320,7 @@ recording parameters:
 		'''
 		Co-authors: Jonas Pätzel
 		Description:
-			Attach optical distances channels for the class instance
+			Attach optical distances channels to the class instance
 		:Params:
 			offset(type: float) offset to add to all channel distances, if None, Fiber.channel_offset is added
 		:Return:
@@ -415,7 +388,7 @@ recording parameters:
 		return data_n 
 		
 	
-	#Return a an array of timesin three different formats: UTCDateTime, ISOformat and matplotlib for plotting.	
+	#Return a an array of times in three different formats: UTCDateTime, ISOformat and matplotlib for plotting.	
 	def times(self, time_type='UTCDateTime'):	
 		'''
 		Co-authors: --
@@ -547,10 +520,9 @@ recording parameters:
 
 	'''
 	####################################################
-	Signal Processing functions...
+	Signal Processing methods
 	####################################################
 	'''
-
 		
 	#function for upsampling spatially by double/half depending if it is upsampling or downsampling spatially.
 	@tools._update_processing
@@ -1058,14 +1030,14 @@ recording parameters:
 		
 	'''
 	####################################################
-	Plotting functions below...
+	Plotting methods below...
 	Also proper from the Class
 	####################################################
 	'''
 	
 	
 	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function. 
-	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, **kwargs):
+	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, plot_mode='mpl', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1120,13 +1092,14 @@ recording parameters:
 		spectrogram = np.array(spectrogram).T
 		
 		if results == True:
-	
 			return freqs, spectrogram
 
 		else:
-
-			plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
-		
+			if plot_mode == 'mpl':
+				plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
+			elif plot_mode == 'pyqt':
+				if getattr(self, 'distances', None) is None: self.append_distances()
+				plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs, data=np.rot90(spectrogram, k=-1), cmap=cmap, y_label='Frequency [Hz]', title='Frequency content over optical distance')
 		
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
 	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True, 
@@ -1217,9 +1190,7 @@ recording parameters:
 						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
 
-
-	#Function for plotting a 1D time series of one specific channel.	
-	def channel_plot(self, channel, max_value=None, figsize=None, show=True, file_name=None, where=None, **kwargs):
+	def channel_plot(self, channel, max_value=None, figsize=None, show=True, file_name=None, where=None, plot_mode='mpl', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1241,15 +1212,25 @@ recording parameters:
 		index = self.channels_num.index(channel)
 		#print(self.channels_num, type(self.channels_num))
 		#index = np.where(self.channels_num == channel)[0]
-		print(index)
 		selected = self.data[:,index]
-		t = self.times('matplotlib')
 		
-		plot.simple_plot(data=selected, t=t, channel=str(channel), units_y=self.units, max_value=max_value, spectrogram=False, show=show, figsize=figsize, title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
-		
+		if plot_mode=='mpl':
+			t = self.times('matplotlib')
+			plot.simple_plot(data=selected, t=t, channel=str(channel), 
+					units_y=self.units, max_value=max_value, spectrogram=False, 
+					show=show, figsize=figsize, 
+					title=self.start_time.isoformat()[:10], 
+					file_name=file_name, where=where, **kwargs)
+
+		elif plot_mode=='pyqt':
+			if getattr(self, 'distances', None) is None: self.append_distances()
+			t = self.times(time_type='unix')
+			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units, 
+							 title=f'Channel {channel} at {self.distances[channel]} m')
+
 	
 	#Fast plotting function of the data as matrix. Maximum value can be adjusted to saturate the plot.	
-	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, **kwargs):
+	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, plot_mode='mpl', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1267,14 +1248,20 @@ recording parameters:
 		:Return:
 			- NA.
 		'''
-	
-		t = self.times(time_type='matplotlib')
+		if plot_mode == 'mpl':
+			t = self.times(time_type='matplotlib')
+			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num, units_y=self.units, max_value=max_value, figsize=figsize, show=show, title=self.start_time.isoformat()[:10], cmap=cmap, file_name=file_name, where=where, add_data=add_data, **kwargs)
 		
-		plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num, units_y=self.units, max_value=max_value, figsize=figsize, show=show, title=self.start_time.isoformat()[:10], cmap=cmap, file_name=file_name, where=where, add_data=add_data, **kwargs)
+		elif plot_mode == 'pyqt':
+			if getattr(self, 'distances', None) is None: self.append_distances()
+			t = self.times(time_type='unix')
+
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=self.distances,
+						data=self.data, y_label='Optical Distance [m]',
+						title='', max_value=max_value, cbar_label=self.units)
 		
-		
-	#Function for plotting single channel spectrogram
-	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, **kwargs):
+	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, make_plot=True, 
+						 plot_mode='mpl', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1291,7 +1278,7 @@ recording parameters:
 			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
-			- verbose(type:bool): if set to true result (Spectrum, frequencies, time) is returned
+			- verbose(type:bool): if set to true, result (Spectrum, frequencies, time) is returned
 		:Return:
 			- NA.  
 		'''
@@ -1306,17 +1293,23 @@ recording parameters:
 		nfft, nperseg = nyquist*2, int(self.sampling_frequency/5) # TUNNING MUST BE DONE WITH PHILIPPE!
 		noverlap = int(nperseg/2)
 		f, t, Sxx = signal.spectrogram(spec, self.sampling_frequency, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
-		t = self.times(time_type='matplotlib')
 		Sxx = np.flip(Sxx,axis=axis)
 		Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 		trace = spec if trace == True else None
 		
+		if make_plot is True and plot_mode=='mpl':
+			t = self.times(time_type='matplotlib')
+			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units, trace=trace, figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel), show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
 
-		plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units, trace=trace, figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel), show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
-		
+		if make_plot is True and plot_mode=='pyqt':
+			t = self.times(time_type='unix')
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f,
+						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
+						title=f'Spectrogram channel {channel}', cmap='viridis')
+			
 		if verbose is True:
 			return Sxx, f, t
-        #simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
+		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 		
 		
 	def interactive_plot(self, channel=None, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, **kwargs):
@@ -1387,7 +1380,7 @@ recording parameters:
 		Co-authors: Jonas Pätzel
 		Description: 
 			Computes the autocorrelation either for each channel or each time sample, 
-			and optionally deconvolves the autocorrelation source term using a moving window. 
+			in time, optionally deconvolves the autocorrelation source term using a moving window. 
 			Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record
 		:Params:
 			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
@@ -1395,7 +1388,7 @@ recording parameters:
 			- deconvolve (type: bool): Whether to apply deconvolution. Default is False.
 			- window_size (type: int or None): The size of the moving window to compute the average autocorrelation. 
 			  If None, the average of all autocorrelations is used. Default is None.
-			- **imshow_kwargs: kwargs to be passed to plt.imshow
+			- **imshow_kwargs: kwargs to be passed to plt.imshow()
 		:Return:
 			- acfs (type:numpy): 2D matrix containing the positive lag-time/space, normalized autocorrelation functions
 		'''
@@ -1404,9 +1397,9 @@ recording parameters:
 		if (dim == 't' and max_shift >= self.num_points) or (dim == 'd' and max_shift >= self.total_channels):
 			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
 		
-		autocorrelate1D = lambda x: correlate(x, x, max_shift)[max_shift:]
+		autocorrelate = lambda x: correlate(x, x, max_shift)[max_shift:]
 		
-		result = np.apply_along_axis(autocorrelate1D, axis=axis, arr=self.data)
+		result = np.apply_along_axis(autocorrelate, axis=axis, arr=self.data)
 		
 		if deconvolve and dim=='t':
 			if window_size is None: 
@@ -1420,8 +1413,9 @@ recording parameters:
 					end_ch = min(self.total_channels, i + half_window + 1)
 					avg_acf.append(np.mean(result[:, start_ch:end_ch], axis=1))
 				avg_acf = np.array(avg_acf).T
-
 			result -= avg_acf
+		elif deconvolve and dim=='d':
+				raise ValueError('Source deconvolution only available in time dimension!')
 		if make_plot:
 			plot.plot_acfs(acfs=result, dim=dim, meta=self.attributes, max_shift=max_shift, **imshow_kwargs)
 			
