@@ -98,6 +98,7 @@ class Fiber(object):
 		self.units = self.attributes['units']
 		self.conv_factor = self.attributes['conv_factor'] # Extra variables (ONLY FOR ASN HDF5)
 		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
+		self.distances = [(num * self.spatial_interval) + self.channel_offset for num in self.channels_num]
 
 		# Attributed not initialized since beginning. Required further processing to be initialized
 		self.ch_coord = None # coordinates of channels.
@@ -332,22 +333,6 @@ recording parameters:
 		
 		return self
 
-
-	def append_distances(self, offset=None):
-		'''
-		Co-authors: Jonas Pätzel
-		Description:
-			Attach optical distances channels to the class instance
-		:Params:
-			offset(type: float) offset to add to all channel distances, if None, Fiber.channel_offset is added
-		:Return:
-			- NA.  
-		'''
-		if offset is None:
-			offset = self.channel_offset
-		self.distances = [(num * self.spatial_interval) + offset for num in self.channels_num]
-
-
 	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
 	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
@@ -406,7 +391,7 @@ recording parameters:
 		
 	
 	#Return a an array of times in three different formats: UTCDateTime, ISOformat and matplotlib for plotting.	
-	def times(self, time_type='UTCDateTime'):	
+	def times(self, time_type='UTCDateTime'):
 		'''
 		Co-authors: --
 		Description: 
@@ -1115,7 +1100,6 @@ recording parameters:
 			if plot_mode == 'mpl':
 				plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
 			elif plot_mode == 'pyqt':
-				if getattr(self, 'distances', None) is None: self.append_distances()
 				plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs, data=np.rot90(spectrogram, k=-1), cmap=cmap, y_label='Frequency [Hz]', title='Frequency content over optical distance')
 		
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
@@ -1240,7 +1224,6 @@ recording parameters:
 					file_name=file_name, where=where, **kwargs)
 
 		elif plot_mode=='pyqt':
-			if getattr(self, 'distances', None) is None: self.append_distances()
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units, 
 							 title=f'Channel {channel} at {self.distances[channel]} m')
@@ -1270,9 +1253,7 @@ recording parameters:
 			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num, units_y=self.units, max_value=max_value, figsize=figsize, show=show, title=self.start_time.isoformat()[:10], cmap=cmap, file_name=file_name, where=where, add_data=add_data, **kwargs)
 		
 		elif plot_mode == 'pyqt':
-			if getattr(self, 'distances', None) is None: self.append_distances()
 			t = self.times(time_type='unix')
-
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=self.distances,
 						data=self.data, y_label='Optical Distance [m]',
 						title='', max_value=max_value, cbar_label=self.units)
@@ -1396,8 +1377,8 @@ recording parameters:
 		'''
 		Co-authors: Jonas Pätzel
 		Description: 
-			Computes the autocorrelation either for each channel or each time sample, 
-			in time, optionally deconvolves the autocorrelation source term using a moving window. 
+			Computes the autocorrelation either for each channel or each time sample and
+			optionally deconvolves the autocorrelation source term using a moving window.
 			Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record
 		:Params:
 			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
@@ -1437,3 +1418,30 @@ recording parameters:
 			plot.plot_acfs(acfs=result, dim=dim, meta=self.attributes, max_shift=max_shift, **imshow_kwargs)
 			
 		return result
+
+	def explore(self):
+		'''
+		Co-authors: Jonas Pätzel
+		Description: 
+			starts the Fobench Data Explorer Window
+		:Params:
+			- NA
+		:Return:
+			- NA
+		'''
+
+		from fobench.pyqt_explorer import Explorer
+		import sys
+		from pyqtgraph.Qt import QtWidgets
+
+		print(f'{"-"*65}\nStarting Fobench Data Explorer')
+		app = QtWidgets.QApplication.instance()
+		if app is None:
+			app = QtWidgets.QApplication(sys.argv)
+
+		self._explorer = Explorer(self)
+		self._explorer.show()
+
+		app.exec()
+		print(f'{"-"*65}')
+		app.quit()

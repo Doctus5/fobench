@@ -18,7 +18,8 @@ Line Plot Functions Below
 ####################################################
 '''
 
-def plot_timeseries(timestamps, data, y_label='', title=''):
+def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
+                    title:str = '') -> None:
     '''
     Co-authors: Jonas Pätzel
     Description: 
@@ -70,8 +71,10 @@ Matrix Plot Function Below
 ####################################################
 '''
 
-def plot_2d_timeseries(timestamps, y_ticks, data, max_value=None, y_label='', title='',
-                       cmap='seismic', cbar_label=''):
+def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
+                       max_value: float = None, y_label: str = '', 
+                       title: str = '', cmap:str = 'seismic', 
+                       cbar_label:str = '') -> None :
     '''
     Co-authors: Jonas Pätzel
     Description: 
@@ -82,9 +85,7 @@ def plot_2d_timeseries(timestamps, y_ticks, data, max_value=None, y_label='', ti
         - data(type: numpy 2D): array containing data to plot
         - y_label(type: str): y-axis label
         - title(type: str): title of plot
-        - color_fraction(type: int): determines min and max value of the colorbar. 
-              fraction of the minimum or maximum of the full data, depending on 
-              which has the larger absolute value
+        - max_value(type:float): value that sets limits of colorbar
     :Return:
         - None
     '''
@@ -158,8 +159,10 @@ def plot_2d_timeseries(timestamps, y_ticks, data, max_value=None, y_label='', ti
     app.quit()
     
     
-def plot_2d_distance(distances, y_ticks, data, max_value=None, y_label='', title='',
-                     cmap='seismic', cbar_label=''):
+def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list, 
+                     max_value: float = None, y_label: str = '', 
+                     title: str = '', cmap:str = 'seismic', 
+                     cbar_label:str = '') -> None :
     '''
     Co-authors: Jonas Pätzel
     Description: 
@@ -170,9 +173,8 @@ def plot_2d_distance(distances, y_ticks, data, max_value=None, y_label='', title
         - data(type: numpy 2D): array containing data to plot
         - y_label(type: str): y-axis label
         - title(type: str): title of plot
-        - color_fraction(type: int): determines min and max value of the colorbar. 
-              fraction of the minimum or maximum of the full data, depending on 
-              which has the larger absolute value
+        - max_value(type:float): value that sets limits of colorbar
+
     :Return:
         - None
     '''
