@@ -1,13 +1,22 @@
+'''
+contains the Explorer class
+'''
+
 import sys
 sys.path.append('/home/joni/Dokumente/GEO4D/Software/fobench/')
 
+from pathlib import Path
 import numpy as np
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtWidgets
+from pyqtgraph.Qt import QtCore, QtWidgets, QtGui
 
 class Explorer(QtWidgets.QMainWindow):
     def __init__(self, Fiber):
         super().__init__()
+        
+        # Set background color to white
+        pg.setConfigOption('background', 'w')
+        pg.setConfigOption('foreground', 'k')
         
         # set up Fiber class information
         self.Fiber = Fiber
@@ -20,6 +29,7 @@ class Explorer(QtWidgets.QMainWindow):
         # set up window
         self.setWindowTitle('Fobench Data Explorer')
         self.setGeometry(100, 100, 1200, 800)
+        self.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
 
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
@@ -33,6 +43,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.matrix_plot.addItem(self.matrix_image)
         self.matrix_plot.setAspectLocked(False)
         self.matrix_plot.scene().sigMouseClicked.connect(self.on_matrix_clicked)
+        self.matrix_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)}) # when is utcoffset necessary??
         self.matrix_plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
         self.matrix_image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
         self.matrix_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
@@ -44,6 +55,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.matrix_plot_widget.addItem(self.hist)
         level_val = max(abs(self.Fiber.data.min()), self.Fiber.data.max())
 
+        # TODO: improve colorbar values 
         self.hist.setLevels(0.1 * -level_val, 0.1 * level_val)
         
         # tabs
@@ -52,6 +64,8 @@ class Explorer(QtWidgets.QMainWindow):
 
         self.line_plot_widget = pg.GraphicsLayoutWidget()
         self.line_plot = self.line_plot_widget.addPlot()
+        self.line_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
+        
         self.line_curve = self.line_plot.plot(pen='k')
         self.tab_widget.addTab(self.line_plot_widget, 'Channel')
 
@@ -76,15 +90,11 @@ class Explorer(QtWidgets.QMainWindow):
         bottom_layout.addWidget(self.slider)  # Slider to the right of the spin box
 
         self.dropdown = QtWidgets.QComboBox()
-        self.dropdown.addItems(['Methods', 'Spectrogram', 'RMSA', 'P2PA'])
+        self.dropdown.addItems(['Methods', 'Spectrogram', 'PSD', 'RMSA', 'P2PA'])
         self.dropdown.currentIndexChanged.connect(self.on_dropdown_changed)
         bottom_layout.addWidget(self.dropdown)  # Dropdown menu to the right of the slider
 
         self.update_plots()
-
-        # Set background color to white
-        pg.setConfigOption('background', 'w')
-        pg.setConfigOption('foreground', 'k')
 
     def on_matrix_clicked(self, event):
         if event.button() == QtCore.Qt.LeftButton:
@@ -113,11 +123,18 @@ class Explorer(QtWidgets.QMainWindow):
             self.plot_rmsa()
         if self.dropdown.currentText() == 'P2PA':
             self.plot_p2pa()
+        if self.dropdown.currentText() == 'PSD':
+            self.plot_psd()
         self.dropdown.setCurrentIndex(0)  # Reset dropdown to 'Methods'
 
     def update_plots(self):
         row_data = self.Fiber.data[:, self.selected_channel]
-        self.line_curve.setData(row_data)
+        self.line_curve.setData(y=row_data, x=self.times)
+        x_min, x_max = self.times[0], self.times[-1]
+        y_min, y_max = min(row_data), max(row_data)
+        self.line_plot.setXRange(self.times[0], self.times[-1], padding=0)
+        self.line_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
+                                                yMin=y_min, yMax=y_max)
 
     def plot_spectrogram(self):
         spectrogram_data, freqs = self.spectrogram(self.selected_channel)
@@ -134,10 +151,18 @@ class Explorer(QtWidgets.QMainWindow):
         spectrogram_image = pg.ImageItem()
         spectrogram_plot.addItem(spectrogram_image)
         spectrogram_plot.setAspectLocked(False)
-        spectrogram_plot.setLabel('left', 'f [Hz]')
+        spectrogram_plot.setLabel('left', 'Frequency [Hz]')
+        spectrogram_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
         spectrogram_image.setImage(spectrogram_data, levels=(spectrogram_data.min(), spectrogram_data.max()))
         lut = pg.colormap.get('viridis', source='matplotlib').getLookupTable()
         spectrogram_image.setLookupTable(lut)
+        
+        x_min, x_max = self.times[0], self.times[-1]
+        y_min, y_max = min(freqs), max(freqs)
+        
+        spectrogram_image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
+        spectrogram_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
+                                                yMin=y_min, yMax=y_max)
 
         # Add a close button to the tab
         close_button = QtWidgets.QToolButton()
@@ -158,13 +183,17 @@ class Explorer(QtWidgets.QMainWindow):
         # Create a new tab for the RMSA plot
         rmsa_plot_widget = pg.GraphicsLayoutWidget()
         rmsa_plot = rmsa_plot_widget.addPlot()
-        rmsa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '12pt'})
+        rmsa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
+        rmsa_plot.setLabel('left', 'RMS Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
         # Get the RMSA data
         rmsa_data = self.Fiber.rmsa()[1][0]
 
         # Plot the RMSA data
         rmsa_curve = rmsa_plot.plot(self.Fiber.distances, rmsa_data, pen='k')
+        rmsa_plot.setXRange(self.Fiber.distances[0], self.Fiber.distances[-1], padding=0)
+        rmsa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
+                                    yMin=min(rmsa_data), yMax=max(rmsa_data))
 
         # Add a close button to the tab
         close_button = QtWidgets.QToolButton()
@@ -192,7 +221,13 @@ class Explorer(QtWidgets.QMainWindow):
 
         # Plot the p2pa data
         p2pa_curve = p2pa_plot.plot(self.Fiber.distances, p2pa_data, pen='k')
-        p2pa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '12pt'})
+        p2pa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
+        p2pa_plot.setLabel('left', 'P2P Amplitude', **{'color': 'k', 'font-size': '10pt'})
+        
+        p2pa_plot.setXRange(self.Fiber.distances[0], self.Fiber.distances[-1], padding=0)
+        p2pa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
+                                    yMin=min(p2pa_data), yMax=max(p2pa_data))
+
 
         # Add a close button to the tab
         close_button = QtWidgets.QToolButton()
@@ -203,6 +238,34 @@ class Explorer(QtWidgets.QMainWindow):
         self.tab_widget.addTab(p2pa_plot_widget, 'P2PA')
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
         self.tab_widget.setCurrentWidget(p2pa_plot_widget)
+        
+    def plot_psd(self):
+        # Create a new tab for the p2pa plot
+        psd_plot_widget = pg.GraphicsLayoutWidget()
+        psd_plot = psd_plot_widget.addPlot()
+
+        freqs, amps = self.Fiber.spectrum(self.selected_channel, s_type='psd', results=True)
+        
+        psd_curve = psd_plot.plot(freqs, amps, pen='k')
+        psd_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
+        psd_plot.setLabel('left', 'PSD Amplitude', **{'color': 'k', 'font-size': '10pt'})
+        
+        psd_plot.setXRange(freqs[0], freqs[-1], padding=0)
+        psd_plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
+                                    yMin=min(amps), yMax=max(amps))
+
+        # Add a close button to the tab
+        close_button = QtWidgets.QToolButton()
+        close_button.setText('X')
+        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(psd_plot_widget)))
+
+        # Add the new tab to the tab widget
+        self.tab_widget.addTab(psd_plot_widget, f'PSD Ch: {self.selected_channel}')
+        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
+        self.tab_widget.setCurrentWidget(psd_plot_widget)
+            
+
+
 
     def close_tab(self, index):
         self.tab_widget.removeTab(index)

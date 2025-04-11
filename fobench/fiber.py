@@ -100,7 +100,7 @@ class Fiber(object):
 		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
 		self.distances = [(num * self.spatial_interval) + self.channel_offset for num in self.channels_num]
 
-		# Attributed not initialized since beginning. Required further processing to be initialized
+		# Attributed not initialized since beginning. Requires further processing to be initialized
 		self.ch_coord = None # coordinates of channels.
 
 		# Clean variables. Usually because h5py objects can't be copied with copy() function.

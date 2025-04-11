@@ -37,6 +37,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     win.setWindowTitle(f'Fobench: {title}')
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
     win.setBackground('w') # white bg
+    win.resize(1200, 500)
 
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
@@ -78,7 +79,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     '''
     Co-authors: Jonas Pätzel
     Description: 
-        generate generic matrix plot where one dimension represents time, e.g. 
+        generate generic matrix plot where x-axis represents time, e.g. 
         waterfall visualisation of data or spectrograms,PSDs, RMSA ...
     :Params:
         - timestamps(type:numpy): array containing Unix timestamps of data
@@ -95,6 +96,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     win.setWindowTitle('Fobench Data Plot')
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
     win.setBackground('w')
+    win.resize(1200, 800)
 
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
@@ -166,10 +168,9 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
     '''
     Co-authors: Jonas Pätzel
     Description: 
-        generate generic matrix plot where one dimension represents time, e.g. 
-        waterfall visualisation of data or spectrograms,PSDs, RMSA ...
+        generate generic matrix plot where x-axis represents distance
     :Params:
-        - timestamps(type:numpy): array containing Unix timestamps of data
+        - distances(type:numpy): array containing optical distances of channels
         - data(type: numpy 2D): array containing data to plot
         - y_label(type: str): y-axis label
         - title(type: str): title of plot
@@ -184,6 +185,7 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
     win.setWindowTitle('Fobench')
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
     win.setBackground('w')
+    win.resize(1200, 800)
 
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
