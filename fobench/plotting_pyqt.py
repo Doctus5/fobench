@@ -32,7 +32,10 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     :Return:
         - NA
     '''
-    app = QtWidgets.QApplication(sys.argv)
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(f'Fobench: {title}')
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
@@ -91,7 +94,10 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         - None
     '''
 
-    app = QtWidgets.QApplication(sys.argv)
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle('Fobench Data Plot')
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
@@ -180,7 +186,10 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
         - None
     '''
 
-    app = QtWidgets.QApplication(sys.argv)
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle('Fobench')
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))

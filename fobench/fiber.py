@@ -22,7 +22,7 @@ from warnings import warn
 
 import scipy.signal as signal
 import scipy.integrate as integrate
-from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2, fft, ifft
+from scipy.fft import fftshift, ifftshift, fft2, ifft2
 
 from obspy.core import UTCDateTime as UTC
 from obspy.core.trace import Trace as oTrace
@@ -731,16 +731,12 @@ recording parameters:
 			w_len = int(self.sampling_frequency * ram_window)
 
 			for i in range(self.total_channels):
-				segment_start = 0
-				segment_end = w_len 
-				
-				while segment_end < self.num_points:
+				for segment_start in range(self.num_points - w_len + 1):
+					segment_end = segment_start + w_len
 					segment = normalized_data[:,i][segment_start:segment_end]
-					weight = np.mean(np.abs(segment)) / (2 * w_len + 1)
-					normalized_data[:,i][segment_start + w_len // 2] /= weight
-
-					segment_start += 1
-					segment_end += 1
+					weight = np.mean(np.abs(segment))
+					
+					normalized_data[segment_start:segment_end, i] /= weight
 
 		elif method == '1bit':
 
@@ -1039,7 +1035,7 @@ recording parameters:
 	
 	
 	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function. 
-	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, plot_mode='mpl', **kwargs):
+	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1097,10 +1093,19 @@ recording parameters:
 			return freqs, spectrogram
 
 		else:
-			if plot_mode == 'mpl':
-				plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs, x=self.channels_num, max_value=max_value, units_y=self.units, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, **kwargs)
-			elif plot_mode == 'pyqt':
-				plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs, data=np.rot90(spectrogram, k=-1), cmap=cmap, y_label='Frequency [Hz]', title='Frequency content over optical distance')
+			if plot_mode == 'pyqt':
+				plot_pyqt.plot_2d_distance(distances=self.distances, 
+                               y_ticks=freqs, data=np.flip(np.rot90(spectrogram, k=1), axis=0),
+                               cmap=cmap, max_value=max_value,
+                               y_label='Frequency [Hz]', 
+                               title='Frequency content over optical distance')
+
+			elif plot_mode == 'mpl':
+				plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs,
+                         x=self.channels_num, max_value=max_value, units_y=self.units,
+                         figsize=figsize, title=self.start_time.isoformat()[:10],
+                         cmap=cmap, show=show, file_name=file_name, 
+                         where=where, **kwargs)
 		
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
 	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True, 
@@ -1191,7 +1196,7 @@ recording parameters:
 						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
 
-	def channel_plot(self, channel, max_value=None, figsize=None, show=True, file_name=None, where=None, plot_mode='mpl', **kwargs):
+	def channel_plot(self, channel, max_value=None, figsize=None, show=True, file_name=None, where=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1215,7 +1220,12 @@ recording parameters:
 		#index = np.where(self.channels_num == channel)[0]
 		selected = self.data[:,index]
 		
-		if plot_mode=='mpl':
+		if plot_mode=='pyqt':
+			t = self.times(time_type='unix')
+			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units, 
+							 title='')
+
+		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
 			plot.simple_plot(data=selected, t=t, channel=str(channel), 
 					units_y=self.units, max_value=max_value, spectrogram=False, 
@@ -1223,14 +1233,9 @@ recording parameters:
 					title=self.start_time.isoformat()[:10], 
 					file_name=file_name, where=where, **kwargs)
 
-		elif plot_mode=='pyqt':
-			t = self.times(time_type='unix')
-			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units, 
-							 title=f'Channel {channel} at {self.distances[channel]} m')
-
 	
 	#Fast plotting function of the data as matrix. Maximum value can be adjusted to saturate the plot.	
-	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, plot_mode='mpl', **kwargs):
+	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1248,18 +1253,21 @@ recording parameters:
 		:Return:
 			- NA.
 		'''
-		if plot_mode == 'mpl':
-			t = self.times(time_type='matplotlib')
-			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num, units_y=self.units, max_value=max_value, figsize=figsize, show=show, title=self.start_time.isoformat()[:10], cmap=cmap, file_name=file_name, where=where, add_data=add_data, **kwargs)
-		
-		elif plot_mode == 'pyqt':
+		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=self.distances,
 						data=self.data, y_label='Optical Distance [m]',
 						title='', max_value=max_value, cbar_label=self.units)
+
+		elif plot_mode == 'mpl':
+			t = self.times(time_type='matplotlib')
+			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num, 
+					 units_y=self.units, max_value=max_value, figsize=figsize, 
+					 show=show, title=self.start_time.isoformat()[:10], cmap=cmap, 
+					 file_name=file_name, where=where, add_data=add_data, **kwargs)
 		
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, make_plot=True, 
-						 plot_mode='mpl', **kwargs):
+						 plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -1295,15 +1303,18 @@ recording parameters:
 		Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 		trace = spec if trace == True else None
 		
-		if make_plot is True and plot_mode=='mpl':
-			t = self.times(time_type='matplotlib')
-			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units, trace=trace, figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel), show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
-
 		if make_plot is True and plot_mode=='pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f,
 						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
 						title=f'Spectrogram channel {channel}', cmap='viridis')
+
+		elif make_plot is True and plot_mode=='mpl':
+			t = self.times(time_type='matplotlib')
+			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
+						trace=trace, figsize=figsize, cmap=cmap,
+						title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel),
+						show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
 			
 		if verbose is True:
 			return Sxx, f, t
