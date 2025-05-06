@@ -1,18 +1,10 @@
-import obspy as ob
-from obspy.core.stream import Stream
-#from obspy.core.trace import Trace
-from obspy.core import UTCDateTime as UTC
-from obspy.signal.util import stack
-from datetime import datetime
 
 import functools
 import inspect
-import warnings
 import numpy as np
 import scipy.signal as signal
-import scipy as scipy
 import h5py as h5
-
+from tqdm import tqdm
 from pyrocko.orthodrome import distance_accurate50m_numpy as deg2m
 
 #from numba import jit, cuda
@@ -387,15 +379,34 @@ def peak_to_peak_amp(data, sampl_freq, axis=0):
 	return pp_amp # try to return also indexes of maximum and minimum!
 
 
-def detrend_signal(o_signal, order):
+def detrend_signal(o_signal, order, axis=-1):
     
-    t = np.arange(len(o_signal))
-    new_signal = o_signal.astype(float)
+    o_signal = np.asarray(o_signal, dtype=float)
+    new_signal = np.empty_like(o_signal)
     
-    trend = np.polyval(np.polyfit(t, o_signal, order), t)
-    new_signal -= trend
-        
+    if o_signal.ndim == 1:
+        t = np.arange(len(o_signal))
+        trend = np.polyval(np.polyfit(t, o_signal, order), t)
+        new_signal = o_signal - trend
+        return new_signal
+
+    elif o_signal.ndim == 2:
+        n = o_signal.shape[axis]
+        t = np.arange(n)
+    
+    for i in tqdm(range(o_signal.shape[1 - axis]), desc='Detrending', leave=False):
+        if axis == 0:
+            y = o_signal[:, i]
+            trend = np.polyval(np.polyfit(t, y, order), t)
+            new_signal[:, i] = y - trend
+        else:
+            y = o_signal[i, :]
+            trend = np.polyval(np.polyfit(t, y, order), t)
+            new_signal[i, :] = y - trend
     return new_signal
+
+    
+
 
 
 def filt_preprocess(io_signal, order=1, shape='sym', percent=0.1, steps=(True, True, True)):
@@ -568,69 +579,3 @@ def spatial_downsampling(das_class):
 	#new_channels_num = das_class.channels_num[:int(len(das_class.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 		
 	return new_data, new_channels_num
-		
-		
-def stack_2D(data, stack_type=None):
-	'''
-	Co-authors: Jonas Pätzel
-	Description: 
-		stacks data given as 2D array with dimensions (n_signals, n_samples)
-		calls obspy.signal.util.stack
-		e.g. for stacking channel data
-	:Params:
-		- data: (type: numpy): data to stack
-		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear', ('pw', order) or ('root', order)
-		- 'linear' stack refers to mean stack, not sum!
-	:Return:
-		- stacked data
-	'''
-	if not stack_type:
-		raise ValueError('Please provide a stack type')
-	return stack(data, stack_type)
-
-
-
-def stack_3D(data, stack_type=None):
-    """
-    Co-authors: Jonas Pätzel
-    Description:
-        Stacks data given as a 3D array (n_signals, n_samples, n_windows).
-        Implements linear (mean), sum, and phase-weighted stacking (PWS).
-    
-    :Params:
-        - data: (numpy.ndarray) 3D array (n_signals, n_samples, n_windows)
-        - stack_type: (str or Tuple[str, int]) Type of stack:
-            - 'linear': Mean stack
-            - 'sum': Summation stack
-            - ('pw', order): Phase-weighted stack with given order.
-    
-    :Return:
-        - stacked_data: (numpy.ndarray) 2D array (n_signals, n_samples).
-    """
-    if stack_type == 'linear':
-        return np.mean(data, axis=2)
-
-    if stack_type == 'sum': 
-        return np.sum(data, axis=2)
-
-    if isinstance(stack_type, tuple) and stack_type[0] == 'pw':
-        order = stack_type[1]
-        n_signals, n_samples, n_windows = data.shape
-
-        phase_stack = np.zeros((n_signals, n_samples), dtype=np.float32)
-        linear_stack = np.mean(data, axis=2)
-
-        # Compute phase stack iteratively
-        for i in range(n_windows):
-            analytic_signal = hilbert(data[:, :, i], axis=1)
-            phase_signal = analytic_signal / np.abs(analytic_signal)
-            phase_stack += np.abs(np.mean(phase_signal, axis=0))
-
-        phase_stack /= n_windows
-        phase_stack **= order
-
-        return linear_stack * phase_stack
-
-    raise ValueError('Please provide a stacking method of either "linear" or ("pw", order")')
-

@@ -1,27 +1,9 @@
-#Obspy and Pyrocko stuff!
-import obspy as ob
-from obspy.core import UTCDateTime as UTC
-#from pyrocko.plot.automap import Map
-
-#Normal libraries and matplotlib
-import os
-import json
 import numpy as np
-#import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from matplotlib.image import imread
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
 from matplotlib.widgets import TextBox
-import matplotlib.patheffects as PathEffects
-from matplotlib.dates import DateFormatter, MinuteLocator, num2date
-#from matplotlib_scalebar.scalebar import ScaleBar
-from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.dates import num2date
 import datetime as datetime
-#import utm
-
-
 
 '''
 ########################################################################################
@@ -64,7 +46,7 @@ class PrecisionDateFormatter(ticker.Formatter):
 		
 '''
 ########################################################################################
-DAS Class plots below...
+Matplotlib plotting functions below
 ########################################################################################
 '''
 

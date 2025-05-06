@@ -71,7 +71,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
 
 '''
 ####################################################
-Matrix Plot Function Below
+Matrix Plot Functions Below
 ####################################################
 '''
 
@@ -169,6 +169,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     
 def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list, 
                      max_value: float = None, y_label: str = '', 
+                     x_label: str = 'Optical Distance [m]',
                      title: str = '', cmap:str = 'seismic', 
                      cbar_label:str = '') -> None :
     '''
@@ -199,7 +200,7 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
+    plot.setLabel('bottom', x_label, **{'color': 'k', 'font-size': '14pt'})
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
@@ -241,7 +242,7 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
             mouse_point = plot.vb.mapSceneToView(pos)
             x_val = mouse_point.x()
             y_val = mouse_point.y()
-            label.setText(f'Optical Distance [m]: {x_val:.1f} | {y_label}: {y_val:.1f}', color='k')
+            label.setText(f'{x_label}: {x_val:.1f} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     
     if max_value is None:

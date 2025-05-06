@@ -19,6 +19,7 @@ Last modification on 2024-06-28 19:17:00
 import numpy as np
 import copy
 from warnings import warn
+from tqdm import tqdm
 
 import scipy.signal as signal
 import scipy.integrate as integrate
@@ -33,11 +34,11 @@ from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
 
 # inner functions
-from . import read_data as read
-from . import tools as tools
-from . import filter as filter
-from . import plotting as plot
-from . import plotting_pyqt as plot_pyqt
+from .utils import read_data as read
+from .tools import tools as tools
+from .tools import filter as filter
+from .plotting import plotting_mpl as plot
+from .plotting import plotting_pyqt as plot_pyqt
 
 
 
@@ -48,23 +49,24 @@ class Fiber(object):
 	'''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-	def __init__(self, filepath, company='silixa', range_ch=None, sensing='das', load_data=True):
+	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
 		'''
 		Co-authors: --
 		Description: 
 			Initializes a DAS Class which is reading a DAS file and saving all variables and metadata.
-			So far it can read TDMS (Silixa) and H5 (Febus) formats.
 			The basis for manipulating the data is numpy. Tools are inspired in Obspy, however using
 			an obspy class for this takes long time in their processing tools.
 		:Params:
 			- filepath(type:String): complete path of the file to be read.
-			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting 'silixa' (Default), 'febus'', 'bam', 'aragon', 'quantx','asn' and 'terra15'
+			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting 'silixa', 'febus'', 'bam', 'aragon', 'quantx','asn' and 'terra15'
 			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
 			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
 		:Return:
 			- NA.  
 		'''
- 
+		if not company:
+			raise ValueError('No company provided. Please choose one of the following: "silixa", "febus", "bam", "aragon", "quantx","asn", "terra15"')
+
 		# Private attributes
 		self.__filepath__ = filepath
 
@@ -74,9 +76,8 @@ class Fiber(object):
   
 		self.attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)		
   
-		self.base = self.attributes['file']
+		self.basefile = self.attributes['basefile']
 		self.fiber = self.attributes['fiber']
-		self.dataset = self.attributes['dataset']
 		self.properties = self.attributes['properties']
 		self.channels = self.attributes['chans']
 		self.channels_num = self.attributes['chans_nums']
@@ -91,7 +92,6 @@ class Fiber(object):
 		self.num_points = self.attributes['num_points'] # int(self.time_length/self.dt)
 		self.gauge_length = self.attributes['gauge_length'] # gauge length used in the measurement [m].
 		self.channel_offset = self.attributes['channel_offset'] # offset where measurement started. It will not always record at channel 0 or distance 0.
-		# self.data = self.__data__() if load_data == True else None
 		self.data = self.attributes['data']
 		self.corrected = False
 		self.sensing = sensing
@@ -102,11 +102,6 @@ class Fiber(object):
 
 		# Attributed not initialized since beginning. Requires further processing to be initialized
 		self.ch_coord = None # coordinates of channels.
-
-		# Clean variables. Usually because h5py objects can't be copied with copy() function.
-		del self.dataset
-		del self.base
-
 
 	'''
 	####################################################
@@ -188,7 +183,7 @@ recording parameters:
 			- NA.  
 		'''
 
-		if meta_dict == True:
+		if meta_dict:
 
 			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
 			
@@ -290,15 +285,14 @@ recording parameters:
 		
 		else:
 		
-			ch0 = ch
-			chf = ch0
+			ch0 = chf = ch
 		
 		ch0, chf = int(ch0), int(chf)
 		ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
 		self.data = self.data[:,ch0:chf+1]
 		self.channels = self.channels[ch0:chf+1]
 		self.channels_num = self.channels_num[ch0:chf+1]
-		if hasattr(self, 'distances'): self.distances = self.distances[ch0:chf+1]
+		self.distances = self.distances[ch0:chf+1]
 		self.total_channels = len(self.channels_num)
 		
 		return self
@@ -378,16 +372,12 @@ recording parameters:
 		'''
 		
 		if channel is not None:
-		
+
 			ch = int(channel)
 			index = self.channels_num.index(ch)
-			data_n = self.data[:,index]
-			
-		else:
-		
-			data_n = self.data
-			
-		return data_n 
+			return self.data[:,index]
+
+		return self.data
 		
 	
 	#Return a an array of times in three different formats: UTCDateTime, ISOformat and matplotlib for plotting.	
@@ -585,20 +575,10 @@ recording parameters:
 			- NA.  
 		'''
 
-		axis = self.__axis__(dim)		
+		axis = self.__axis__(dim)
 
-		M = self.total_channels if axis == 0 else self.num_points
+		self.data = tools.detrend_signal(self.data, order=order, axis=axis)
 
-		for i in range(M): # I think there is a way to do this matrix wise, and coefficients might appear per column. See numpy.polyfit()
-	
-			if axis == 0: # if it's time sample
-	
-				self.data[:,i] = tools.detrend_signal(self.data[:,i], order)
-	
-			if axis == 1: # if it's space sample
-	
-				self.data[i,:] = tools.detrend_signal(self.data[i,:], order)
-		
 		return self
 
 
@@ -766,7 +746,7 @@ recording parameters:
 
 		whitened_matrix = np.zeros_like(self.data, dtype='float32')
 
-		for i in range(self.total_channels):
+		for i in tqdm(range(self.total_channels), desc='Whitening', leave=False):
 			channel = self.data[:, i]
 			n = len(channel)
 
@@ -1061,7 +1041,7 @@ recording parameters:
 	
 		spectrogram = []
 	
-		for i in range(self.total_channels):
+		for i in tqdm(range(self.total_channels), desc='Comptung Frequency Content', leave=False):
 			
 			o_signal = self.data[:,i] #- self.data[:,i].mean()
 			#N = len(o_signal)
@@ -1319,37 +1299,6 @@ recording parameters:
 		if verbose is True:
 			return Sxx, f, t
 		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
-		
-		
-	def interactive_plot(self, channel=None, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, **kwargs):
-		'''
-		Co-authors: --
-		Description: (UNDER CONSTRUCTION BUT WORKS SO FAR)
-			Interactive plot based on plot() and channel_plot() functions. It plots the DAS Class matrix data as a colormap, and below it plots 
-			a single-channel signal. The signal channel is shown in the matrix colormap plot as a yellow line, indicating the positon of the 
-			current plotted channel. A box in the upper-right part of the channel plot allows the user to change the channel to visulize by
-			enterirng the number of a new channel, and by hitting ENTER, the plot updates showing the new channel plot and indicating where on the
-			colormap plot the channel is located.
-		:Params:
-			- channel(type:String or Int or Float): channel to plot initially.
-			- max_value(type:Float; optional): maximum value of the colormap and y-axis. It will limit the plot in a range of -max_value to max_value.
-			All values above this will look saturated with the color limits of the colormap. Default = None.
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, 
-			but the figure instance would be open so the user can add further changes. Default = True.
-			- cmap(type:String; optional): name of the matplotlib colormap to use for the data. Default = 'viridis'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-		:Return:
-			- return1(type:--): --.  
-		'''
-
-		channel = 0 if channel == None else channel
-		t = self.times(time_type='matplotlib')
-		
-		plot.DAS_interactive_plot(data=self.data, set_channel=channel, t=t, channels=self.channels_num, units_y=self.units, max_value=max_value, figsize=figsize, title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name, where=where, add_data=add_data, **kwargs)
-  
 
 	#Function for plotting the DAS data as record structure/section.
 	def plot_record_section(self, channels):

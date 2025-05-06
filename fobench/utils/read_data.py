@@ -20,10 +20,7 @@ log_manager.set_level(logging.ERROR)
 import h5py as h5
 import numpy as np
 
-from collections import namedtuple
 from obspy.core import UTCDateTime as UTC
-
-
 
 def read_data(filepath=None, company=None, range_ch=None, format=None, load_data=True):
     '''
@@ -49,15 +46,11 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     # modify range_ch variable
     if isinstance(range_ch, int): # check if it is single value
-        
         range_ch = [range_ch]
         
-    if isinstance(range_ch, np.ndarray): # check if is array
-        
+    elif isinstance(range_ch, np.ndarray): # check if is array
         range_ch = list(range_ch)
     
-    
-    # Start finding the attributes...
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
         print('Reading TDMS file (Silixa Format)...')
@@ -154,9 +147,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = 0 # FIX THIS!!
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
-    
-    #file_file.close()
-    
+        
     elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
         
         print('Reading HDF5 file (Terra15 Format)...')
@@ -231,7 +222,6 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = str(dataset.attrs['RawDataUnit'])[2:-1]
         conv_factor = None # conversion factor if given explicitly
     
-    # UNDER CONSTRUCTION   
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
         
         print('Reading HDF5 file (Aragon Photonics Format)...')
@@ -335,21 +325,15 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         conv_factor = None # conversion factor if given explicitly 
 
     else:
-        
-        # Terminate if file format can not be handled.
-        raise ValueError('"'+format+'" is not a recognized file format.')
-    
-    # Free space by erasing old content.
-    database = None
-    file_file = None
+        raise ValueError(f'{format} is not a recognized file format!')
+    del dataset
     
     # Attributed for the Fiber class.
     attr_keys = [
-        'file',
+        'basefile',
         'format',
         'company',
         'fiber',
-        'dataset',
         'properties',
         'chans',
         'chans_nums',
@@ -369,11 +353,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'conv_factor'
         ]
     
-    attributes = [file_file,
+    attributes = [file_file.filename,
                 format,
                 company,
                 fiber,
-                dataset, 
                 h5_to_dict(properties), 
                 chans, 
                 chans_nums, 
@@ -419,59 +402,32 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     '''
 
     values = np.asarray([])
-    
+
     if format == 'tdms' and company == 'silixa':
+        values = extract_point.as_dataframe().to_numpy()[:, range_ch]
+
+    elif format in ('h5', 'hdf5'):
+        if company == 'febus':
+            dims = extract_point.shape
+            values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
+        elif company == 'terra15':
+            values = np.array(extract_point[:, range_ch[0]:range_ch[1]])
+        elif company in ('silixa', 'asn', 'quantx', 'aragon'):
+            values = np.array(extract_point[:, range_ch])
+            if company == 'aragon':
+                values *= 1e-9  # Convert from nanostrain to strain
+
+    # ####################################################
+    # CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
+    # ####################################################
+
+    elif format == 'npy' and company == 'bam':
+        values = np.load(extract_point)[:, range_ch]
+
+    elif format == 'npz' and company == 'bam':
+        values = np.load(extract_point)['ph'][:, range_ch]
         
-        values = extract_point.as_dataframe().to_numpy()[:,range_ch] # New way to load data. Cuts time by half.
-        
-    if (format == 'h5' or format == 'hdf5') and company == 'febus':
-    
-        dims = extract_point.shape
-        
-        # experimental based on real block overlap values.
-        # LAG = int(dims[1]*LAG)
-        # n_dim = int((dims[1] - LAG)*dims[0])
-        # values = extract_point[:,:LAG,:].reshape(int(n_dim),dims[2])[:,range_ch]
-        
-        values = extract_point[:,:LAG,:].reshape(int(dims[0]*LAG),dims[2])[:,range_ch]
-        
-        # values = extract_point[:,:LAG,:].reshape(int(dims[0]*LAG),dims[2])[:,range_ch]
-
-    if (format == 'h5' or format == 'hdf5') and company == 'silixa':
-
-        values = np.array(extract_point[:,range_ch])
-
-    if (format == 'h5' or format == 'hdf5') and company == 'terra15':
-
-        values = np.array(extract_point[:,range_ch[0]:range_ch[1]])
-
-    if (format == 'h5' or format == 'hdf5') and company == 'asn':
-
-        values = np.array(extract_point[:,range_ch])
-
-    if (format == 'h5' or format == 'hdf5') and company == 'quantx':
-
-        values = np.array(extract_point[:,range_ch])
-    
-    if (format == 'h5' or format == 'hdf5') and company == 'aragon':
-
-        values = np.array(extract_point[:,range_ch])
-        values *= (10**-9) # from nanostrain to strain.
-        
-	# ####################################################
-	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
-	# ####################################################
-        
-    if format == 'npy' and company == 'bam':
-    
-        values = np.load(extract_point)[:,range_ch]
-
-    if format == 'npz' and company == 'bam':
-    
-        values = np.load(extract_point)['ph'][:,range_ch]
-        
-    if (format == 'h5' or format == 'hdf5') and company == 'michelle':
-
-        values = np.array(extract_point[:,range_ch])
+    elif (format == 'h5' or format == 'hdf5') and company == 'michelle':
+        values = np.array(extract_point[:, range_ch])
 
     return values.astype('float')
