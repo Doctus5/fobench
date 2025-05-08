@@ -155,13 +155,13 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
             label.setText(f'Time: {x_datetime} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     
-    if max_value is None:
-        max_value=np.max(np.abs(data))
+    values = (-max_value, max_value) if max_value is not None else None
+    data_range = np.nanmax(data) - np.nanmin(data)
     
     cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=(-max_value, max_value), 
-                          label=cbar_label, interactive=False)
-    bar.setImageItem(image, insert_in=plot )
+    bar = pg.ColorBarItem(colorMap=cmap, values=values,
+                          label=cbar_label, interactive=True, rounding=0.001*data_range)
+    bar.setImageItem(image, insert_in=plot)
 
     app.exec_()
     app.quit()
@@ -244,13 +244,13 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
             label.setText(f'Optical Distance [m]: {x_val:.1f} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     
-    if max_value is None:
-        max_value=np.max(np.abs(data))
+    values = (-max_value, max_value) if max_value is not None else None
+    data_range = np.nanmax(data) - np.nanmin(data)
     
     cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=(-max_value, max_value), 
-                          label=cbar_label, interactive=False)
-    bar.setImageItem(image, insert_in=plot )
+    bar = pg.ColorBarItem(colorMap=cmap, values=values,
+                          label=cbar_label, interactive=True, rounding=0.001*data_range)
+    bar.setImageItem(image, insert_in=plot)
 
     app.exec_()
     app.quit()
