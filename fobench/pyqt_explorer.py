@@ -21,11 +21,9 @@ class Explorer(QtWidgets.QMainWindow):
         # set up Fiber class information
         self.Fiber = Fiber
         self.times = self.Fiber.times(time_type='unix')
-        self.selected_channel = 0
-        
-        x_min, x_max = self.times[0], self.times[-1]
-        y_min, y_max = self.Fiber.distances[0], self.Fiber.distances[-1]
-        
+        self.ch0, self.chf = self.Fiber.channels[0], self.Fiber.channels[-1]
+        self.selected_channel = self.ch0
+
         # set up window
         self.setWindowTitle('Fobench Data Explorer')
         self.setGeometry(100, 100, 1200, 800)
@@ -34,6 +32,10 @@ class Explorer(QtWidgets.QMainWindow):
         central_widget = QtWidgets.QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QtWidgets.QVBoxLayout(central_widget)
+
+        #boundaries for main data plot
+        x_min, x_max = self.times[0], self.times[-1]
+        y_min, y_max = self.Fiber.distances[0], self.Fiber.distances[-1]
 
         # main data plot
         self.matrix_plot_widget = pg.GraphicsLayoutWidget()
@@ -53,19 +55,15 @@ class Explorer(QtWidgets.QMainWindow):
         self.hist = pg.HistogramLUTItem(image=self.matrix_image)
         self.hist.gradient.setColorMap(pg.colormap.get('seismic', source='matplotlib'))
         self.matrix_plot_widget.addItem(self.hist)
-        level_val = max(abs(self.Fiber.data.min()), self.Fiber.data.max())
-
-        # TODO: improve colorbar values 
-        self.hist.setLevels(0.1 * -level_val, 0.1 * level_val)
         
         # tabs
         self.tab_widget = QtWidgets.QTabWidget()
         main_layout.addWidget(self.tab_widget, stretch=1)  # Tab widget takes 1 part of the layout
 
+        # channel plot tab
         self.line_plot_widget = pg.GraphicsLayoutWidget()
         self.line_plot = self.line_plot_widget.addPlot()
         self.line_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
-        
         self.line_curve = self.line_plot.plot(pen='k')
         self.tab_widget.addTab(self.line_plot_widget, 'Channel')
 
@@ -73,49 +71,69 @@ class Explorer(QtWidgets.QMainWindow):
         main_layout.addLayout(bottom_layout)
 
         self.channel_label = QtWidgets.QLabel('Channel:')
-        bottom_layout.addWidget(self.channel_label)  # Channel label in the same line as spinbox and slider
+        bottom_layout.addWidget(self.channel_label)  # channel label in the same line as spinbox and slider
 
+        # channel selection spinbox
         self.spin_box = QtWidgets.QSpinBox()
-        self.spin_box.setMinimum(0)
-        self.spin_box.setMaximum(self.Fiber.data.shape[1] - 1)
+        self.spin_box.setToolTip('Selects Channel to plot')
+        self.spin_box.setMinimum(self.ch0)
+        self.spin_box.setMaximum(self.chf)
         self.spin_box.setValue(self.selected_channel)
         self.spin_box.valueChanged.connect(self.on_spin_box_changed)
-        bottom_layout.addWidget(self.spin_box)  # Spin box to the left of the slider
+        bottom_layout.addWidget(self.spin_box)  # spinbox to the left of the slider
 
+        # channel selection slider
         self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.slider.setMinimum(0)
-        self.slider.setMaximum(self.Fiber.data.shape[1] - 1)
+        self.slider.setMinimum(self.ch0)
+        self.slider.setMaximum(self.chf)
         self.slider.setValue(self.selected_channel)
         self.slider.valueChanged.connect(self.on_slider_changed)
-        bottom_layout.addWidget(self.slider)  # Slider to the right of the spin box
+        bottom_layout.addWidget(self.slider)  # slider to the right of the spin box
+        
+        # colorbar max percentile spinbox
+        self.cbar_spinbox = QtWidgets.QDoubleSpinBox()
+        self.cbar_spinbox.setRange(0.0, 100.0)
+        self.cbar_spinbox.setDecimals(0)
+        self.cbar_spinbox.setSingleStep(1)
+        self.cbar_spinbox.setValue(90)  # default to 90th percentile
+        self.cbar_spinbox.setToolTip('Sets data percentile to be represented by colorbar (0–100)')
+        self.cbar_spinbox.valueChanged.connect(self.update_colorbar_levels)
+        bottom_layout.addWidget(QtWidgets.QLabel('Colorbar max %:'))
+        bottom_layout.addWidget(self.cbar_spinbox)
+        self.update_colorbar_levels()
 
+        # dropdown methods menu
         self.dropdown = QtWidgets.QComboBox()
         self.dropdown.addItems(['Methods', 'Spectrogram', 'PSD', 'RMSA', 'P2PA'])
         self.dropdown.currentIndexChanged.connect(self.on_dropdown_changed)
-        bottom_layout.addWidget(self.dropdown)  # Dropdown menu to the right of the slider
+        bottom_layout.addWidget(self.dropdown)  # dropdown menu to the right of the slider
 
         self.update_plots()
 
+    # detect clicking on matrix and update 
     def on_matrix_clicked(self, event):
         if event.button() == QtCore.Qt.LeftButton:
             pos = self.matrix_image.mapFromScene(event.scenePos())
             x, y = int(pos.x()), int(pos.y())
             if 0 <= y < self.Fiber.data.shape[1]:
-                self.selected_channel = y
-                self.slider.setValue(self.selected_channel)
-                self.spin_box.setValue(self.selected_channel)
+                self.selected_channel = y # set selected channel to y value
+                self.slider.setValue(self.selected_channel) # update slider
+                self.spin_box.setValue(self.selected_channel) # update spinbox
                 self.update_plots()
 
+    # detect channel selection with slider
     def on_slider_changed(self, value):
         self.selected_channel = value
         self.spin_box.setValue(self.selected_channel)
         self.update_plots()
 
+    # detect channel selection with spin box
     def on_spin_box_changed(self, value):
         self.selected_channel = int(value)
         self.slider.setValue(self.selected_channel)
         self.update_plots()
 
+    # detect selection of method in dropdown menu
     def on_dropdown_changed(self, index):
         if self.dropdown.currentText() == 'Spectrogram':
             self.plot_spectrogram()
@@ -128,7 +146,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.dropdown.setCurrentIndex(0)  # Reset dropdown to 'Methods'
 
     def update_plots(self):
-        row_data = self.Fiber.data[:, self.selected_channel]
+        row_data = self.Fiber.data[:, self.selected_channel-self.ch0]
         self.line_curve.setData(y=row_data, x=self.times)
         x_min, x_max = self.times[0], self.times[-1]
         y_min, y_max = min(row_data), max(row_data)
@@ -139,6 +157,7 @@ class Explorer(QtWidgets.QMainWindow):
     def plot_spectrogram(self):
         spectrogram_data, freqs = self.spectrogram(self.selected_channel)
         spectrogram_data = np.flip(spectrogram_data, axis=1)
+
         # Check if the spectrogram tab already exists
         for i in range(self.tab_widget.count()):
             if self.tab_widget.tabText(i) == f'Spectrogram {self.selected_channel}':
@@ -164,7 +183,7 @@ class Explorer(QtWidgets.QMainWindow):
         spectrogram_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                                 yMin=y_min, yMax=y_max)
 
-        # Add a close button to the tab
+        # close button
         close_button = QtWidgets.QToolButton()
         close_button.setText('x')
         close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(spectrogram_plot_widget)))
@@ -180,46 +199,46 @@ class Explorer(QtWidgets.QMainWindow):
                 self.tab_widget.setCurrentIndex(i)
                 return
 
-        # Create a new tab for the RMSA plot
+        # create a new tab for the RMSA plot
         rmsa_plot_widget = pg.GraphicsLayoutWidget()
         rmsa_plot = rmsa_plot_widget.addPlot()
         rmsa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
         rmsa_plot.setLabel('left', 'RMS Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
-        # Get the RMSA data
+        # get RMSA data
         rmsa_data = self.Fiber.rmsa()[1][0]
 
-        # Plot the RMSA data
+        # plot RMSA data
         rmsa_curve = rmsa_plot.plot(self.Fiber.distances, rmsa_data, pen='k')
         rmsa_plot.setXRange(self.Fiber.distances[0], self.Fiber.distances[-1], padding=0)
         rmsa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
                                     yMin=min(rmsa_data), yMax=max(rmsa_data))
 
-        # Add a close button to the tab
+        # close button
         close_button = QtWidgets.QToolButton()
         close_button.setText('x')
         close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(rmsa_plot_widget)))
 
-        # Add the new tab to the tab widget
+        # add new tab
         self.tab_widget.addTab(rmsa_plot_widget, 'RMSA')
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
         self.tab_widget.setCurrentWidget(rmsa_plot_widget)
 
     def plot_p2pa(self):
-        # Check if the tab already exists
+        # check if the tab already exists
         for i in range(self.tab_widget.count()):
             if self.tab_widget.tabText(i) == 'P2PA':
                 self.tab_widget.setCurrentIndex(i)
                 return
 
-        # Create a new tab for the p2pa plot
+        # create a new tab for the p2pa plot
         p2pa_plot_widget = pg.GraphicsLayoutWidget()
         p2pa_plot = p2pa_plot_widget.addPlot()
 
-        # Get the p2pa data
+        # get p2pa data
         p2pa_data = self.Fiber.pp_amp()
 
-        # Plot the p2pa data
+        # plot p2pa data
         p2pa_curve = p2pa_plot.plot(self.Fiber.distances, p2pa_data, pen='k')
         p2pa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
         p2pa_plot.setLabel('left', 'P2P Amplitude', **{'color': 'k', 'font-size': '10pt'})
@@ -228,19 +247,17 @@ class Explorer(QtWidgets.QMainWindow):
         p2pa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
                                     yMin=min(p2pa_data), yMax=max(p2pa_data))
 
-
-        # Add a close button to the tab
+        # close button
         close_button = QtWidgets.QToolButton()
         close_button.setText('X')
         close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(p2pa_plot_widget)))
 
-        # Add the new tab to the tab widget
+        # add new tabe
         self.tab_widget.addTab(p2pa_plot_widget, 'P2PA')
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
         self.tab_widget.setCurrentWidget(p2pa_plot_widget)
         
     def plot_psd(self):
-        # Create a new tab for the p2pa plot
         psd_plot_widget = pg.GraphicsLayoutWidget()
         psd_plot = psd_plot_widget.addPlot()
 
@@ -254,18 +271,15 @@ class Explorer(QtWidgets.QMainWindow):
         psd_plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
                                     yMin=min(amps), yMax=max(amps))
 
-        # Add a close button to the tab
+        # close button
         close_button = QtWidgets.QToolButton()
         close_button.setText('X')
         close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(psd_plot_widget)))
 
-        # Add the new tab to the tab widget
+        # add new tab
         self.tab_widget.addTab(psd_plot_widget, f'PSD Ch: {self.selected_channel}')
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
         self.tab_widget.setCurrentWidget(psd_plot_widget)
-            
-
-
 
     def close_tab(self, index):
         self.tab_widget.removeTab(index)
@@ -274,3 +288,8 @@ class Explorer(QtWidgets.QMainWindow):
         Sxx, f, t = self.Fiber.channel_spectrogram(channel, verbose=True, make_plot=False)
         return Sxx.T, f
 
+    def update_colorbar_levels(self):
+        percentile = self.cbar_spinbox.value()
+        data = self.Fiber.data
+        abs_percentile = np.percentile(np.abs(data), percentile)
+        self.hist.setLevels(-abs_percentile, abs_percentile)
