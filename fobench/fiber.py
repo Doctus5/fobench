@@ -837,34 +837,32 @@ recording parameters:
 
 	# Function to make a fk-filter based on the input parameters.
 	@tools._update_processing
-	def fk_filter(self, freq_min, freq_max, k_min, k_max):
+	def fk_filter(self, bands, use_velocity=False, alpha=0.2, transition=0.1):
 		'''
-		Co-authors: --
+		Co-authors: Johannes Hart.
 		Description:
 			under construction. DON'T USE THIS METHOD!
 		:Params:
-			- param1(type:--): --.
+			- bands(type:List): List of tuples containing [(fmin, fmax, kmin, kmax)] or velocity bounds [(fmin, fmax, vmin, vmax)]
+			in case "use_velocity == True".
+			- use_velocity(type:Boolean): If True, kmin and kmax from "bands" will be interpreted as velocity bounds vmin and vmax.
+			- alpha(type:Float): Tukey smooth edge parameter (0 = no smooth, 1 = Gaussian).
+			- transition(type:Float): fraction of band edge used for soft taper (e.g., 0.1 = 10% of band width).
 		:Return:
 			- return1(type:--): --.  
 		'''
 		
 		data_fk = fftshift(fft2(ifftshift(self.data)))
 
-		# Define the frequency and wavenumber grids
-		#num_rows, num_cols = self.data.shape
-		freq_grid = np.fft.fftfreq(self.num_points)
-		k_grid = 2 * np.pi * np.fft.fftfreq(self.total_channels, d=self.spatial_interval)#.reshape((1,self.total_channels))
-
-		freq_mesh, k_mesh = np.meshgrid(freq_grid, k_grid, indexing='ij')
-
-		# Define the filter mask
-		mask = (np.abs(freq_mesh) >= freq_min) & (np.abs(freq_mesh) <= freq_max) & (np.abs(k_mesh) >= k_min) & (np.abs(k_mesh) <= k_max)
+		# Mask for FK filter.
+		mask = filter.fk_mask(self.num_points, self.total_channels, self.spatial_interval, bands, use_velocity=use_velocity, alpha=alpha, transition=transition)
+        
+        # apply inverse 2D Fourier transform to obtain the filtered data
 		filt_fk = data_fk * mask
-
-		# Apply inverse 2D Fourier transform to obtain the filtered data
 		filt_data = np.abs(fftshift(ifft2(ifftshift(filt_fk))))
+		self.data = filt_data
 	
-		return np.abs(data_fk) #filt_data
+		return self
 		
 		
 	#Function for integrating the signal

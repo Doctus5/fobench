@@ -22,6 +22,7 @@ Various Seismogram Filtering Functions
 import warnings
 
 import numpy as np
+from scipy.fft import rfft, rfftfreq, fftshift, ifftshift, fft2, ifft2, fft, ifft
 from scipy.fftpack import hilbert
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
                           remez, medfilt2d)
@@ -494,3 +495,81 @@ def lowpass_cheby_2(data, freq, df, maxorder=12, ba=False,
     if freq_passband:
         return sosfilt(sos, data, axis=0), wp * nyquist
     return sosfilt(sos, data, axis=0)
+
+
+def fk_mask(N_points, N_sensors, dx, bands, use_velocity=False, alpha=.3, transition=0.1):
+    '''
+    Co-authors: Johannes Hart.
+    Description:
+        under construction. DON'T USE THIS METHOD!
+    :Params:
+        - N_points(type:Int): number of time samples.
+        - N_sensors(type:Int): number of sensors in the array. Ideally in a straight path.
+        - dx(type:Float): spacing in meters between sensors.
+        - bands(type:List): List of tuples containing [(fmin, fmax, kmin, kmax)] or velocity bounds [(fmin, fmax, vmin, vmax)]
+        in case "use_velocity == True".
+        - use_velocity(type:Boolean): If True, kmin and kmax from "bands" will be interpreted as velocity bounds vmin and vmax.
+        - alpha(type:Float): Tukey smooth edge parameter (0 = no smooth, 1 = Gaussian).
+        - transition(type:Float): fraction of band edge used for soft taper (e.g., 0.1 = 10% of band width).
+    :Return:
+        - full_mask(type:Array): 2D array in the FK domain that acts as a mask. It is meant to   
+    '''
+    
+    freq_grid = np.fft.fftfreq(N_points)
+    k_grid = fftshift(2 * np.pi * np.fft.fftfreq(N_sensors, d=dx))#.reshape((1,self.total_channels))
+
+    freq_mesh, k_mesh = np.meshgrid(freq_grid, k_grid, indexing='ij')
+    omega_mesh = 2 * np.pi * freq_mesh
+
+    full_mask = np.zeros_like(freq_mesh, dtype=bool).astype(float) # define an initial size mask
+
+    for fmin, fmax, kmin, kmax in bands:
+
+        # check if there no limit defined
+        fmin = 0 if fmin == None else fmin
+        fmax = freq_mesh.max() if fmax == None else fmax
+        kmin = 0 if kmin == None else kmin
+        kmax = k_mesh.max() if kmax == None else kmax
+
+        # correction in case one of the values is 0, to avoid division by zeros.
+        kmin = 1e-6 if kmin == 0 else kmin
+        kmax = 1e-6 if kmax == 0 else kmax
+
+        kmin = 2 * np.pi * fmin/kmax if use_velocity == True else kmin
+        kmax = 2 * np.pi * fmax/kmin if use_velocity == True else kmax
+
+        main_band = (np.abs(freq_mesh) >= fmin) & (np.abs(freq_mesh) <= fmax) & \
+                (np.abs(k_mesh) >= kmin) & (np.abs(k_mesh) <= kmax).astype(float)
+    
+        # Build 1D Tukey tapers
+        freq_taper = np.ones_like(freq_grid)
+        k_taper = np.ones_like(k_grid)
+
+        f_width = fmax - fmin
+        k_width = kmax - kmin
+
+        f_start = fmin - transition * f_width
+        f_end = fmax + transition * f_width
+        k_start = kmin - transition * k_width
+        k_end = kmax + transition * k_width
+
+        # Create Tukey windows in 1D
+        f_win = signal.windows.tukey(np.sum((np.abs(freq_grid) >= f_start) & (np.abs(freq_grid) <= f_end)), alpha=alpha)
+        k_win = signal.windows.tukey(np.sum((np.abs(k_grid) >= k_start) & (np.abs(k_grid) <= k_end)), alpha=alpha)
+
+        # Place tapers in full-size arrays
+        f_indices = np.where((np.abs(freq_grid) >= f_start) & (np.abs(freq_grid) <= f_end))[0]
+        k_indices = np.where((np.abs(k_grid) >= k_start) & (np.abs(k_grid) <= k_end))[0]
+        freq_taper[f_indices] = f_win
+        k_taper[k_indices] = k_win
+
+        # Outer product for 2D taper
+        smooth_mask = np.outer(freq_taper, k_taper)
+
+        # Combine soft mask only in the band region
+        full_mask += smooth_mask * main_band
+
+    # clip in case of overlapping.
+    full_mask = np.clip(full_mask, 0, 1)
+    
+    return full_mask
