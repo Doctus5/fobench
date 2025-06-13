@@ -16,11 +16,12 @@ Last modification on 2024-06-28 19:17:00
 """
 
 #Necessary packages to import
-import numpy as np
+import sys
 import copy
 from warnings import warn
 from tqdm import tqdm
 
+import numpy as np
 import scipy.signal as signal
 import scipy.integrate as integrate
 from scipy.fft import fftshift, ifftshift, fft2, ifft2
@@ -33,13 +34,16 @@ from obspy.signal.cross_correlation import correlate
 from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
 
+from pyqtgraph.Qt import QtWidgets
 # inner functions
-from .utils import read_data as read
-from .tools import tools as tools
+from .tools import read_data as read
+from .tools import utils as utils
 from .tools import filter as filter
+from .tools import signals as signals
+from .tools import wavefield as wavefield
 from .plotting import plotting_mpl as plot
 from .plotting import plotting_pyqt as plot_pyqt
-
+from .plotting.pyqt_explorer import Explorer
 
 
 class Fiber(object):
@@ -224,8 +228,9 @@ recording parameters:
 		
 		if self.corrected == False:
 		
-			self.data, self.units, self.channels, self.channels_num, self.total_channels = tools.instr_corr(self.data, vars(self), target=target)
-			
+			self.data, self.units, self.channels, self.channels_num, self.total_channels = utils.instr_corr(self.data, vars(self), target=target)
+			self.corrected = True
+
 		return self
 		
 	
@@ -253,12 +258,10 @@ recording parameters:
 		t = self.times()
 		t0_pos = max(0, np.searchsorted(t, t0, side='right') - 1)
 		tf_pos = max(0, np.searchsorted(t, tf, side='right') - 1)
-		t0_new = t[t0_pos]
-		tf_new = t[tf_pos]
 
 		self.data = self.data[t0_pos:tf_pos, :]
-		self.start_time = t0_new
-		self.end_time = tf_new
+		self.start_time = t[t0_pos]
+		self.end_time = t[tf_pos]
 		self.time_length = self.end_time - self.start_time
 		self.num_points = self.data.shape[0]
 		
@@ -266,7 +269,7 @@ recording parameters:
 			
 	
 	#Slice the data spatially (ranges of channels) by establshing the intial and the final channel. Anyformat of the channel code is acceptable.		
-	def restrict_channels(self, ch):
+	def restrict_channels(self, ch0, chf):
 		'''
 		Co-authors: --
 		Description:
@@ -279,15 +282,7 @@ recording parameters:
 			- NA.  
 		'''
 		
-		if isinstance(ch, tuple):
-		
-			ch0, chf = ch
-		
-		else:
-		
-			ch0 = chf = ch
-		
-		ch0, chf = int(ch0), int(chf)
+		ch0, chf = int(min(ch0, chf)), int(max(ch0, chf)) # in case ch0 and chf not ordered
 		ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
 		self.data = self.data[:,ch0:chf+1]
 		self.channels = self.channels[ch0:chf+1]
@@ -352,7 +347,7 @@ recording parameters:
 		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
 		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
 
-		n_ch, x_ch, y_ch, z_ch = tools.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
+		n_ch, x_ch, y_ch, z_ch = utils.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
 
 		self.append_coord(n_ch, x_ch, y_ch, z_ch)
 		
@@ -484,18 +479,19 @@ recording parameters:
 		for i in range(self.total_channels):
 			
 			if t_type == 'obspy':
-   
+                
 				trace = oTrace(data=self.data[:,i])
 				trace.stats.network = self.fiber
 				trace.stats.station = str(self.channels_num[i]).zfill(5)
-				trace.stats.npts = self.num_points + 1
+# 				trace.stats.npts = self.num_points #+ 1
 				trace.stats.sampling_rate = self.sampling_frequency
 				trace.stats.delta = self.dt
 				trace.stats.starttime = self.start_time
-				trace.stats.calib = tools.instr_corr(np.array(1), attributes=vars(self))
+				trace.stats.calib = utils.instr_corr(np.array(1), attributes=vars(self))
+				trace.stats.channel = 'H'
 				#trace.stats.endtime = self.end_time
-
-				stream += trace
+				stream.append(trace)
+# 				print(stream)
 	
 			if t_type == 'pyrocko':
 
@@ -517,7 +513,7 @@ recording parameters:
 	'''
 		
 	#function for upsampling spatially by double/half depending if it is upsampling or downsampling spatially.
-	@tools._update_processing
+	@utils._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
 		Co-authors: --
@@ -539,12 +535,12 @@ recording parameters:
 		if rs_type == 'upsampling':
 		
 			print('Upsampling takes longer than downsampling. It might take a while...')
-			new_data, new_channels_num = tools.spatial_upsampling(self)
+			new_data, new_channels_num = utils.spatial_upsampling(self)
 			self.spatial_interval = self.spatial_interval / 2
 			
 		elif rs_type == 'downsampling':
 		
-			new_data, new_channels_num = tools.spatial_downsampling(self)
+			new_data, new_channels_num = utils.spatial_downsampling(self)
 			self.spatial_interval = self.spatial_interval * 2
 		
 		#if (rs_type != 'downsampling') & (rs_type != 'upsampling'):
@@ -562,7 +558,7 @@ recording parameters:
 
 
 	#Function for detrending the data
-	@tools._update_processing
+	@utils._update_processing
 	def detrend(self, order=1, dim='t'):
 		'''
 		Co-authors: --
@@ -577,13 +573,13 @@ recording parameters:
 
 		axis = self.__axis__(dim)
 
-		self.data = tools.detrend_signal(self.data, order=order, axis=axis)
+		self.data = signals.detrend_signal(self.data, order=order, axis=axis)
 
 		return self
 
 
 	#Function for demeaning the data
-	@tools._update_processing
+	@utils._update_processing
 	def demean(self, dim='t'):
 		'''
 		Co-authors: --
@@ -600,8 +596,7 @@ recording parameters:
 		
 		return self
 	
-	#Function for tappering the data
-	@tools._update_processing
+	@utils._update_processing
 	def taper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
@@ -616,7 +611,7 @@ recording parameters:
 		
 		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
-		taper = signal.windows.tukey(M= M, alpha=frac*2)
+		taper = signal.windows.tukey(M=M, alpha=frac*2)
 
 		# dimensions fix in case of mismatch between lengths.
 		taper = np.concatenate((taper, np.zeros(M - taper.size))) if taper.size < M else taper # fix length due to even or odd numbers in points.
@@ -628,7 +623,7 @@ recording parameters:
 		
 	
 	#Function to decimate the data by any frequency below the original. Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...). The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
-	@tools._update_processing
+	@utils._update_processing
 	def decimate(self, new_freq=None, ftype='fir-remez'):
 		'''
 		Co-authors: --
@@ -669,7 +664,7 @@ recording parameters:
 
 
 	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
-	@tools._update_processing
+	@utils._update_processing
 	def normalize(self, method='absolute max', dim='d', ram_window=None):
 		'''
 		Co-authors:Jonas Pätzel
@@ -710,7 +705,7 @@ recording parameters:
 			
 			w_len = int(self.sampling_frequency * ram_window)
 
-			for i in range(self.total_channels):
+			for i in tqdm(range(self.total_channels), desc='Running mean normalization', leave=False):
 				for segment_start in range(self.num_points - w_len + 1):
 					segment_end = segment_start + w_len
 					segment = normalized_data[:,i][segment_start:segment_end]
@@ -729,7 +724,7 @@ recording parameters:
 		
 		return self
 
-	@tools._update_processing
+	@utils._update_processing
 	def whiten(self, freq_min=0.01, freq_max=100):
 		'''
 		Co-authors: Jonas Pätzel, adapted code from: https://github.com/seismo-live/seismo_live
@@ -781,7 +776,7 @@ recording parameters:
 		return self
 
 	# Function for filtering. Shall we also declare dimensionality options here?
-	@tools._update_processing
+	@utils._update_processing
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
 		Co-authors: --
@@ -799,12 +794,9 @@ recording parameters:
 		'''
 		if f_type == 'median': 
 			pre_process = False
-		if pre_process == True:		
-  
-			self.detrend(order=order)
-			self.demean()
-			self.taper(frac=frac)
-	
+		if pre_process:
+			self.data = signals.filt_preprocess(self.data, axis=0)
+
 		new_data = filter.point_filter(f_type=f_type, data=self.data, df=self.sampling_frequency, freq=freq, **options)
 		self.data = new_data
 		
@@ -812,7 +804,7 @@ recording parameters:
 
 
 	# Function to make a fk-filter based on the input parameters.
-	@tools._update_processing
+	@utils._update_processing
 	def fk_filter(self, freq_min, freq_max, k_min, k_max):
 		'''
 		Co-authors: --
@@ -844,7 +836,7 @@ recording parameters:
 		
 		
 	#Function for integrating the signal
-	@tools._update_processing
+	@utils._update_processing
 	def integrate(self, method='cum_trapezoid', dim='t', taper=True):
 		'''
 		Co-authors: --
@@ -862,25 +854,25 @@ recording parameters:
 		axis = self.__axis__(dim)
 		dx = self.dt if axis == 0 else self.spatial_interval
 		
-		if taper == True:
+		if taper:
 			self.taper(dim=dim)
 		
 		if method == 'cum_trapezoid':
-			res = integrate.cumulative_trapezoid(y=self.data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
+			result = integrate.cumulative_trapezoid(y=self.data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
 		
-		res = signal.detrend(res, axis=axis) #to detrend the signal
+		result = signal.detrend(result, axis=axis) #to detrend the signal
 		
 		#if taper == True:
 		
 		#	self.detaper(axis=axis)
 		
-		self.data = res
+		self.data = result
 		
 		return self
 	
 	
 	#Function for differentiating the signal
-	@tools._update_processing
+	@utils._update_processing
 	def differentiate(self, method='gradient', dim='t'):
 		'''
 		Co-authors: --
@@ -895,19 +887,19 @@ recording parameters:
 
 		axis = self.__axis__(dim)
 		if method == 'gradient':
-			res = np.gradient(self.data, self.dt, axis=axis)
+			result = np.gradient(self.data, self.dt, axis=axis)
 		elif method == 'diff':
 			padding = np.take(self.data, [0], axis=axis)
-			res = np.diff(self.data, axis=axis, prepend=padding) / self.dt
+			result = np.diff(self.data, axis=axis, prepend=padding) / self.dt
 		else:
-			raise ValueError(f'{method} is not a valid differentiation method, choose "gradient" or "diff"')
-		self.data = res
+			raise ValueError(f'Invalid method: "{method}". Choose "gradient" or "diff"')
+		self.data = result
 		
 		return self
 		
 		
 	#Function to detaper...
-	@tools._update_processing
+	@utils._update_processing
 	def detaper(self, frac=0.05, dim='t'):
 		'''
 		Co-authors: --
@@ -1000,7 +992,7 @@ recording parameters:
 		'''
 
 		axis = self.__axis__(dim)
-		ptp_amplitude = tools.peak_to_peak_amp(self.data, self.sampling_frequency, axis=axis)
+		ptp_amplitude = signals.peak_to_peak_amp(self.data, self.sampling_frequency, axis=axis)
 
 		return ptp_amplitude
 		
@@ -1060,13 +1052,11 @@ recording parameters:
 			#fft_values = np.flip(powers/powers.max()) if norm == True else np.flip(powers)
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2)
 
-			freqs, fft_values = tools.spectrum(o_signal, self.sampling_frequency, True, order, int(self.num_points/4), nfft)
+			freqs, fft_values = signals.spectrum(o_signal, self.sampling_frequency, True, order, int(self.num_points/4), nfft)
 			fft_values = fft_values/fft_values.max() if norm == True else fft_values
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2) # to smooth the surve
 
-
 			spectrogram.append(fft_values)
-			
 		spectrogram = np.array(spectrogram).T
 		
 		if results == True:
@@ -1153,12 +1143,12 @@ recording parameters:
 
 			if s_type == 'spectrum':
 	   
-				freqs, fft_values = tools.spectrum(o_signal, self.sampling_frequency, pre, order, pad, nfft)
+				freqs, fft_values = signals.spectrum(o_signal, self.sampling_frequency, pre, order, pad, nfft)
 				y_units = self.units
 	
 			if s_type == 'psd':
 	   
-				freqs, fft_values = tools.psd(o_signal, self.sampling_frequency, pre, order, nfft)
+				freqs, fft_values = signals.psd(o_signal, self.sampling_frequency, pre, order, nfft)
 				y_units = self.units.split(' ')[-1]
 				y_units = y_units+'$^{2}$/Hz'
 	
@@ -1196,8 +1186,6 @@ recording parameters:
 	
 		channel = int(channel)
 		index = self.channels_num.index(channel)
-		#print(self.channels_num, type(self.channels_num))
-		#index = np.where(self.channels_num == channel)[0]
 		selected = self.data[:,index]
 		
 		if plot_mode=='pyqt':
@@ -1214,7 +1202,6 @@ recording parameters:
 					file_name=file_name, where=where, **kwargs)
 
 	
-	#Fast plotting function of the data as matrix. Maximum value can be adjusted to saturate the plot.	
 	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
@@ -1300,7 +1287,6 @@ recording parameters:
 			return Sxx, f, t
 		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
-	#Function for plotting the DAS data as record structure/section.
 	def plot_record_section(self, channels):
 		'''
 		Co-authors: --
@@ -1333,7 +1319,7 @@ recording parameters:
 		plot.plot_record_section(signals=das_data, t=t, channels=das_channels, date=date)
 
 
-	def acf_profile(self, max_shift, dim='t', make_plot=False, deconvolve=False, window_size=None, **imshow_kwargs):
+	def acf_profile(self, max_lag, dim='t', plot_mode='pyqt', deconvolve=False, window_size=None, **imshow_kwargs):
 		'''
 		Co-authors: Jonas Pätzel
 		Description: 
@@ -1352,32 +1338,27 @@ recording parameters:
 		'''
 		
 		axis = self.__axis__(dim)
+		max_shift = int(max_lag*self.sampling_frequency)
 		if (dim == 't' and max_shift >= self.num_points) or (dim == 'd' and max_shift >= self.total_channels):
 			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
 		
-		autocorrelate = lambda x: correlate(x, x, max_shift)[max_shift:]
-		
-		result = np.apply_along_axis(autocorrelate, axis=axis, arr=self.data)
-		
-		if deconvolve and dim=='t':
-			if window_size is None: 
-				avg_acf = np.mean(result, axis=1)
-				avg_acf = avg_acf[:, np.newaxis] 
-			else:
-				avg_acf = []
-				half_window = window_size // 2
-				for i in range(self.total_channels):
-					start_ch = max(0, i - half_window)
-					end_ch = min(self.total_channels, i + half_window + 1)
-					avg_acf.append(np.mean(result[:, start_ch:end_ch], axis=1))
-				avg_acf = np.array(avg_acf).T
-			result -= avg_acf
-		elif deconvolve and dim=='d':
-				raise ValueError('Source deconvolution only available in time dimension!')
-		if make_plot:
-			plot.plot_acfs(acfs=result, dim=dim, meta=self.attributes, max_shift=max_shift, **imshow_kwargs)
-			
-		return result
+		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, 
+                                                   dim, plot_mode, deconvolve, 
+                                                   window_size, self.total_channels, 
+                                                   self.distances, self.sampling_frequency,
+                                                   **imshow_kwargs)
+		return acf
+
+
+	def spatial_coherence(self, max_lag, result=False, plot=True):
+		coh = wavefield.spatial_coherence_matrix(data=self.data.T, 
+                                           max_lag=max_lag,
+                                           fs=self.sampling_frequency,
+                                           channel_nums=self.channels_num, 
+                                           plot=plot, result=result)
+		if result:
+			return coh
+        
 
 	def explore(self):
 		'''
@@ -1389,10 +1370,6 @@ recording parameters:
 		:Return:
 			- NA
 		'''
-
-		from fobench.pyqt_explorer import Explorer
-		import sys
-		from pyqtgraph.Qt import QtWidgets
 
 		print(f'{"-"*65}\nStarting Fobench Data Explorer')
 		app = QtWidgets.QApplication.instance()

@@ -155,13 +155,14 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
             label.setText(f'Time: {x_datetime} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     
-    if max_value is None:
-        max_value=np.max(np.abs(data))
+    values = (-max_value, max_value) if max_value is not None else None
+    data_range = np.nanmax(data) - np.nanmin(data)
     
     cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=(-max_value, max_value), 
-                          label=cbar_label, interactive=False)
-    bar.setImageItem(image, insert_in=plot )
+    bar = pg.ColorBarItem(colorMap=cmap, values=values,
+                          label=cbar_label, interactive=True, rounding=0.001*data_range)
+    bar.setImageItem(image, insert_in=plot)
+
 
     app.exec_()
     app.quit()
@@ -171,7 +172,7 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
                      max_value: float = None, y_label: str = '', 
                      x_label: str = 'Optical Distance [m]',
                      title: str = '', cmap:str = 'seismic', 
-                     cbar_label:str = '') -> None :
+                     cbar_label:str = '', invert_y=False) -> None :
     '''
     Co-authors: Jonas Pätzel
     Description: 
@@ -205,6 +206,8 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
     plot.getViewBox().setMouseMode(pg.ViewBox.RectMode) # One-button
+    if invert_y:
+        plot.getViewBox().invertY(True)
 
     x_min, x_max = distances[0], distances[-1]
     y_min, y_max = y_ticks[0], y_ticks[-1]
@@ -245,13 +248,13 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
             label.setText(f'{x_label}: {x_val:.1f} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     
-    if max_value is None:
-        max_value=np.max(np.abs(data))
+    values = (-max_value, max_value) if max_value is not None else None
+    data_range = np.nanmax(data) - np.nanmin(data)
     
     cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=(-max_value, max_value), 
-                          label=cbar_label, interactive=False)
-    bar.setImageItem(image, insert_in=plot )
+    bar = pg.ColorBarItem(colorMap=cmap, values=values,
+                          label=cbar_label, interactive=True, rounding=0.001*data_range)
+    bar.setImageItem(image, insert_in=plot)
 
     app.exec_()
     app.quit()

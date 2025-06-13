@@ -19,17 +19,15 @@ Various Seismogram Filtering Functions
 	Sergio Diaz (GFZ-Potsdam, sergioad@gfz-potsdam.de)
 	27.07.2022
 """
+
+import os
 import warnings
 
 import numpy as np
-from scipy.fftpack import hilbert
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
                           remez, medfilt2d)
 import scipy.signal as signal
-import os
-
 from pyrocko.util import decimate_coeffs
-
 try:
     from scipy.signal import sosfilt
     from scipy.signal import zpk2sos
@@ -45,15 +43,16 @@ def point_filter(f_type=None, data=None, df=None, freq=None, **options):
 	"""
 	if f_type == 'bandpass':
 		result = bandpass(data=data, df=df, freqmin=freq[0], freqmax=freq[1], **options)
-	if f_type == 'bandstop':
+	elif f_type == 'bandstop':
 		result = bandstop(data=data, df=df, freqmin=freq[0], freqmax=freq[1],  **options)
-	if f_type == 'lowpass':
+	elif f_type == 'lowpass':
 		result = lowpass(data=data, df=df, freq=freq, **options)
-	if f_type == 'highpass':
+	elif f_type == 'highpass':
 		result = highpass(data=data, df=df, freq=freq, **options)
-	if f_type == 'median': # time domain filter!
+	elif f_type == 'median': # time domain filter!
 		result = median_filter(data=data, **options)
-						
+	else:
+		raise ValueError(f'Unsupported filter type: {f_type}')
 	return result
 	
 
@@ -78,19 +77,17 @@ def bandpass(data, freqmin, freqmax, df, corners=4, zerophase=False):
         the resulting filtered trace.
     :return: Filtered data.
     """
-    fe = 0.5 * df
-    low = freqmin / fe
-    high = freqmax / fe
-    # raise for some bad scenarios
-    if high - 1.0 > -1e-6:
-        msg = ("Selected high corner frequency ({}) of bandpass is at or "
-               "above Nyquist ({}). Applying a high-pass instead.").format(
-            freqmax, fe)
+    nyq = 0.5 * df
+    low, high = freqmin/nyq, freqmax/nyq
+    
+    # Check for Nyquist Frequency
+    if high >= 1:
+        msg = (f'Selected high corner frequency ({freqmax}) of bandpass is at or above Nyquist ({nyq}). Applying high-pass instead.')
         warnings.warn(msg)
         return highpass(data, freq=freqmin, df=df, corners=corners,
                         zerophase=zerophase)
-    if low > 1:
-        msg = "Selected low corner frequency is above Nyquist."
+    if low >= 1:
+        msg = f'Selected low corner frequency ({freqmin}) is at or above Nyquist ({nyq}).'
         raise ValueError(msg)
     z, p, k = iirfilter(corners, [low, high], btype='band',
                         ftype='butter', output='zpk')
@@ -123,20 +120,19 @@ def bandstop(data, freqmin, freqmax, df, corners=4, zerophase=False):
         the resulting filtered trace.
     :return: Filtered data.
     """
-    fe = 0.5 * df
-    low = freqmin / fe
-    high = freqmax / fe
-    # raise for some bad scenarios
-    if high > 1:
+    nyq = 0.5 * df
+    low, high = freqmin/nyq, freqmax/nyq
+
+    # Check for Nyquist Frequency
+    if high >= 1:
         high = 1.0
-        msg = "Selected high corner frequency is above Nyquist. " + \
-              "Setting Nyquist as high corner."
+        msg = f'Selected high corner frequency ({freqmax}) is above Nyquist ({nyq}). Setting Nyquist as high corner.'
         warnings.warn(msg)
-    if low > 1:
-        msg = "Selected low corner frequency is above Nyquist."
+    if low >= 1:
+        msg = 'Selected low corner frequency ({freqmin}) is at or above Nyquist ({nyq}).'
         raise ValueError(msg)
-    z, p, k = iirfilter(corners, [low, high],
-                        btype='bandstop', ftype='butter', output='zpk')
+    z, p, k = iirfilter(corners, [low, high], btype='bandstop', ftype='butter', 
+                        output='zpk')
     sos = zpk2sos(z, p, k)
     if zerophase:
         firstpass = sosfilt(sos, data, axis=0)
@@ -166,7 +162,8 @@ def lowpass(data, freq, df, corners=4, zerophase=False):
     """
     fe = 0.5 * df
     f = freq / fe
-    # raise for some bad scenarios
+
+    # Check for Nyquist Frequency
     if f > 1:
         f = 1.0
         msg = "Selected corner frequency is above Nyquist. " + \
@@ -228,24 +225,6 @@ def median_filter(data, kernel_size=3):
 		- filtered data
 	'''
 	return medfilt2d(data, kernel_size)
-
-def envelope(data):
-    """
-    Envelope of a function.
-
-    Computes the envelope of the given function. The envelope is determined by
-    adding the squared amplitudes of the function and it's Hilbert-Transform
-    and then taking the square-root. (See [Kanasewich1981]_)
-    The envelope at the start/end should not be taken too seriously.
-
-    :type data: numpy.ndarray
-    :param data: Data to make envelope of.
-    :return: Envelope of input data.
-    """
-    hilb = hilbert(data)
-    data = (data ** 2 + hilb ** 2) ** 0.5
-    return data
-    
     
 def lremez_fir_coeff(factor, n=None):
 	'''
