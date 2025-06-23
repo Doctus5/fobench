@@ -363,26 +363,37 @@ def peak_to_peak_amp(data, sampl_freq, axis=0):
 		- pp_amp(type: numpy): 1D array containing the peak to peak values per channel.
 	'''
 
+	data_dim = len(data.shape) # for dealing with dims > 1
 	peak_up, up_index = data.max(axis=axis), np.argmax(data, axis=axis)
 	peak_down, down_index = data.min(axis=axis), np.argmin(data, axis=axis)
 	pp_amp = peak_up - peak_down
  
 	bad_picking = np.abs((up_index - down_index)) > sampl_freq/2
-	bad_picking = list(np.where(bad_picking == True)[0])
+	bad_picking = list(np.where(bad_picking == True)[0]) if data_dim > 1 else bad_picking
 
 	if bad_picking:
     
 		windows = [j for j in range(0, data.shape[0], int(sampl_freq/4))]
-		pp =  np.zeros(len(bad_picking))
+		pp =  np.zeros(len(bad_picking)) if data_dim > 1 else 0
     
 		#for pos in bad_picking:
 		for i in range(len(windows)-1):
     
 			index, index_1 = windows[i], windows[i+1]
-			new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
-			pp[new_pp > pp] = new_pp[new_pp > pp]
 
-		pp_amp[bad_picking] = pp
+			if data_dim > 1:
+
+				new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
+				pp[new_pp > pp] = new_pp[new_pp > pp]
+    
+			else:
+
+				new_pp = np.ptp(data[index:index_1], axis=axis)
+				pp = max([pp, new_pp])
+
+		if data_dim > 1:
+
+			pp_amp[bad_picking] = pp
 
 	return pp_amp # try to return also indexes of maximum and minimum!
 
