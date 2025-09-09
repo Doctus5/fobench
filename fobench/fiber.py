@@ -735,7 +735,6 @@ recording parameters:
 		:Return:
 			- NA
 		'''
-		
 		if not any('filter' in preprocessing for preprocessing in self.processing):
 			warn('Data has possibly not been filtered before whitening! Check preprocessing and results carefully!\ncontinuing...')
 

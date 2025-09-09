@@ -126,8 +126,8 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         instrument = list(file_file.keys())[0]
         properties = file_file[instrument]['Source1']['Zone1'].attrs
         fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
-        meassure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
-        dataset = file_file[instrument]['Source1']['Zone1'][meassure_type]
+        measure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
+        dataset = file_file[instrument]['Source1']['Zone1'][measure_type]
         chans_nums = [i for i in range(dataset.shape[2])] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
@@ -245,6 +245,28 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
         units = [key for key in file_file.keys()][1]
         conv_factor = None # conversion factor if given explicitly
+        
+    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF%
+        pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file')
+        file_file = h5.File(filepath, 'r')
+        properties = file_file['Acquisition'].attrs
+        dataset = file_file['Acquisition/Raw[0]/RawData']
+        chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
+        chans = np.array(chans_nums)
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        fiber = 'standard'
+        sampling_frequency = properties['PulseRate']
+        o_sampling_frequency = sampling_frequency
+        num_points = dataset.shape[0]
+        start_time = UTC(properties['MeasurementStartTime'].decode('utf-8'))
+        dt = 1 / sampling_frequency
+        end_time = UTC(start_time + num_points * dt)
+        time_length = end_time - start_time
+        spatial_interval = float(properties['SpatialSamplingInterval'])
+        channel_offset = properties['StartLocusIndex']*spatial_interval
+        gauge_length = float(properties['GaugeLength'])
+        units = 'strain' #???? Check
+        conv_factor = None
         
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
@@ -414,7 +436,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
         elif company == 'terra15':
             values = np.array(extract_point[:, range_ch[0]:range_ch[1]])
-        elif company in ('silixa', 'asn', 'quantx', 'aragon'):
+        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela'):
             values = np.array(extract_point[:, range_ch])
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
