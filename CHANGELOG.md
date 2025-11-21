@@ -16,7 +16,7 @@
 
 -Issue #14: fixed as suggested
 
--added progress bars to more time consuming computations, e.g. coherence and spectral whitening, this requires tqdm to be installed
+-added progress bars to more time consuming computations, e.g. coherence and spectral whitening, this requires tqdm to be installed, tqdm added to setup.py
 
 -much improved logic and readability of __data__ function
 
