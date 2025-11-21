@@ -22,10 +22,9 @@
 
 -Issue #13 solved:
 
-    -removed attribute 'dataset' completely, it holds only the reference to h5 datasets and prevents .copy() method to work
+>-removed attribute 'dataset' completely, it holds only the reference to h5 datasets and prevents .copy() method to work
 
-    -Fiber.base was initialized but then immediatly deleted, instead of holding the reference to the h5 file its now called Fiber.basefile and holds the initial file name as a string
-
+>-Fiber.base was initialized but then immediatly deleted, instead of holding the reference to the h5 file its now called Fiber.basefile and holds the initial file name as a string
 
 -detrend_signal now takes a single single signal OR a matrix which is detrended channel-wise
 
