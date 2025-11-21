@@ -1,50 +1,57 @@
+'''
+Functions for stacking arrays
+'''
+
 import numpy as np
-from obspy.signal.util import stack
 from scipy.signal import hilbert
+from obspy.signal.util import stack
+
+def stack_2D(data: np.ndarray, stack_type: str = None) -> np.ndarray:
+    '''
+    Co-authors: Jonas Pätzel
+    Description:
+        stacks data given as 2D array with dimensions (n_signals, n_samples)
+        calls obspy.signal.util.stack
+        e.g. for stacking channel data
+    :Params:
+        - data: (type: numpy): data to stack
+        - stack_type (type: String or Tuple(str, int)): type of stack
+        options are: 'linear', ('pw', order) or ('root', order)
+        - 'linear' stack refers to mean stack, not sum!
+    :Return:
+        - stacked data
+    '''
+
+    if stack_type:
+        return stack(data, stack_type)
+
+    raise ValueError(
+        'Please provide a stacking method of either "linear", ("pw", order) and ("root", order)"'
+    )
 
 
-def stack_2D(data, stack_type=None):
-	'''
-	Co-authors: Jonas Pätzel
-	Description: 
-		stacks data given as 2D array with dimensions (n_signals, n_samples)
-		calls obspy.signal.util.stack
-		e.g. for stacking channel data
-	:Params:
-		- data: (type: numpy): data to stack
-		- stack_type (type: String or Tuple(str, int)): type of stack
-		options are: 'linear', ('pw', order) or ('root', order)
-		- 'linear' stack refers to mean stack, not sum!
-	:Return:
-		- stacked data
-	'''
-	if not stack_type:
-		raise ValueError('Please provide a stack type')
-	return stack(data, stack_type)
-
-
-
-def stack_3D(data, stack_type=None):
+def stack_3D(data: np.ndarray, stack_type: str = None)-> np.ndarray:
     """
     Co-authors: Jonas Pätzel
     Description:
         Stacks data given as a 3D array (n_signals, n_samples, n_windows).
         Implements linear (mean), sum, and phase-weighted stacking (PWS).
-    
+
     :Params:
         - data: (numpy.ndarray) 3D array (n_signals, n_samples, n_windows)
         - stack_type: (str or Tuple[str, int]) Type of stack:
             - 'linear': Mean stack
             - 'sum': Summation stack
             - ('pw', order): Phase-weighted stack with given order.
-    
+
     :Return:
         - stacked_data: (numpy.ndarray) 2D array (n_signals, n_samples).
     """
+
     if stack_type == 'linear':
         return np.mean(data, axis=2)
 
-    if stack_type == 'sum': 
+    if stack_type == 'sum':
         return np.sum(data, axis=2)
 
     if isinstance(stack_type, tuple) and stack_type[0] == 'pw':
@@ -54,7 +61,7 @@ def stack_3D(data, stack_type=None):
         phase_stack = np.zeros((n_signals, n_samples), dtype=np.float32)
         linear_stack = np.mean(data, axis=2)
 
-        # Compute phase stack iteratively
+        # compute phase stack iteratively
         for i in range(n_windows):
             analytic_signal = hilbert(data[:, :, i], axis=1)
             phase_signal = analytic_signal / np.abs(analytic_signal)
@@ -65,4 +72,6 @@ def stack_3D(data, stack_type=None):
 
         return linear_stack * phase_stack
 
-    raise ValueError('Please provide a stacking method of either "linear" or ("pw", order")')
+    raise ValueError(
+        'Please provide a stacking method of either "linear" or ("pw", order")'
+    )
