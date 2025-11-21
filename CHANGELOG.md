@@ -26,6 +26,8 @@
 
 >-Fiber.base was initialized but then immediatly deleted, instead of holding the reference to the h5 file its now called Fiber.basefile and holds the initial file name as a string
 
+>-Fiber.basefile gets extended when another Fiber object is concatenated, so that one Fiber object keeps track of all original file paths
+
 -detrend_signal now takes a single single signal OR a matrix which is detrended channel-wise
 
 -Fiber.corrected is set to True after instrument correction

@@ -35,6 +35,7 @@ setup(
         'obspy',
         'pyrocko',
         'pyqtgraph',
+        'PyQt5'
         'tqdm'
     ]
 )

@@ -1,5 +1,5 @@
 """
-Class "Fiber" for creating, storing and manipulating fiber optic sensing data. 
+Class "Fiber" for creating, storing and manipulating fiber optic sensing data.
 So far it recieves TDMS format (Silixa) and H5 format (Febus).
 
 Created on 2022-08-19 12:07:17
@@ -51,12 +51,12 @@ class Fiber(object):
 	IMPORTANT INFO: Most of the methods perform changes within the class permanently. Therefore it is useful to make a copy of the fiber instance
 	with the method .copy() before performing any processing or changes.
 	'''
-	
+
 	#Creates the basic variables of the DAS object with its characteristics
 	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
 		'''
 		Co-authors: --
-		Description: 
+		Description:
 			Initializes a DAS Class which is reading a DAS file and saving all variables and metadata.
 			The basis for manipulating the data is numpy. Tools are inspired in Obspy, however using
 			an obspy class for this takes long time in their processing tools.
@@ -66,7 +66,7 @@ class Fiber(object):
 			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
 			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 		if not company:
 			raise ValueError('No company provided. Please choose one of the following: "silixa", "febus", "bam", "aragon", "quantx","asn", "terra15"')
@@ -77,10 +77,10 @@ class Fiber(object):
 		# Public attributes
 		self.company = company
 		self.format = filepath.split('.')[-1]
-  
-		self.attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)		
-  
-		self.basefile = self.attributes['basefile']
+
+		self.attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
+
+		self.basefiles = [self.attributes['basefile']]
 		self.fiber = self.attributes['fiber']
 		self.properties = self.attributes['properties']
 		self.channels = self.attributes['chans']
@@ -117,15 +117,15 @@ class Fiber(object):
 	def __str__(self):
 		'''
 		Co-authors: Jonas Pätzel
-		Description: 
+		Description:
 			defines output of print(Fiber); overview of most important recording parameters
 		:Params:
 			- NA.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
-		attributes = ['units', 'start_time', 'end_time', 'num_points', 'total_channels', 
+		attributes = ['units', 'start_time', 'end_time', 'num_points', 'total_channels',
 					'spatial_interval', 'sampling_frequency', 'gauge_length']
 
 		return f'''\nInstance of Fiber class
@@ -133,16 +133,16 @@ recording parameters:
 {'-'*65}
 ''' + '\n'.join(f'{attr.ljust(25)} = {getattr(self, attr)}' for attr in attributes)
 
-	
+
 	def __iadd__(self, other):
 		'''
 		Co-authors: Jonas Pätzel
-		Description: 
+		Description:
 			allows to concatenate two Fiber instances with self += other
 		:Params:
 			- other: Fiber instance.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 		if not isinstance(other, Fiber):
 			raise TypeError('Object to add must be instance of Fiber class')
@@ -154,17 +154,17 @@ recording parameters:
 	def __axis__(self, dim):
 		'''
 		Co-authors: --
-		Description: 
+		Description:
 			Translates a string input into numerical axial value for numpy. Used for the other methods.
 		:Params:
 			- dim(type: String): 't', or 'd' to differentiate between time or distance respectively.
 		:Return:
-			- axis(type: Int): integer value which denotes in numpy dimension where is time and distance.  
+			- axis(type: Int): integer value which denotes in numpy dimension where is time and distance.
 		'''
-		
+
 		# Axis 0 in a matrix is the row dimension (downwards) and the 1 is column-wise (rightwards, elements inside each sub-array.)
 		axial = {'t':0, 'd':1}
-		
+
 		return axial[dim]
 
 
@@ -179,27 +179,27 @@ recording parameters:
 	def metadata(self, meta_dict=False):
 		'''
 		Co-authors: --
-		Description: 
+		Description:
 			Print out the metadata in an organized way.
 		:Params:
 			- meta_dict(type:Boolean): if True, metadata is returned as dictionary. Default is False.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		if meta_dict:
 
 			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
-			
+
 			return metainfo
 
 		else:
-	
+
 			for prop, value in self.properties.items():
 				print(f"{prop} = {value}")
-		
-	
-	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
+
+
+	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.
 	def copy(self):
 		'''
 		Co-authors: --
@@ -207,34 +207,34 @@ recording parameters:
 		:Params:
 			- NA.
 		:Return:
-			- (type:DAS Class): Same DAS Class in the state when the method is called.  
+			- (type:DAS Class): Same DAS Class in the state when the method is called.
 		'''
-	
+
 		return copy.deepcopy(self)
-		
-	
+
+
 	#Performs instrument correction on the data to get the strain rate values.
 	def instr_correct(self, target='strain-rate'):
 		'''
 		Co-authors: --
-		Description: 
+		Description:
 			Originally all data comes in counts. This method calls tools from another file to correct them to strain-rate (default).
 			In future this can change.
 		:Params:
 			- NA.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		if self.corrected == False:
-		
+
 			self.data, self.units, self.channels, self.channels_num, self.total_channels = utils.instr_corr(self.data, vars(self), target=target)
 			self.corrected = True
 
 		return self
-		
-	
-	#Slice the data on time. Waring, this affect the original data and prior time-lenghts can not be retrieved. See ".copy()" function. Input can be in ISO-format (String)		
+
+
+	#Slice the data on time. Waring, this affect the original data and prior time-lenghts can not be retrieved. See ".copy()" function. Input can be in ISO-format (String)
 	def trim(self, t0=None, tf=None):
 		'''
 		Co-authors: --
@@ -244,9 +244,9 @@ recording parameters:
 			- t0(type:UTC or String): start-time in UTC Class or string in ISOformat style.
 			- tf(type:UTC or String): end-time in UTC Class or string in ISOformat style.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		t0, tf = UTC(t0), UTC(tf)
 
 		# in case one of the triming times is beyond the range of the start and end times of the data, it redefines the limits to the ones of the data.
@@ -264,11 +264,11 @@ recording parameters:
 		self.end_time = t[tf_pos]
 		self.time_length = self.end_time - self.start_time
 		self.num_points = self.data.shape[0]
-		
+
 		return self
-			
-	
-	#Slice the data spatially (ranges of channels) by establshing the intial and the final channel. Anyformat of the channel code is acceptable.		
+
+
+	#Slice the data spatially (ranges of channels) by establshing the intial and the final channel. Anyformat of the channel code is acceptable.
 	def restrict_channels(self, ch0, chf):
 		'''
 		Co-authors: --
@@ -279,9 +279,9 @@ recording parameters:
 			- ch0(type:Int or String): first channel ID to be selected.
 			- chf(type:Int or String, optional): second channel ID to be selected.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		ch0, chf = int(min(ch0, chf)), int(max(ch0, chf)) # in case ch0 and chf not ordered
 		ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
 		self.data = self.data[:,ch0:chf+1]
@@ -289,11 +289,11 @@ recording parameters:
 		self.channels_num = self.channels_num[ch0:chf+1]
 		self.distances = self.distances[ch0:chf+1]
 		self.total_channels = len(self.channels_num)
-		
+
 		return self
 
 
-	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
+	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.
 	def append_coord(self, n_ch, x_ch, y_ch, z_ch):
 		'''
 		Co-authors: --
@@ -305,7 +305,7 @@ recording parameters:
 			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
 			- z_ch(type:Numpy): 1D array of Z (depth - meters) coordinates of the channels specified in "n_ch".
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
@@ -319,15 +319,15 @@ recording parameters:
 		ch_coord[:,3] = z_ch
 
 		self.ch_coord = ch_coord
-		
+
 		return self
 
-	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.		
+	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.
 	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
 		Co-authors: --
 		Description:
-			Georeferencing of channels of the data. If tap tests were done to geolocate specific channels, this ones can be used for 
+			Georeferencing of channels of the data. If tap tests were done to geolocate specific channels, this ones can be used for
 			georeferencing other channels by linear interpolations between the located ones (assuming straight paths).
 			It automatically attach the new coordinates to the Fiber class.
 		:Params:
@@ -335,12 +335,12 @@ recording parameters:
 			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
 			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
 			- z_ch(type:Numpy): 1D array of Z altitude [meters] of the channels specified in "n_ch".
-			- system(type:String): Defined the receiving coordinate systems for X and Y. It can be 'decimal' for decimal degrees 
+			- system(type:String): Defined the receiving coordinate systems for X and Y. It can be 'decimal' for decimal degrees
 			or 'utm' for Universal Transverse Mercator. Default is 'decimal'.
 			- err(type:Float - Optional): maximum accepted error from interpolation in decimals. In case is given, the method will evaluate
-			the error of the calculated channel spacing vs. the original one from the metadata. 
+			the error of the calculated channel spacing vs. the original one from the metadata.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
@@ -350,11 +350,11 @@ recording parameters:
 		n_ch, x_ch, y_ch, z_ch = utils.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
 
 		self.append_coord(n_ch, x_ch, y_ch, z_ch)
-		
+
 		return self
-		
-	
-	#Return the data with a channel specified if it's wanted	
+
+
+	#Return the data with a channel specified if it's wanted
 	def get_data(self, channel=None):
 		'''
 		Co-authors: --
@@ -363,9 +363,9 @@ recording parameters:
 		:Params:
 			- channel(type:Int or Float): Channel number to get the data from. If not specified, it will be as same as adquiring the attribute "data".
 		:Return:
-			- data_n(type:Numpy): The data with the specific channel of interest, or the entire dataset.  
+			- data_n(type:Numpy): The data with the specific channel of interest, or the entire dataset.
 		'''
-		
+
 		if channel is not None:
 
 			ch = int(channel)
@@ -373,41 +373,41 @@ recording parameters:
 			return self.data[:,index]
 
 		return self.data
-		
-	
-	#Return a an array of times in three different formats: UTCDateTime, ISOformat and matplotlib for plotting.	
+
+
+	#Return a an array of times in three different formats: UTCDateTime, ISOformat and matplotlib for plotting.
 	def times(self, time_type='UTCDateTime'):
 		'''
 		Co-authors: --
-		Description: 
+		Description:
 			Return an array containing each time-step in the specified format option.
 		:Params:
 			- time_type(type:String): specific format of the time-steps. Options are: 1) UTCDateTime, 2) isoformat string, 3) matplotlib-dates (date-time)
 			4) Unix timstamps, 3) and 4) for matplotlib and pyqt plots respectively. Default = 'UTCDateTime'
 		:Return:
-			- t(type:Numpy): a 1D array containing time-steps of the data in the specified format.  
+			- t(type:Numpy): a 1D array containing time-steps of the data in the specified format.
 		'''
-		
+
 		if time_type == 'UTCDateTime' or time_type == 'UTC':
-		
+
 			t = np.array([(self.start_time + (i*self.dt)) for i in range(self.data.shape[0])])
-			
+
 		elif time_type == 'isoformat':
-		
+
 			t = np.array([(self.start_time + (i*self.dt)).isoformat() for i in range(self.data.shape[0])])
-			
+
 		elif time_type == 'matplotlib':
-		
+
 			t = np.array([(self.start_time + (i*self.dt)).matplotlib_date for i in range(self.data.shape[0])])
 
 		elif time_type == 'unix':
-				
+
 			t = np.array([(self.start_time + (i * self.dt)).timestamp for i in range(self.data.shape[0])])
-			
+
 		else:
-		
+
 			raise ValueError('Unrecognized time format. Please check the possible values.')
-		
+
 		return t
 
 
@@ -415,7 +415,7 @@ recording parameters:
 	def concatenate(self, input_das=None, fill_gaps=0):
 		'''
 		Co-authors: --
-		Description: 
+		Description:
 			Concatenates 2 different DAS Classes, the one with the method called, and the one that enters as parameter.
 			The code will identify the order of concatenation based on each class start and end-times. If there is an overlap, the data will be filled
 			with one of them and continue filling with the other class once the overlap is finished.
@@ -426,37 +426,38 @@ recording parameters:
 			- input_das(type:DAS Class): The Class to concatenate with. No matter if the class start-time is before or after the one to concatenate with.
 			- fill_gaps(type:Int): If there is a gap between the 2 DAS Classes, then the gap will be filled with any specified value. Default = 0.0. Can also be np.nan
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		axis = self.__axis__('t')
-	
+
 		if self.start_time <= input_das.start_time:
-		
+
 			first, second = self, input_das
-			
+
 		else:
-		
+
 			first, second = input_das, self
-		
+
 		tf = first.end_time + first.dt
 		num_t = int((second.start_time + second.dt - first.end_time) / first.dt) - 1
-		
+
 # 		if num_t < 0:
 # 			num_t = abs(num_t)
 # 			second.data = second.data[num_t:,:]
-# 		
+#
 # 		if num_t > 0:
 # 			fill = np.zeros((num_t, first.total_channels))
 # 			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
 # 			first.data = np.concatenate((first.data, fill), axis=axis)
-			
+
 		self.data = np.concatenate((first.data, second.data), axis=axis)
 		self.start_time = first.start_time
 		self.end_time = second.end_time
 		self.num_points = self.data.shape[axis]
 		self.time_length = self.end_time - self.start_time
-			
+		self.basefiles.extend(input_das.basefiles)
+
 		return self
 
 
@@ -465,21 +466,21 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Creates an obpsy/pyrocko Stream object and fill it with Traces in it. Each Trace would represent each channel of the DAS Class, including 
+			Creates an obpsy/pyrocko Stream object and fill it with Traces in it. Each Trace would represent each channel of the DAS Class, including
 			the metadata which are attributes of the Trace Class. This is mainly done so users can have access to obspy tools with this data. However,
 			it can be slower and memory demanding.
 		:Params:
 			- t_type(type:String): option wether to convert to pyrocko or obspy stream/traces.
 		:Return:
-			- stream(type:Stream Class): stream with traces representing channels of the DAS Class..  
+			- stream(type:Stream Class): stream with traces representing channels of the DAS Class..
 		'''
 
 		stream = Stream() if t_type == 'obpsy' else []
 
 		for i in range(self.total_channels):
-			
+
 			if t_type == 'obspy':
-                
+
 				trace = oTrace(data=self.data[:,i])
 				trace.stats.network = self.fiber
 				trace.stats.station = str(self.channels_num[i]).zfill(5)
@@ -492,7 +493,7 @@ recording parameters:
 				#trace.stats.endtime = self.end_time
 				stream.append(trace)
 # 				print(stream)
-	
+
 			if t_type == 'pyrocko':
 
 				trace = pTrace(ydata=self.data[:,i])
@@ -504,21 +505,21 @@ recording parameters:
 				stream.append(trace)
 
 		return stream
-		
+
 
 	'''
 	####################################################
 	Signal Processing methods
 	####################################################
 	'''
-		
+
 	#function for upsampling spatially by double/half depending if it is upsampling or downsampling spatially.
 	@utils._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
 		Co-authors: --
-		Description: 
-			Affects the spatial resolution by adding to the data artifical channels between each channel (upsampling), 
+		Description:
+			Affects the spatial resolution by adding to the data artifical channels between each channel (upsampling),
 			or erases them in an interleaved order (downsampling).
 			In case of upsampling, the artificial channels are made by inporlating the values in between.
 			This method duplicates or divides by half the number of channels, and therefore the data. In case of wanting more spatial resolution,
@@ -529,31 +530,31 @@ recording parameters:
 		:Params:
 			- rs_type(type:String): Selects the mode for spatial resampling. Only 2 options possible: 1) 'upsampling' or 'downsampling'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-	
+
 		if rs_type == 'upsampling':
-		
+
 			print('Upsampling takes longer than downsampling. It might take a while...')
 			new_data, new_channels_num = utils.spatial_upsampling(self)
 			self.spatial_interval = self.spatial_interval / 2
-			
+
 		elif rs_type == 'downsampling':
-		
+
 			new_data, new_channels_num = utils.spatial_downsampling(self)
 			self.spatial_interval = self.spatial_interval * 2
-		
+
 		#if (rs_type != 'downsampling') & (rs_type != 'upsampling'):
 		else:
-			
+
 			raise ValueError('Spatial resampling type is not recognizable. Only (upsampling) or (downsampling).')
-		
+
 		self.data = new_data
 		self.channels_num = new_channels_num
 		self.total_channels = len(self.channels_num)
-		
+
 		# print(data.shape, )
-		
+
 		return self
 
 
@@ -568,7 +569,7 @@ recording parameters:
 			- order(type: Int): order number of the fitting curve used to apply the detrend.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		axis = self.__axis__(dim)
@@ -588,14 +589,14 @@ recording parameters:
 		:Params:
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		axis = self.__axis__(dim)
 		self.data -= self.data.mean(axis=axis)
-		
+
 		return self
-	
+
 	@utils._update_processing
 	def taper(self, frac=0.05, dim='t'):
 		'''
@@ -606,9 +607,9 @@ recording parameters:
 			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
 		taper = signal.windows.tukey(M=M, alpha=frac*2)
@@ -618,43 +619,43 @@ recording parameters:
 		taper = taper[:, None] if axis == 0 else taper[None, :]
 
 		self.data = np.multiply(self.data, taper)
-		
+
 		return self
-		
-	
+
+
 	#Function to decimate the data by any frequency below the original. Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...). The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
 	@utils._update_processing
 	def decimate(self, new_freq=None, ftype='fir-remez'):
 		'''
 		Co-authors: --
-		Description: 
-			Decimates the data by any frequency below the original (preferably a divisible one). 
-			Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...). 
+		Description:
+			Decimates the data by any frequency below the original (preferably a divisible one).
+			Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...).
 			The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
 		:Params:
 			- new_frequency(type:Int or Float): the new sampling frequency or sampling rate of the decimated data.
 			- ftype(type:String): There are 3 types of available pre-filters: 1) "fir-remez" Marius Isken adptative antialiasing filter, 2)
 			"fir235" Javier Quinteros designed filter for DAS, and if "None", then a order 8 Chebyshev type I filter is used.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-	
+
 		axis = self.__axis__('t') # axis to apply, default is time.
 
 		if self.sampling_frequency % new_freq != 0:
 			warn(f'Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead')
 		down_factor = int(self.sampling_frequency / new_freq)
 		new_freq = self.sampling_frequency / down_factor
-		
+
 		#Check prefilter... which one is?
 		if ftype is not None:
-			
+
 			new_data = filter.decimate(data=self.data, factor=down_factor, ftype=ftype, axis=axis)
-			
+
 		else:
-		
+
 			new_data = signal.decimate(x=self.data, q=down_factor, axis=axis)
-		
+
 		self.data = new_data
 		self.sampling_frequency = new_freq
 		self.dt = 1 / self.sampling_frequency
@@ -679,7 +680,7 @@ recording parameters:
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
 			-ram_window (type: int): window length in seconds, only for running absolute mean normalization
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		axis = self.__axis__(dim)
@@ -687,8 +688,8 @@ recording parameters:
 		if method == 'absolute max':
 
 			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min())
-			normalized_data = normalized_data * 2 -1 
-   
+			normalized_data = normalized_data * 2 -1
+
 		elif method == 'trace max':
 
 			channel_min = self.data.min(axis=axis, keepdims=True)
@@ -700,9 +701,9 @@ recording parameters:
 
 			if ram_window is None:
 				raise TypeError('please provide a window length for the running absolute mean normalization')
-			
+
 			normalized_data = self.data.copy()
-			
+
 			w_len = int(self.sampling_frequency * ram_window)
 
 			for i in tqdm(range(self.total_channels), desc='Running mean normalization', leave=False):
@@ -710,7 +711,7 @@ recording parameters:
 					segment_end = segment_start + w_len
 					segment = normalized_data[:,i][segment_start:segment_end]
 					weight = np.mean(np.abs(segment))
-					
+
 					normalized_data[segment_start:segment_end, i] /= weight
 
 		elif method == '1bit':
@@ -721,7 +722,7 @@ recording parameters:
 			raise ValueError(f'"{method}" is not a valid normalization method')
 
 		self.data = normalized_data
-		
+
 		return self
 
 	@utils._update_processing
@@ -766,12 +767,12 @@ recording parameters:
 			espo = np.exp(1j * np.angle(FFTs[JJ[-1] - nsmo:JJ[-1] + 1]))
 			FFTsW[JJ[-1] - nsmo:JJ[-1] + 1] = smo2 * espo
 
-			# channel IFFT 
+			# channel IFFT
 			whitedata = 2.0 * np.fft.ifft(FFTsW).real
 			whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
 
 		self.data = whitened_matrix
-		
+
 		return self
 
 	# Function for filtering. Shall we also declare dimensionality options here?
@@ -780,7 +781,7 @@ recording parameters:
 		'''
 		Co-authors: --
 		Description:
-			Filters the data based on a specified type of filter (lowpass, bandpass, highpass, bandstop, median) and the values. Filters are based on Obspy codes 
+			Filters the data based on a specified type of filter (lowpass, bandpass, highpass, bandstop, median) and the values. Filters are based on Obspy codes
 			and so the multiple options are also.
 		:Params:
 			- f_type(type:String): type of filter to apply. Options are: 'lowpass', 'bandpass', 'highpass', 'bandstop' and 'median'
@@ -789,16 +790,16 @@ recording parameters:
 			- frac(type:Float): see description in method "taper".
 			- order(type:Int): order of polynomuial fit for detrending.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		if f_type == 'median': 
+		if f_type == 'median':
 			pre_process = False
 		if pre_process:
 			self.data = signals.filt_preprocess(self.data, axis=0)
 
 		new_data = filter.point_filter(f_type=f_type, data=self.data, df=self.sampling_frequency, freq=freq, **options)
 		self.data = new_data
-		
+
 		return self
 
 
@@ -812,9 +813,9 @@ recording parameters:
 		:Params:
 			- param1(type:--): --.
 		:Return:
-			- return1(type:--): --.  
+			- return1(type:--): --.
 		'''
-		
+
 		data_fk = fftshift(fft2(ifftshift(self.data)))
 
 		# Define the frequency and wavenumber grids
@@ -830,10 +831,10 @@ recording parameters:
 
 		# Apply inverse 2D Fourier transform to obtain the filtered data
 		filt_data = np.abs(fftshift(ifft2(ifftshift(filt_fk))))
-	
+
 		return np.abs(data_fk) #filt_data
-		
-		
+
+
 	#Function for integrating the signal
 	@utils._update_processing
 	def integrate(self, method='cum_trapezoid', dim='t', taper=True):
@@ -847,29 +848,29 @@ recording parameters:
 			- taper(type: Boolean): Decided wether to apply a taper to the signal before integration to avoid offsets or trends (recommended).
 			Default is True.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		axis = self.__axis__(dim)
 		dx = self.dt if axis == 0 else self.spatial_interval
-		
+
 		if taper:
 			self.taper(dim=dim)
-		
+
 		if method == 'cum_trapezoid':
 			result = integrate.cumulative_trapezoid(y=self.data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
-		
+
 		result = signal.detrend(result, axis=axis) #to detrend the signal
-		
+
 		#if taper == True:
-		
+
 		#	self.detaper(axis=axis)
-		
+
 		self.data = result
-		
+
 		return self
-	
-	
+
+
 	#Function for differentiating the signal
 	@utils._update_processing
 	def differentiate(self, method='gradient', dim='t'):
@@ -881,7 +882,7 @@ recording parameters:
 			- method(type:String): sets the prefered method for differentiation. can be 'gradient' or 'diff', when using 'diff' data is prepended with inital value along specified axis
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
 
 		axis = self.__axis__(dim)
@@ -893,10 +894,10 @@ recording parameters:
 		else:
 			raise ValueError(f'Invalid method: "{method}". Choose "gradient" or "diff"')
 		self.data = result
-		
+
 		return self
-		
-		
+
+
 	#Function to detaper...
 	@utils._update_processing
 	def detaper(self, frac=0.05, dim='t'):
@@ -908,16 +909,16 @@ recording parameters:
 			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-		
+
 		axis = self.__axis__(dim)
 		M = self.num_points if axis == 0 else self.total_channels
 		taper = signal.windows.tukey(M=M, alpha=frac*2)
 		taper = taper[:,None] if axis == 0 else taper[None, :]
-		
+
 		self.data = np.divide(self.data, taper)
-		
+
 		return self
 
 
@@ -930,7 +931,7 @@ recording parameters:
 		:Params:
 			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 		:Return:
-			- return1(type:--): --.  
+			- return1(type:--): --.
 		'''
 
 		axis = self.__axis__(dim)
@@ -940,10 +941,10 @@ recording parameters:
 		#result = np.where(sd == 0, 0, m/sd)
 		#result = 20*np.log10(abs(result)) #For dB values
 		#result = sd
-	
+
 		return sd
-		
-		
+
+
 	#Function for plotting or returning the Root-Mean-Square amplitude (RMS-A) of the data.
 	def rmsa(self, window=None, overlap=None, dim='t', make_plot=False):
 		'''
@@ -959,19 +960,19 @@ recording parameters:
 			- times(type:Numpy): array of the new times per each RMS-A value.
 			- rms_a(type:Numpy): array containing the RMS-A values.
 		'''
-		
+
 		axis = self.__axis__(dim)
 		window = self.time_length if window == None else window
 		times_d = np.array_split(self.times('matplotlib'), int(self.time_length/window))
 		times = np.array([item[int(len(item)/2)] for item in times_d])
 		data_d = np.array_split(self.data, int(self.time_length/window), axis=axis)
 		rms_a = []
-		
+
 		for subdata in data_d:
-	
+
 			rms = np.sqrt(np.mean(subdata**2, axis=axis))
 			rms_a.append(rms)
-			
+
 		if make_plot:
 			plot.gen_DAS_plot(data=np.array(rms_a), t=times, channels=self.channels, cmap='inferno', title = f'RMSA for {window}s window')
 
@@ -994,18 +995,18 @@ recording parameters:
 		ptp_amplitude = signals.peak_to_peak_amp(self.data, self.sampling_frequency, axis=axis)
 
 		return ptp_amplitude
-		
-		
-		
+
+
+
 	'''
 	####################################################
 	Plotting methods below...
 	Also proper from the Class
 	####################################################
 	'''
-	
-	
-	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function. 
+
+
+	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function.
 	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
@@ -1021,19 +1022,19 @@ recording parameters:
 			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, but the figure instance would be open
 			so the user can add further changes. Default = True.
 			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section). 
+			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section).
 			Default = True.
-   			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+   			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-	
+
 		spectrogram = []
-	
+
 		for i in tqdm(range(self.total_channels), desc='Comptung Frequency Content', leave=False):
-			
+
 			o_signal = self.data[:,i] #- self.data[:,i].mean()
 			#N = len(o_signal)
 
@@ -1041,13 +1042,13 @@ recording parameters:
 			#o_signal = tools.detrend_signal(o_signal) #detrend
 			#o_signal -= o_signal.mean() #demean
 			#o_signal *= signal.windows.tukey(M=self.num_points, alpha=0.05*2) #taper
-			
+
 			#powers = np.abs(rfft(o_signal)) #produce real and imaginary.
-			
+
 			#if i == 0:
-			
+
 			#	freqs = rfftfreq(N, 1 / self.sampling_frequency)
-				
+
 			#fft_values = np.flip(powers/powers.max()) if norm == True else np.flip(powers)
 			#fft_values  = signal.savgol_filter(fft_values, 10, 2)
 
@@ -1057,27 +1058,27 @@ recording parameters:
 
 			spectrogram.append(fft_values)
 		spectrogram = np.array(spectrogram).T
-		
+
 		if results == True:
 			return freqs, spectrogram
 
 		else:
 			if plot_mode == 'pyqt':
-				plot_pyqt.plot_2d_distance(distances=self.distances, 
+				plot_pyqt.plot_2d_distance(distances=self.distances,
                                y_ticks=freqs, data=np.flip(np.rot90(spectrogram, k=1), axis=0),
                                cmap=cmap, max_value=max_value,
-                               y_label='Frequency [Hz]', 
+                               y_label='Frequency [Hz]',
                                title='Frequency content over optical distance')
 
 			elif plot_mode == 'mpl':
 				plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs,
                          x=self.channels_num, max_value=max_value, units_y=self.units,
                          figsize=figsize, title=self.start_time.isoformat()[:10],
-                         cmap=cmap, show=show, file_name=file_name, 
+                         cmap=cmap, show=show, file_name=file_name,
                          where=where, **kwargs)
-		
+
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
-	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True, 
+	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True,
 			  file_name=None, where=None, legend=True, results=False, **kwargs):
 		'''
 		Co-authors: --
@@ -1085,42 +1086,42 @@ recording parameters:
 			Plots the spectrum of a specified channel, a list of them, or all the channels of the DAS Class. It is recommended not to use many channels
 			with the legend option set as True.
 		:Params:
-			- channels(type:String or Int or Float or List; optional): channel to compute the spectrum. 
+			- channels(type:String or Int or Float or List; optional): channel to compute the spectrum.
 			In case of a list, is all the channels specified in the list.
-			In case is None, all spectrums of each channel would be computed. Default = None. 
+			In case is None, all spectrums of each channel would be computed. Default = None.
 			- norm(type:Boolean; optional): in case of True, each channel spectrum is normalized by its maximum value. Default = False.
 			- order (type:Int): order number for detrending. Default is 1.
 			- pad(type:int): number of zeros to add to the signal before and after to increase num of points.
 			- nfft(type:Int): number of samples in total Fast Fourier Transform.
-			- s_type(type:String): Mode of spectral curve. 'spectrum' from normal spectral surve, 
+			- s_type(type:String): Mode of spectral curve. 'spectrum' from normal spectral surve,
 				'psd' for Power Spectral Density on Welch method. Default is 'spectrum'.
 			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, 
+			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
 			but the figure instance would be open so the user can add further changes. Default = True.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 			- legend(type:Boolean): sets if the legend would be shown or not. If many channels are being used, it's better to set this False.
-			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section). 
+			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section).
 			Default = True.
 		:Return:
 			- spectrums(type:Numpy-Array): matrix spectral amplitude values of channels in order of the "channels" input variable.
 			- freqs(type:Numpy-Array): frequencies used in the spectrum.
 		'''
-	
+
 		spectrums = []
-		
+
 		# Evaluates how many chanels are comin as input. It can be one Int, or a list containing several Ints.
 		if channels == None:
-		
+
 			channels = self.channels_num
-			
+
 		else:
-		
-			channels = [channels] if isinstance(channels,list) == False else channels 
-		
+
+			channels = [channels] if isinstance(channels,list) == False else channels
+
 		for i in range(len(channels)):
-		
+
 			ch = int(channels[i])
 			index = self.channels_num.index(ch)
 			o_signal = self.data[:,index] #- self.data[:,index].mean()
@@ -1130,38 +1131,38 @@ recording parameters:
 			#o_signal = tools.detrend_signal(o_signal) #detrend
 			#o_signal -= o_signal.mean() #demean
 			#o_signal *= signal.windows.tukey(M=self.num_points, alpha=0.05*2) #taper
-			
+
 			#powers = np.abs(rfft(o_signal)) #produce real and imaginary.
-			
+
 			#if i == 0:
-			
+
 			#	freqs = rfftfreq(N, 1 / self.sampling_frequency)
-				
+
 			#fft_values = powers/powers.max() if norm == True else powers
 			#fft_values = signal.savgol_filter(fft_values,15,2) smooth curve
 
 			if s_type == 'spectrum':
-	   
+
 				freqs, fft_values = signals.spectrum(o_signal, self.sampling_frequency, pre, order, pad, nfft)
 				y_units = self.units
-	
+
 			if s_type == 'psd':
-	   
+
 				freqs, fft_values = signals.psd(o_signal, self.sampling_frequency, pre, order, nfft)
 				y_units = self.units.split(' ')[-1]
 				y_units = y_units+'$^{2}$/Hz'
-	
+
 			fft_values = fft_values/fft_values.max() if norm == True else fft_values
 			#fft_values = signal.savgol_filter(fft_values,15,2) smooth curve
 			spectrums.append(fft_values)
-		
+
 		spectrums = np.array(spectrums)
 		spectrums = spectrums[0] if spectrums.shape[0] == 1 and results == True else spectrums
-		
+
 		if results == True:
 			return freqs, np.array(spectrums)
 		else:
-			plot.simple_spectrum(spectrums=np.array(spectrums), freqs=freqs, channels=channels, y_units=y_units, legend=legend, figsize=figsize, 
+			plot.simple_spectrum(spectrums=np.array(spectrums), freqs=freqs, channels=channels, y_units=y_units, legend=legend, figsize=figsize,
 						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
 
@@ -1171,36 +1172,36 @@ recording parameters:
 		Description:
 			Plots the time-signal of a single selected channel.
 		:Params:
-			- channel(type:String or Int or Float): channel to plot. 
+			- channel(type:String or Int or Float): channel to plot.
 			- max_value(type:Float; optional): maximum value of the y-axis. It will limit the plot in a range of -max_value to max_value. Default = None.
 			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, 
+			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
 			but the figure instance would be open so the user can add further changes. Default = True.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 		:Return:
-			- NA.  
+			- NA.
 		'''
-	
+
 		channel = int(channel)
 		index = self.channels_num.index(channel)
 		selected = self.data[:,index]
-		
+
 		if plot_mode=='pyqt':
 			t = self.times(time_type='unix')
-			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units, 
+			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units,
 							 title='')
 
 		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
-			plot.simple_plot(data=selected, t=t, channel=str(channel), 
-					units_y=self.units, max_value=max_value, spectrogram=False, 
-					show=show, figsize=figsize, 
-					title=self.start_time.isoformat()[:10], 
+			plot.simple_plot(data=selected, t=t, channel=str(channel),
+					units_y=self.units, max_value=max_value, spectrogram=False,
+					show=show, figsize=figsize,
+					title=self.start_time.isoformat()[:10],
 					file_name=file_name, where=where, **kwargs)
 
-	
+
 	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
@@ -1210,10 +1211,10 @@ recording parameters:
 			- max_value(type:Float; optional): maximum value of the colormap. It will limit the plot in a range of -max_value to max_value.
 			All values above this will look saturated with the color limits of the colormap.
 			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, 
+			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
 			but the figure instance would be open so the user can add further changes. Default = True.
 			- cmap(type:String; optional): name of the matplotlib colormap to use for the data. Default = 'seismic'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 		:Return:
@@ -1227,12 +1228,12 @@ recording parameters:
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
-			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num, 
-					 units_y=self.units, max_value=max_value, figsize=figsize, 
-					 show=show, title=self.start_time.isoformat()[:10], cmap=cmap, 
+			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num,
+					 units_y=self.units, max_value=max_value, figsize=figsize,
+					 show=show, title=self.start_time.isoformat()[:10], cmap=cmap,
 					 file_name=file_name, where=where, add_data=add_data, **kwargs)
-		
-	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, make_plot=True, 
+
+	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, make_plot=True,
 						 plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
@@ -1241,25 +1242,25 @@ recording parameters:
 			and its the spectrum shown in time, while spectrogram() shows it by space for a fixed time-window.
 		:Params:
 			- channel(type:String or Int or Float): channel to calculate the spectrogram.
-			- norm(type:Boolean; optional): in case of True, each spectrogram window in time is normalized by its maximum value, 
+			- norm(type:Boolean; optional): in case of True, each spectrogram window in time is normalized by its maximum value,
 			so then the colorscale is not affected by the global maximum. Default = False
 			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, 
+			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
 			but the figure instance would be open so the user can add further changes. Default = True.
 			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format 
+			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
 			(f.e.: "example.png"). Default = None.
 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 			- verbose(type:bool): if set to true, result (Spectrum, frequencies, time) is returned
 		:Return:
-			- NA.  
+			- NA.
 		'''
-	
+
 		axis = self.__axis__('t')
 		channel = int(channel)
 		index = self.channels_num.index(channel)
 		spec= self.data[:,index]
-		
+
 		nyquist = self.sampling_frequency/2
 		#nfft, nperseg = nyquist*2, int(self.sampling_frequency/5) # TUNNING MUST BE DONE WITH PHILIPPE!
 		nfft, nperseg = nyquist*2, int(self.sampling_frequency/5) # TUNNING MUST BE DONE WITH PHILIPPE!
@@ -1268,7 +1269,7 @@ recording parameters:
 		Sxx = np.flip(Sxx,axis=axis)
 		Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 		trace = spec if trace == True else None
-		
+
 		if make_plot is True and plot_mode=='pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f,
@@ -1281,7 +1282,7 @@ recording parameters:
 						trace=trace, figsize=figsize, cmap=cmap,
 						title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel),
 						show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
-			
+
 		if verbose is True:
 			return Sxx, f, t
 		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
@@ -1304,14 +1305,14 @@ recording parameters:
 			ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
 			das_data = self.data[:,ch0:chf+1]
 			das_channels = self.channels_num[ch0:chf+1]
-		
+
 		elif isinstance(channels, list):
 			channels = [int(channel) for channel in channels]
 			ch_i = [self.channels_num.index(channel) for channel in channels]
 			ch_i.sort()
 			das_data = self.data[:, ch_i]
 			das_channels = [self.channels_num[ind] for ind in ch_i]
-		
+
 		t = self.times('matplotlib')
 		date = self.times()[0].isoformat()[:10]
 
@@ -1321,7 +1322,7 @@ recording parameters:
 	def acf_profile(self, max_lag, dim='t', plot_mode='pyqt', deconvolve=False, window_size=None, **imshow_kwargs):
 		'''
 		Co-authors: Jonas Pätzel
-		Description: 
+		Description:
 			Computes the autocorrelation either for each channel or each time sample and
 			optionally deconvolves the autocorrelation source term using a moving window.
 			Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record
@@ -1329,40 +1330,40 @@ recording parameters:
 			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
 			- dim (type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
 			- deconvolve (type: bool): Whether to apply deconvolution. Default is False.
-			- window_size (type: int or None): The size of the moving window to compute the average autocorrelation. 
+			- window_size (type: int or None): The size of the moving window to compute the average autocorrelation.
 			  If None, the average of all autocorrelations is used. Default is None.
 			- **imshow_kwargs: kwargs to be passed to plt.imshow()
 		:Return:
 			- acfs (type:numpy): 2D matrix containing the positive lag-time/space, normalized autocorrelation functions
 		'''
-		
+
 		axis = self.__axis__(dim)
 		max_shift = int(max_lag*self.sampling_frequency)
 		if (dim == 't' and max_shift >= self.num_points) or (dim == 'd' and max_shift >= self.total_channels):
 			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
-		
-		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, 
-                                                   dim, plot_mode, deconvolve, 
-                                                   window_size, self.total_channels, 
+
+		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis,
+                                                   dim, plot_mode, deconvolve,
+                                                   window_size, self.total_channels,
                                                    self.distances, self.sampling_frequency,
                                                    **imshow_kwargs)
 		return acf
 
 
 	def spatial_coherence(self, max_lag, result=False, plot=True):
-		coh = wavefield.spatial_coherence_matrix(data=self.data.T, 
+		coh = wavefield.spatial_coherence_matrix(data=self.data.T,
                                            max_lag=max_lag,
                                            fs=self.sampling_frequency,
-                                           channel_nums=self.channels_num, 
+                                           channel_nums=self.channels_num,
                                            plot=plot, result=result)
 		if result:
 			return coh
-        
+
 
 	def explore(self):
 		'''
 		Co-authors: Jonas Pätzel
-		Description: 
+		Description:
 			starts the Fobench Data Explorer Window
 		:Params:
 			- NA

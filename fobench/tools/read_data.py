@@ -42,15 +42,15 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         - company(type:String): manufacturer or the instrument that generates the data.
         - range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data (Not teste for other than Silixa).
     :Return:
-        - variables(type:tuple): tuple of the variable that are attributed of class Fiber.  
+        - variables(type:tuple): tuple of the variable that are attributed of class Fiber.
     '''
     # modify range_ch variable
     if isinstance(range_ch, int): # check if it is single value
         range_ch = [range_ch]
-        
+
     elif isinstance(range_ch, np.ndarray): # check if is array
         range_ch = list(range_ch)
-    
+
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa TDMS file')
@@ -74,9 +74,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = properties['OffsetLength']
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
-    
+
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa HDF5 file')
         file_file = h5.File(filepath,'r')
         properties = {}
@@ -117,10 +117,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = abs(properties['PreTriggerSamples'])
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
-    
+
     # Required checking! Contact providers! TEST!
     elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
-    
+
         pbar = tqdm(total=1, leave=True, desc='Reading Febus HDF5 file')
         file_file = h5.File(filepath,'r')
         instrument = list(file_file.keys())[0]
@@ -147,9 +147,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = 0 # FIX THIS!!
         units = 'counts'
         conv_factor = None # conversion factor if given explicitly
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
-        
+
         pbar = tqdm(total=1, leave=True, desc='Reading Terra15 HDF5 file')
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
@@ -172,9 +172,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = int(properties['sensing_range_start'] / spatial_interval)
         units = properties['data_product_units']
         conv_factor = None # conversion factor if given explicitly
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
-        
+
         pbar = tqdm(total=1, leave=True, desc='Reading ASN HDF5 file')
         file_file = h5.File(filepath,'r')
         properties = file_file['acqSpec']
@@ -197,9 +197,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = int(original_channels[0])
         units = str(file_file['header']['sensitivityUnits'][()])[3:-2]
         conv_factor = file_file['header']['sensitivities'][0,0]
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptaSense HDF5
-        
+
         pbar = tqdm(total=1, leave=True, desc='Reading QuantX HDF5 file')
         file_file = h5.File(filepath,'r')
         properties = file_file['Acquisition'].attrs
@@ -221,7 +221,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = int(properties['StartLocusIndex'])
         units = str(dataset.attrs['RawDataUnit'])[2:-1]
         conv_factor = None # conversion factor if given explicitly
-    
+
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
         pbar = tqdm(total=1, leave=True, desc='Reading Aragon Photonics HDF5 file')
         file_file = h5.File(filepath,'r')
@@ -245,7 +245,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
         units = [key for key in file_file.keys()][1]
         conv_factor = None # conversion factor if given explicitly
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF%
         pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file')
         file_file = h5.File(filepath, 'r')
@@ -267,13 +267,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         gauge_length = float(properties['GaugeLength'])
         units = 'strain' #???? Check
         conv_factor = None
-        
+
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
 	# ####################################################
-    
+
     elif format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
-    
+
         print('File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.')
         file_file = None
         properties = None
@@ -298,7 +298,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         conv_factor = None # conversion factor if given explicitly
 
     elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
-    
+
         print('File format is a Numpy Zip Class. No Gauge Length specified. Do not attempt to convert to Strain-Rate.')
         file_file = None
         properties = None
@@ -321,7 +321,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         channel_offset = None
         units = None
         conv_factor = None # conversion factor if given explicitly
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # .h5 format for Michelle INGV's decimated files from Silixa.
 
         print('Reading HDF5 file (Michelle INGV decimated Format)...')
@@ -344,12 +344,12 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         gauge_length = float(properties['GaugeLength'][0])
         channel_offset = int(properties['OffsetLength'])
         units = 'counts'
-        conv_factor = None # conversion factor if given explicitly 
+        conv_factor = None # conversion factor if given explicitly
 
     else:
         raise ValueError(f'{format} is not a recognized file format!')
     del dataset
-    
+
     # Attributed for the Fiber class.
     attr_keys = [
         'basefile',
@@ -374,14 +374,14 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'units',
         'conv_factor'
         ]
-    
-    attributes = ['file',
+
+    attributes = [filepath,
                 format,
                 company,
                 fiber,
-                h5_to_dict(properties), 
-                chans, 
-                chans_nums, 
+                h5_to_dict(properties),
+                chans,
+                chans_nums,
                 len(chans_nums),
                 sampling_frequency,
                 o_sampling_frequency,
@@ -397,7 +397,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
                 units,
                 conv_factor
                 ]
-    
+
     attributes = dict(zip(attr_keys,attributes))
     pbar.update(1)
     pbar.set_description('Read File ✓')
@@ -407,9 +407,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
 # Recurive method to convert all h5py Objects into dictionaries.
 def h5_to_dict(h5_obj):
-    
+
     result = {key: h5_to_dict(item) if isinstance(item, h5.Group) else item[()] if isinstance(item, h5.Dataset) else item for key, item in h5_obj.items()}
-    
+
     return result
 
 
@@ -417,12 +417,12 @@ def h5_to_dict(h5_obj):
 def __data__(extract_point, format, company, range_ch, LAG=None):
     '''
     Co-authors: --
-    Description: 
+    Description:
         Extracts the data depending on the file type. This is done automatically during initialization of the class.
     :Params:
         - NA.
     :Return:
-        - values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.  
+        - values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.
     '''
 
     values = np.asarray([])
@@ -450,7 +450,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
     elif format == 'npz' and company == 'bam':
         values = np.load(extract_point)['ph'][:, range_ch]
-        
+
     elif (format == 'h5' or format == 'hdf5') and company == 'michelle':
         values = np.array(extract_point[:, range_ch])
 
