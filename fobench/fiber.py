@@ -29,12 +29,13 @@ from scipy.fft import fftshift, ifftshift, fft2, ifft2
 from obspy.core import UTCDateTime as UTC
 from obspy.core.trace import Trace as oTrace
 from obspy.core.stream import Stream
-from obspy.signal.cross_correlation import correlate
 
 from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
 
+import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets
+
 # inner functions
 from .tools import read_data as read
 from .tools import utils as utils
@@ -69,7 +70,10 @@ class Fiber(object):
 			- NA.
 		'''
 		if not company:
-			raise ValueError('No company provided. Please choose one of the following: "silixa", "febus", "bam", "aragon", "quantx","asn", "terra15"')
+			raise ValueError(
+                'No company provided. Please choose one of the following: "silixa",',
+                '"febus", "bam", "aragon", "quantx","asn", "terra15", "sintela"'
+            )
 
 		# Private attributes
 		self.__filepath__ = filepath
@@ -133,6 +137,7 @@ recording parameters:
 {'-'*65}
 ''' + '\n'.join(f'{attr.ljust(25)} = {getattr(self, attr)}' for attr in attributes)
 
+	__repr__ = __str__
 
 	def __iadd__(self, other):
 		'''
@@ -175,7 +180,6 @@ recording parameters:
 	'''
 
 
-	# Returns the complete metadata of the file.
 	def metadata(self, meta_dict=False):
 		'''
 		Co-authors: --
@@ -1378,7 +1382,5 @@ recording parameters:
 
 		self._explorer = Explorer(self)
 		self._explorer.show()
-
-		app.exec()
+		pg.exec()
 		print(f'{"-"*65}')
-		app.quit()

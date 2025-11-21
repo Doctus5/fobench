@@ -1,12 +1,18 @@
 -support for Sintela h5 format
 
+-__repr__ method defined for interactive interpreters
+
 -minor changes here and there for readability, clarity e.g. unnecessary if statements replaces by elif
 
 -removed unnecessary commented lines
 
+-improved documentation and function annotations
+
 -removed all unused imports
 
 -interactive_plot method removed as functionality is replaced by .explore method
+
+-mixed plotting with pyqtgaph and matplotlib is now possible without restarting the kernel
 
 -Issue #12: removed 'silixa' default for company, added error if user provides no manufacturer
 
@@ -16,7 +22,7 @@
 
 -Issue #14: fixed as suggested
 
--added progress bars to more time consuming computations, e.g. coherence and spectral whitening, this requires tqdm to be installed, tqdm added to setup.py
+-added progress bars to more time consuming computations that use loops, e.g. coherence and spectral whitening, this requires tqdm to be installed, tqdm added to setup.py
 
 -much improved logic and readability of __data__ function
 
@@ -28,7 +34,7 @@
 
 >-Fiber.basefile gets extended when another Fiber object is concatenated, so that one Fiber object keeps track of all original file paths
 
--detrend_signal now takes a single single signal OR a matrix which is detrended channel-wise
+-detrend_signal now takes a single signal OR a matrix which is detrended channel-wise
 
 -Fiber.corrected is set to True after instrument correction
 
@@ -38,7 +44,7 @@
 
 -Fiber.filter now uses the previoulsy unused function filt_preprocess
 
--functionality for computaion and plotting of spatial coherence matrix added
+-functionality for computation and plotting of spatial coherence matrix added
 
 -taper_window is replaced by get_tukey_window, now only calling scipy.signal.windows.tukey, this is also called in filt_preprocess
 and Fiber.taper which before redundantly implemented tapering again.
@@ -49,14 +55,12 @@ and Fiber.taper which before redundantly implemented tapering again.
 
 TODO:
 
--new folder structure, sorts functionality in different categories, longer methods moved outside Fiber class and replaced by 
+-new folder structure, sorts functionality in different categories, longer methods moved outside Fiber class and replaced by
 simple function calls.
 
 -all imports adapted to new folder structure
 
 -added methods to call both plots from the fiber class
-
--added progress bars to more time consuming tasks
 
 -integrate Johannes fk plot
 

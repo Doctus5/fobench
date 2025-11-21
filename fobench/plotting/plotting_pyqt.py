@@ -22,7 +22,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
                     title:str = '') -> None:
     '''
     Co-authors: Jonas Pätzel
-    Description: 
+    Description:
         generate generic time series plot using PyQtGraph, ideal for channel plots
     :Params:
         - timestamps(type:numpy): array containing Unix timestamps of data
@@ -65,8 +65,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
                                 yMin=min(data), yMax=max(data))
 
-    app.exec_()
-    app.quit()
+    pg.exec()
 
 
 '''
@@ -76,13 +75,13 @@ Matrix Plot Functions Below
 '''
 
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
-                       max_value: float = None, y_label: str = '', 
-                       title: str = '', cmap:str = 'seismic', 
+                       max_value: float = None, y_label: str = '',
+                       title: str = '', cmap:str = 'seismic',
                        cbar_label:str = '') -> None :
     '''
     Co-authors: Jonas Pätzel
-    Description: 
-        generate generic matrix plot where x-axis represents time, e.g. 
+    Description:
+        generate generic matrix plot where x-axis represents time, e.g.
         waterfall visualisation of data or spectrograms,PSDs, RMSA ...
     :Params:
         - timestamps(type:numpy): array containing Unix timestamps of data
@@ -154,28 +153,26 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
             x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S')
             label.setText(f'Time: {x_datetime} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-    
+
     values = (-max_value, max_value) if max_value is not None else None
     data_range = np.nanmax(data) - np.nanmin(data)
-    
+
     cmap = pg.colormap.get(cmap, source='matplotlib')
     bar = pg.ColorBarItem(colorMap=cmap, values=values,
                           label=cbar_label, interactive=True, rounding=0.001*data_range)
     bar.setImageItem(image, insert_in=plot)
 
+    pg.exec()
 
-    app.exec_()
-    app.quit()
-    
-    
-def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list, 
-                     max_value: float = None, y_label: str = '', 
+
+def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
+                     max_value: float = None, y_label: str = '',
                      x_label: str = 'Optical Distance [m]',
-                     title: str = '', cmap:str = 'seismic', 
+                     title: str = '', cmap:str = 'seismic',
                      cbar_label:str = '', invert_y=False) -> None :
     '''
     Co-authors: Jonas Pätzel
-    Description: 
+    Description:
         generate generic matrix plot where x-axis represents distance
     :Params:
         - distances(type:numpy): array containing optical distances of channels
@@ -247,14 +244,13 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
             y_val = mouse_point.y()
             label.setText(f'{x_label}: {x_val:.1f} | {y_label}: {y_val:.1f}', color='k')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-    
+
     values = (-max_value, max_value) if max_value is not None else None
     data_range = np.nanmax(data) - np.nanmin(data)
-    
+
     cmap = pg.colormap.get(cmap, source='matplotlib')
     bar = pg.ColorBarItem(colorMap=cmap, values=values,
                           label=cbar_label, interactive=True, rounding=0.001*data_range)
     bar.setImageItem(image, insert_in=plot)
 
-    app.exec_()
-    app.quit()
+    pg.exec()
