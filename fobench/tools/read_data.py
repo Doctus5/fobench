@@ -243,7 +243,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         time_length = end_time - start_time
         gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
         channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
-        units = [key for key in file_file.keys()][1]
+        units = [key for key in file_file.keys()][2]
         conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF%
