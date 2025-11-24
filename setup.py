@@ -14,7 +14,7 @@ Last modification on 2023-09-14 14:51:00
 """
 
 # Necessary packages
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 setup(
@@ -23,7 +23,7 @@ setup(
     author_email='sergioad@gfz-potsdam.de',
     description='A fiber optic sensing toolbox',
     version = '0.0.21',
-    packages = ['fobench'],
+    packages = find_packages(),
     install_requires = [
         # Here goes the dependencies !!
         'numpy<2.0.0', # we can check later why is not working with upper versions of numpy. Conflict with other packages. Which one?
@@ -35,7 +35,7 @@ setup(
         'obspy',
         'pyrocko',
         'pyqtgraph',
-        'PyQt5'
+        'PyQt5',
         'tqdm'
     ]
 )
