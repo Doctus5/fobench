@@ -2,6 +2,8 @@
 
 -__repr__ method defined for interactive interpreters
 
+-setup.py edited to install PyQt5 for plotting, find subpackages directly and added necessary __init__ files, with this fobench should be instal with pip isntall . and then every module and subpackagae should be callable from everywhere
+
 -minor changes here and there for readability, clarity e.g. unnecessary if statements replaces by elif
 
 -removed unnecessary commented lines
@@ -16,7 +18,7 @@
 
 -Issue #12: removed 'silixa' default for company, added error if user provides no manufacturer
 
--as distances are directly added in __init__, removed unnecessary check in restrict_channels
+-as distances are directly added in Fiber.__init__, removed unnecessary check in restrict_channels
 
 -restrict_channels takes two keywords instead of a tuple and sorts them -> das.restrict_channels(ch0, chf)
 
