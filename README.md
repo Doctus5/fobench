@@ -1,6 +1,6 @@
 # Fobench: Fiber Optic Sensing Code Bench Testing
 <p align="center">
-  <img src="fobench/fobench/logo.png" width="200"/>
+  <img src="fobench/logo.png" width="200"/>
   <br>
 
 </p>
