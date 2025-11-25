@@ -1,9 +1,4 @@
-# Fobench: Fiber Optic Sensing Code Bench Testing
-<p align="center">
-  <img src="fobench/logo.png" width="200"/>
-  <br>
-
-</p>
+<img src="fobench/logo.png" align="left" width="50"/> # Fobench: Fiber Optic Sensing Code Bench Testing
 
 Welcome to **Fobench**! This repository contains code for reading and processing Fiber Optic Sensing files, currently Distributed Dynamic Strain Sensing (DDSS; a.k.a DAS) and Distributed Strain Sensing (DSS). Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
 
