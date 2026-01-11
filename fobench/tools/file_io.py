@@ -223,6 +223,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
+
         pbar = tqdm(total=1, leave=True, desc='Reading Aragon Photonics HDF5 file')
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs

@@ -1,0 +1,11 @@
+numpy<2.0.0
+h5py
+nptdms
+pandas
+matplotlib
+scipy
+obspy
+pyrocko
+pyqtgraph
+PyQt5
+tqdm

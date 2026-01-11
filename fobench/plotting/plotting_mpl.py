@@ -249,33 +249,18 @@ def plot_record_section(signals, t, channels, date):
 	plt.show()
 
 
-def plot_acfs(acfs, dim, meta, max_shift, distances=None, **imshow_kwargs):
+def plot_acfs(acfs, distances, fs, max_shift, **imshow_kwargs):
 	'''
-	Co-authors: Jonas Pätzel
-	Description:
-		plots the result of Fiber.acf_profile
-	:Params:
-		- acfs (type: numpy): array containing the acfs
-		- meta (type: dict): Fiber.attributes dict
-		- max_shift (type:int): the maximum shift used for the acf computation
-		- dim(type: String): dimension along which acfs were computed
-		- **imshow_kwargs: kwargs to be passed to plt.imshow()
-	:Return:
-		-
+    plots autocorrelation profile
+
 	'''
 
-	if dim == 't':
-		extent = [meta['chans'][0], meta['chans'][-1], max_shift/meta['sampling_frequency'], 0]
-		y_label = 'Lag/TWT [s]'
-		x_label = 'Channel Number'
-		if distances is not None:
-			extent = extent = [distances[0], distances[-1], max_shift/meta['sampling_frequency'], 0]
-			x_label = 'Optical Distance [m]'
-
-	elif dim == 'd':
-		extent = [0, max_shift*meta['spatial_interval'], meta['time_length'], 0]
-		y_label = 'Recording Time [s]'
-		x_label = 'Lag [m]'
+	extent = [distances[0], distances[-1], max_shift/fs, 0]
+	y_label = 'Lag/TWT [s]'
+	x_label = 'Channel Number'
+	if distances is not None:
+		extent = extent = [distances[0], distances[-1], max_shift/fs, 0]
+	x_label = 'Optical Distance [m]'
 
 	im = plt.imshow(acfs, aspect='auto', origin='upper', extent=extent, **imshow_kwargs)
 

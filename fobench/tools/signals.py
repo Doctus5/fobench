@@ -1,44 +1,75 @@
-#Contains Signal Processing and Analysis Functionality except filtering
+'''
+signal processing functions except filtering
+'''
 
 import numpy as np
 import scipy.signal as signal
 from tqdm import tqdm
 
-def hilbert(data, axis=0):
-	'''
-	Computes the Hilbert transform in 2D.
-	:Params(type):
-		- data(type: numpy): matrix data (2D) of the DAS Class.
-		- N(type: int): number of Fourier components. Default None: x.shape[axis].
-		- axis(type: int): axis for where to operate. Default 0: along the columns of DAS (per channel).
-	:Return(type):
-		- ht(numpy): 1D analytic signal.  
-	'''
+def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
+    '''
+    computes Hilbert transform for 2D array of signals
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array holding data.
+    axis : int, optional
+        axis along which to operate. The default is 0.
 
-	ht = signal.hilbert(data, axis=axis)
-	return ht
+    Returns
+    -------
+    ht : np.ndarray
+        array holding analytic signals.
 
-def envelope(data, axis=0):
-	'''
-	Computes the envelope signal in 2D
-	:Params(type):
-		- data(numpy): matrix data (2D) of the DAS Class.
-		- axis(int): axis for where to operate. Default 0: along the columns of DAS (per channel).
-	:Return(type):
-		- env(numpy): 2D analytic signal which is the envelope.
-	'''
+    '''
 
-	ht = hilbert(data, axis=axis)
-	env = np.sqrt(data**2 + np.real(np.conjugate(ht)*ht)) #version of Christopher Wollin
+    return signal.hilbert(data, axis=axis)
+
+def envelope(data: np.ndarray, axis: int = 0)-> np.ndarray:
+    '''
+    computes envelopes for 2D array of signals
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array holding data.
+    axis : int, optional
+        axis along which to operate. The default is 0.
+
+    Returns
+    -------
+    env : np.ndarray
+        array holding signal envelopes.
+
+    '''
+
+    ht = hilbert(data, axis=axis)
+    env = np.sqrt(data**2 + np.real(np.conjugate(ht)*ht)) #version of Christopher Wollin
 	#env = (data**2 + ht**2)**0.5 #obspy version
-	
-	return env
 
-def detrend_signal(o_signal, order, axis=-1):
-    
+    return env
+
+def detrend_signal(o_signal: np.ndarray, order: int, axis:int =-1)-> np.ndarray:
+    '''
+    detrends signal(s)
+
+    Parameters
+    ----------
+    o_signal : np.ndarray
+        array containing the the signal(s)
+    order : int
+        order number of the fitting curve used to apply the detrend.
+    axis : int, optional
+        axis  alogn which to apply the detrending. The default is -1.
+
+    Returns
+    -------
+    new_signal : np.ndarray
+        detrended signal(s).
+    '''
+
     o_signal = np.asarray(o_signal, dtype=float)
     new_signal = np.empty_like(o_signal)
-    
+
     if o_signal.ndim == 1:
         t = np.arange(len(o_signal))
         trend = np.polyval(np.polyfit(t, o_signal, order), t)
@@ -48,7 +79,7 @@ def detrend_signal(o_signal, order, axis=-1):
     elif o_signal.ndim == 2:
         n = o_signal.shape[axis]
         t = np.arange(n)
-    
+
     for i in tqdm(range(o_signal.shape[1-axis]), desc='Detrending', leave=False):
         if axis == 0:
             y = o_signal[:, i]
@@ -58,50 +89,257 @@ def detrend_signal(o_signal, order, axis=-1):
             y = o_signal[i, :]
             trend = np.polyval(np.polyfit(t, y, order), t)
             new_signal[i, :] = y - trend
+
     return new_signal
 
 
-def demean_signal(o_signal, axis=None):
+def demean_signal(o_signal: np.ndarray, axis: int = None)-> np.ndarray:
+    '''
+    removes mean from signal(s)
+
+    Parameters
+    ----------
+    o_signal : np.ndarray
+        DESCRIPTION.
+    axis : int, optional
+        axis along which to apply demeaning. The default is None.
+
+    Returns
+    -------
+    demeaned signal(s)
+    '''
 
     o_signal = np.asarray(o_signal)
-    
+
     if o_signal.ndim == 1:
         return o_signal - np.mean(o_signal)
     elif o_signal.ndim == 2:
         return o_signal - np.mean(o_signal, axis=axis, keepdims=True)
 
-def get_tukey_window(N, alpha, sym): # alpha is the percentage of all the data contained/affected by the tapered window
-    return signal.windows.tukey(N, alpha, sym)
+
+def get_tukey_window(M: int, alpha: float, sym: bool)-> np.ndarray:
+    '''
+    returns Tukey window for filtering and tapering
+
+    Parameters
+    ----------
+    M : int
+        number of points of window.
+    alpha : float
+        shape parameter, fraction of window inside tapered region, [0-1].
+    sym : bool
+        returns symmetric window when True.
+
+    Returns
+    -------
+    np.ndarray
+        Tukey window array.
+
+    '''
+    return signal.windows.tukey(M, alpha, sym)
+
+def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool = False) -> np.ndarray:
+    '''
+    taper signal using Tukey window
+
+    Parameters
+    ----------
+    data : np.ndarray
+        data array on which to perform tapering.
+    alpha : float
+        shape parameter, fraction of window inside tapered region, [0-1].
+    axis : int
+        axis along which to perform tapering.
+    detaper : bool
+        option to remove taper from signal
+
+    Returns
+    -------
+    np.ndarray
+        tapered data array.
+    '''
+
+    M = data.shape[axis]
+    taper = get_tukey_window(M, alpha, sym=True)
+
+    taper = taper[:, None] if axis == 0 else taper[None, :]
+    if not detaper:
+        return np.multiply(data, taper)
+    elif detaper:
+        return np.divide(data, taper)
+
+def filt_preprocess(io_signal: np.ndarray, axis:int = None, order:int = 1,
+                    sym: bool = True, alpha: float = 0.1,
+                    steps: tuple[bool, bool, bool] = (True, True, True)) -> np.ndarray:
+    '''
+	performs pre-processing of the signal before filtering. Steps detrend, demean, and taper
+    with Tukey window
+
+    Parameters
+    ----------
+    io_signal : np.ndarray
+        original input signal.
+    axis : int, optional
+        DESCRIPTION. The default is None.
+    order : int, optional
+        order number of the fitting curve used to apply the detrend. The default is 1.
+    sym : bool, optional
+        symmetric window for tapering if True. The default is True.
+    alpha : float, optional
+        shape parameter of taper, fraction of window inside tapered region,
+        [0-1].The default is 0.1.
+    steps : tuple[bool, bool, bool], optional
+        defines which steps to perform. The default is True for all three steps.
+
+    Returns
+    -------
+    io_signal : np.ndarray
+        pre-processed signals.
+
+    '''
+
+    do_detrend, do_demean, do_taper = steps
+
+    if do_detrend:
+        io_signal = detrend_signal(io_signal, order, axis=axis)
+    if do_demean:
+        io_signal = demean_signal(io_signal, axis=axis)
+    if do_taper:
+        io_signal = taper_signal(io_signal, alpha=alpha, axis=axis)
+
+    return io_signal
+
+def normalize_signal(data: np.ndarray, method:str = 'absolute max',
+                     axis: int = None, ram_window: int = None, fs: int = None,
+                     total_channels: int = None, num_points: int = None)-> np.ndarray:
+    '''
+    Parameters
+    ----------
+    data : np.ndarray
+        data array to normalize_signal.
+    method : str, optional
+        normalization method, options are:
+			-'absolute max': with respect to the whole record (default)
+			-'trace max': for each channel/timestep individually
+			-'running mean': running absolute mean normalization
+			-'1bit': 1-bit normalization.
+        The default is 'absolute max'.
+    axis : int, optional
+        axis along which to perform operation. The default is None.
+    ram_window : int, optional
+        window length in seconds, only for running absolute mean normalization. The default is None.
+    fs : int, optional
+        sampling frequency of signal. The default is None.
+    total_channels : int, optional
+        total number of channels, only for running absolute mean normalization. The default is None.
+    num_points : int, optional
+        total number of time samples, only for running absolute mean normalization. The default is None.
+
+    Raises
+    ------
+    TypeError
+        running mean normalization chosen without window_length given.
+    ValueError
+        no valid normalization method chosen.
+
+    Returns
+    -------
+    normalized_data : np.ndarray
+        normalized data array
+    '''
+
+    if method == 'absolute max':
+        normalized_data = (data - data.min()) / (data.max() - data.min())
+        normalized_data = normalized_data * 2 -1
+
+    elif method == 'trace max':
+        channel_min = data.min(axis=axis, keepdims=True)
+        channel_max = data.max(axis=axis, keepdims=True)
+        normalized_data = (data - channel_min)/(channel_max - channel_min)
+        normalized_data = normalized_data * 2 -1
+
+    elif method == 'running mean':
+        if ram_window is None:
+            raise TypeError('please provide a window length for the running absolute mean normalization')
+
+        normalized_data = data.copy()
+
+        w_len = int(fs * ram_window)
+
+        for i in tqdm(range(total_channels), desc='Running mean normalization', leave=False):
+            for segment_start in range(num_points - w_len + 1):
+                segment_end = segment_start + w_len
+                segment = normalized_data[:,i][segment_start:segment_end]
+                weight = np.mean(np.abs(segment))
+
+                normalized_data[segment_start:segment_end, i] /= weight
+
+    elif method == '1bit':
+        normalized_data = np.sign(data).astype(np.float64)
+
+    else:
+        raise ValueError(f'"{method}" is not a valid normalization method')
+
+    return normalized_data
+
+def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels: int,
+                  sampling_frequency: int)-> np.ndarray:
+    '''
+    adapted code from: https://github.com/seismo-live/seismo_live
+    performs spectral whitening of all channels
+    signals should be adequatly preprocessed
 
 
-def filt_preprocess(io_signal, axis=None, order=1, sym=True, percent=0.1, steps=(True, True, True)):
-	'''
-	Co-authors: --
-	Description: 
-		Do pre-processing of the signal for adecuate filtering. This includes detrend, demean, and tape in borders.
-		User can define with 'steps' variable which processes want to do.
-	:Params:
-		- io_signal(type:Numpy): input original signal to be modified for output.
-		- order(type:Int): degree or order of the polyfit for detrending the signal. Default is 1.
-		- shape(type:String): Determines if the taper window has taper on both sides ('sym'=symmetrical),
-		or just in one of the sides ('left' or 'right'). Default is 'sym'.
-		- percent(type:Float): Percentage of the window/data where the taper is applied. Default is 0.1.
-		- steps(Type:Tuple of Booleans): tuple or list of bolleans which determines by True or False the pre-processing to do,
-		in the defined order -> (detrend, demean, taper). Default is True for all.
-	:Return:
-		- new_signal(type:Numpy): pre-processed signal (detrended, demenaed, tapered).
-	'''
+    Parameters
+    ----------
+    data : np.ndarray
+        DESCRIPTION.
+    freq_min,freq_max : int, int
+        minimum and maximum of frequency band in which to perform spectral whitening.
+    total_channels : int
+        total number of channels.
+    sampling_frequency : int
+        sampling frequency of data
 
-	if steps[0] == True:
-		io_signal = detrend_signal(io_signal, order, axis=axis)
-	if steps[1] == True:
-		io_signal = demean_signal(io_signal, axis=axis)
-	if steps[2] == True:
-		window = get_tukey_window(io_signal.shape[0], alpha=percent, sym=sym)
-		if io_signal.ndim == 2:
-			window = window[:, np.newaxis]
-		io_signal *= window
-	return io_signal
+    Returns
+    -------
+    whitened_matrix : np.ndarray
+        whitened data matrix
+
+    '''
+
+    whitened_matrix = np.zeros_like(data, dtype='float32')
+
+    for i in tqdm(range(total_channels), desc='Whitening', leave=False):
+  	  	channel = data[:, i]
+  	  	n = len(channel)
+
+  	  	f_range = float(freq_max) - float(freq_min)
+  	  	nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / sampling_frequency))
+  	  	f = np.arange(n) * sampling_frequency / (n - 1.0)
+  	  	JJ = ((f > float(freq_min)) & (f < float(freq_max))).nonzero()[0]
+
+  	  	# channel FFT
+  	  	FFTs = np.fft.fft(channel)
+  	  	FFTsW = np.zeros(n, dtype=complex)
+
+  	  	# apodization left
+  	  	smo1 = (np.cos(np.linspace(np.pi / 2, np.pi, nsmo + 1)) ** 2)
+  	  	FFTsW[JJ[0]:JJ[0] + nsmo + 1] = smo1 * np.exp(1j * np.angle(FFTs[JJ[0]:JJ[0] + nsmo + 1]))
+
+  	  	# boxcar
+  	  	FFTsW[JJ[0] + nsmo + 1:JJ[-1] - nsmo] = np.ones(len(JJ) - 2 * (nsmo + 1)) * \
+  	  	np.exp(1j * np.angle(FFTs[JJ[0] + nsmo + 1:JJ[-1] - nsmo]))
+
+  	  	# apodization to the right
+  	  	smo2 = (np.cos(np.linspace(0.0, np.pi / 2.0, nsmo + 1)) ** 2)
+  	  	espo = np.exp(1j * np.angle(FFTs[JJ[-1] - nsmo:JJ[-1] + 1]))
+  	  	FFTsW[JJ[-1] - nsmo:JJ[-1] + 1] = smo2 * espo
+
+  	  	# channel IFFT
+  	  	whitedata = 2.0 * np.fft.ifft(FFTsW).real
+  	  	whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
+    return whitened_matrix
 
 def peak_to_peak_amp(data, sampl_freq, axis=0):
 	'''
@@ -119,18 +357,18 @@ def peak_to_peak_amp(data, sampl_freq, axis=0):
 	peak_up, up_index = data.max(axis=axis), np.argmax(data, axis=axis)
 	peak_down, down_index = data.min(axis=axis), np.argmin(data, axis=axis)
 	pp_amp = peak_up - peak_down
- 
+
 	bad_picking = np.abs((up_index - down_index)) > sampl_freq/2
 	bad_picking = list(np.where(bad_picking == True)[0])
 
 	if bad_picking:
-    
+
 		windows = [j for j in range(0, data.shape[0], int(sampl_freq/4))]
 		pp =  np.zeros(len(bad_picking))
-    
+
 		#for pos in bad_picking:
 		for i in range(len(windows)-1):
-    
+
 			index, index_1 = windows[i], windows[i+1]
 			new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
 			pp[new_pp > pp] = new_pp[new_pp > pp]
@@ -142,7 +380,7 @@ def peak_to_peak_amp(data, sampl_freq, axis=0):
 def spectrum(o_signal, sampling_rate, pre_processing=True, order=1, pad=0, nfft=None):
 	'''
 	Co-authors: --
-	Description: 
+	Description:
 		Calculates de spectrum of a given signal with a specified sampling frequency.
 	:Params:
 		- signal(type:Numpy): original signal.
@@ -177,7 +415,7 @@ def spectrum(o_signal, sampling_rate, pre_processing=True, order=1, pad=0, nfft=
 def psd(o_signal, sampling_rate, pre_processing=True, order=1, n=None):
 	'''
 	Co-authors: --
-	Description: 
+	Description:
 		Calculates de power spectral density based on the Welch method.
 	:Params:
 		- signal(type:Numpy): original signal.
@@ -191,7 +429,7 @@ def psd(o_signal, sampling_rate, pre_processing=True, order=1, n=None):
 	if pre_processing == True:
 		o_signal = filt_preprocess(o_signal, order)
 
-	# We compute the PSD based on the Welch method.	
+	# We compute the PSD based on the Welch method.
 	positive_freqs, magnitude = signal.welch(o_signal, sampling_rate, nperseg=n)
 
 	return positive_freqs, magnitude

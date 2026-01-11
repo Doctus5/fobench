@@ -27,21 +27,12 @@ import scipy.integrate as integrate
 from scipy.fft import fftshift, ifftshift, fft2, ifft2
 
 from obspy.core import UTCDateTime as UTC
-from obspy.core.trace import Trace as oTrace
-from obspy.core.stream import Stream
-
-from pyrocko.util import str_to_time
-from pyrocko.trace import Trace as pTrace
 
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets
 
 # inner functions
-from .tools import read_data as read
-from .tools import utils as utils
-from .tools import filter as filter
-from .tools import signals as signals
-from .tools import wavefield as wavefield
+from .tools import file_io, utils, filters, signals, wavefield
 from .plotting import plotting_mpl as plot
 from .plotting import plotting_pyqt as plot_pyqt
 from .plotting.pyqt_explorer import Explorer
@@ -71,8 +62,9 @@ class Fiber(object):
 		'''
 		if not company:
 			raise ValueError(
-                'No company provided. Please choose one of the following: "silixa",',
-                '"febus", "bam", "aragon", "quantx","asn", "terra15", "sintela"'
+                '\nNo company provided! Please choose one of:\n'
+                ' -"silixa"\n -"febus"\n -"bam"\n -"aragon"\n -"quantx"\n -"asn"\n'
+                ' -"terra15"\n -"sintela"'
             )
 
 		# Private attributes
@@ -82,7 +74,7 @@ class Fiber(object):
 		self.company = company
 		self.format = filepath.split('.')[-1]
 
-		self.attributes = read.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
+		self.attributes = file_io.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
 
 		self.basefiles = [self.attributes['basefile']]
 		self.fiber = self.attributes['fiber']
@@ -120,34 +112,21 @@ class Fiber(object):
 
 	def __str__(self):
 		'''
-		Co-authors: Jonas Pätzel
-		Description:
-			defines output of print(Fiber); overview of most important recording parameters
-		:Params:
-			- NA.
-		:Return:
-			- NA.
+		defines output of print(Fiber); overview of most important recording parameters
 		'''
 
 		attributes = ['units', 'start_time', 'end_time', 'num_points', 'total_channels',
 					'spatial_interval', 'sampling_frequency', 'gauge_length']
 
-		return f'''\nInstance of Fiber class
-recording parameters:
-{'-'*65}
-''' + '\n'.join(f'{attr.ljust(25)} = {getattr(self, attr)}' for attr in attributes)
+		return ('Instance of Fiber class\n'
+                'recording parameters:\n'
+                f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
 
 	__repr__ = __str__
 
 	def __iadd__(self, other):
 		'''
-		Co-authors: Jonas Pätzel
-		Description:
-			allows to concatenate two Fiber instances with self += other
-		:Params:
-			- other: Fiber instance.
-		:Return:
-			- NA.
+		allows to concatenate two Fiber instances with self += other
 		'''
 		if not isinstance(other, Fiber):
 			raise TypeError('Object to add must be instance of Fiber class')
@@ -192,18 +171,13 @@ recording parameters:
 		'''
 
 		if meta_dict:
-
 			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
-
 			return metainfo
 
 		else:
-
 			for prop, value in self.properties.items():
 				print(f"{prop} = {value}")
 
-
-	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.
 	def copy(self):
 		'''
 		Co-authors: --
@@ -379,40 +353,12 @@ recording parameters:
 		return self.data
 
 
-	#Return a an array of times in three different formats: UTCDateTime, ISOformat and matplotlib for plotting.
 	def times(self, time_type='UTCDateTime'):
 		'''
-		Co-authors: --
-		Description:
-			Return an array containing each time-step in the specified format option.
-		:Params:
-			- time_type(type:String): specific format of the time-steps. Options are: 1) UTCDateTime, 2) isoformat string, 3) matplotlib-dates (date-time)
-			4) Unix timstamps, 3) and 4) for matplotlib and pyqt plots respectively. Default = 'UTCDateTime'
-		:Return:
-			- t(type:Numpy): a 1D array containing time-steps of the data in the specified format.
-		'''
-
-		if time_type == 'UTCDateTime' or time_type == 'UTC':
-
-			t = np.array([(self.start_time + (i*self.dt)) for i in range(self.data.shape[0])])
-
-		elif time_type == 'isoformat':
-
-			t = np.array([(self.start_time + (i*self.dt)).isoformat() for i in range(self.data.shape[0])])
-
-		elif time_type == 'matplotlib':
-
-			t = np.array([(self.start_time + (i*self.dt)).matplotlib_date for i in range(self.data.shape[0])])
-
-		elif time_type == 'unix':
-
-			t = np.array([(self.start_time + (i * self.dt)).timestamp for i in range(self.data.shape[0])])
-
-		else:
-
-			raise ValueError('Unrecognized time format. Please check the possible values.')
-
-		return t
+        returns array of sample times, can be 'UTCDateTime', 'isoformat', 'matplotlib'
+        or 'unix´'
+	    '''
+		return utils.return_times(self, time_type)
 
 
 	#Function to concatenate 2 DAS classes. The concatenation will be done on the same class where the function is called. The 2 DAS objects must have the same characcteristics (sampling frequency, channels)
@@ -465,50 +411,12 @@ recording parameters:
 		return self
 
 
-	#Creates a Stream object from obspy with traces inside and returns it for obspy-type manipulation. Each Trace class represents a channel from the DAS data. All Traces must have the same time range and number of points.
-	def as_Traces(self, t_type='obspy'):
+	def to_traces(self, t_type='obspy'):
 		'''
-		Co-authors: --
-		Description:
-			Creates an obpsy/pyrocko Stream object and fill it with Traces in it. Each Trace would represent each channel of the DAS Class, including
-			the metadata which are attributes of the Trace Class. This is mainly done so users can have access to obspy tools with this data. However,
-			it can be slower and memory demanding.
-		:Params:
-			- t_type(type:String): option wether to convert to pyrocko or obspy stream/traces.
-		:Return:
-			- stream(type:Stream Class): stream with traces representing channels of the DAS Class..
+        returns channels as 'obspy' or 'pyrocko' streams, see fiber.tools.utils.to_traces
+        for more details
 		'''
-
-		stream = Stream() if t_type == 'obpsy' else []
-
-		for i in range(self.total_channels):
-
-			if t_type == 'obspy':
-
-				trace = oTrace(data=self.data[:,i])
-				trace.stats.network = self.fiber
-				trace.stats.station = str(self.channels_num[i]).zfill(5)
-# 				trace.stats.npts = self.num_points #+ 1
-				trace.stats.sampling_rate = self.sampling_frequency
-				trace.stats.delta = self.dt
-				trace.stats.starttime = self.start_time
-				trace.stats.calib = utils.instr_corr(np.array(1), attributes=vars(self))
-				trace.stats.channel = 'H'
-				#trace.stats.endtime = self.end_time
-				stream.append(trace)
-# 				print(stream)
-
-			if t_type == 'pyrocko':
-
-				trace = pTrace(ydata=self.data[:,i])
-				trace.network = self.fiber
-				trace.station = str(self.channels_num[i]).zfill(5)
-				trace.deltat = self.dt
-				trace.tmin = str_to_time(self.start_time.isoformat().replace('T',' '))
-				trace.tmax = str_to_time(self.end_time.isoformat().replace('T',' '))
-				stream.append(trace)
-
-		return stream
+		return utils.to_traces(self, t_type)
 
 
 	'''
@@ -561,68 +469,40 @@ recording parameters:
 
 		return self
 
-
-	#Function for detrending the data
 	@utils._update_processing
 	def detrend(self, order=1, dim='t'):
 		'''
-		Co-authors: --
-		Description:
-			Detrends the data, taking any unwanted trend component in the data that might come artifacts such as temperature, instrument, very long period signal, etc.
-		:Params:
-			- order(type: Int): order number of the fitting curve used to apply the detrend.
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- NA.
-		'''
+        detrend signal with specified order polynomial
+        see fiber.tools.signals.detrend_signal for more details
+	    '''
 
 		axis = self.__axis__(dim)
-
 		self.data = signals.detrend_signal(self.data, order=order, axis=axis)
 
 		return self
 
-
-	#Function for demeaning the data
 	@utils._update_processing
 	def demean(self, dim='t'):
 		'''
-		Co-authors: --
-		Description:
-			Demean the data, trying to reduce any trend outside of the 0 value line.
-		:Params:
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- NA.
+        remove mean of signal along specified dimension
+        see fiber.tools.signals.demean_signal for more details
 		'''
 
 		axis = self.__axis__(dim)
-		self.data -= self.data.mean(axis=axis)
+		self.data = signals.demean_signal(self.data, axis=axis)
 
 		return self
 
 	@utils._update_processing
-	def taper(self, frac=0.05, dim='t'):
+	def taper(self, alpha=0.05, dim='t', detaper=False):
 		'''
-		Co-authors: --
-		Description:
-			Tapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
-		:Params:
-			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- NA.
+        taper data
+        see fiber.tools.signals.taper_signal for more details
 		'''
 
 		axis = self.__axis__(dim)
-		M = self.num_points if axis == 0 else self.total_channels
-		taper = signal.windows.tukey(M=M, alpha=frac*2)
-
-		# dimensions fix in case of mismatch between lengths.
-		taper = np.concatenate((taper, np.zeros(M - taper.size))) if taper.size < M else taper # fix length due to even or odd numbers in points.
-		taper = taper[:, None] if axis == 0 else taper[None, :]
-
-		self.data = np.multiply(self.data, taper)
+		self.data = signals.taper_signal(data=self.data, axis=axis,
+                                   alpha=alpha, detaper=detaper)
 
 		return self
 
@@ -654,7 +534,7 @@ recording parameters:
 		#Check prefilter... which one is?
 		if ftype is not None:
 
-			new_data = filter.decimate(data=self.data, factor=down_factor, ftype=ftype, axis=axis)
+			new_data = filters.decimate(data=self.data, factor=down_factor, ftype=ftype, axis=axis)
 
 		else:
 
@@ -668,116 +548,36 @@ recording parameters:
 		return self
 
 
-	# does it need to be also generalized for dimension option? (f.e.: if i want to do it in time or spatial?)
 	@utils._update_processing
 	def normalize(self, method='absolute max', dim='d', ram_window=None):
 		'''
-		Co-authors:Jonas Pätzel
-		Description:
-			normalizes the data according to the chosen method
-		:Params:
-			- method (type:String):type of normalization can be:
-				-'absolute max': with respect to the whole record (default)
-				-'trace max': for each channel/timestep individually
-				-'running mean': running absolute mean normalization
-				-'1bit': 1-bit normalization
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 'd'.
-			-ram_window (type: int): window length in seconds, only for running absolute mean normalization
-		:Return:
-			- NA.
-		'''
+	    normalize data, methods are 'absolute max', 'trace max', 'running mean' and '1bit'
+        see fiber.tools.signals.normalize_signal for more details
+	    '''
 
 		axis = self.__axis__(dim)
-
-		if method == 'absolute max':
-
-			normalized_data = (self.data - self.data.min()) / (self.data.max() - self.data.min())
-			normalized_data = normalized_data * 2 -1
-
-		elif method == 'trace max':
-
-			channel_min = self.data.min(axis=axis, keepdims=True)
-			channel_max = self.data.max(axis=axis, keepdims=True)
-			normalized_data = (self.data - channel_min)/(channel_max - channel_min)
-			normalized_data = normalized_data * 2 -1
-
-		elif method == 'running mean':
-
-			if ram_window is None:
-				raise TypeError('please provide a window length for the running absolute mean normalization')
-
-			normalized_data = self.data.copy()
-
-			w_len = int(self.sampling_frequency * ram_window)
-
-			for i in tqdm(range(self.total_channels), desc='Running mean normalization', leave=False):
-				for segment_start in range(self.num_points - w_len + 1):
-					segment_end = segment_start + w_len
-					segment = normalized_data[:,i][segment_start:segment_end]
-					weight = np.mean(np.abs(segment))
-
-					normalized_data[segment_start:segment_end, i] /= weight
-
-		elif method == '1bit':
-
-			normalized_data = np.sign(self.data).astype(np.float64)
-
-		else:
-			raise ValueError(f'"{method}" is not a valid normalization method')
-
-		self.data = normalized_data
+		self.data = signals.normalize_signal(self.data, method=method,
+                                       ram_window=ram_window, axis=axis,
+                                       fs=self.sampling_frequency, total_channels=self.total_channels,
+                                       num_points=self.num_points)
 
 		return self
 
 	@utils._update_processing
 	def whiten(self, freq_min=0.01, freq_max=100):
-		'''
-		Co-authors: Jonas Pätzel, adapted code from: https://github.com/seismo-live/seismo_live
-		Description:
-			performs spectral whitening of all channels, signals should be adequatly preprocessed
-		:Params:
-			- freq_min, freq_max(type: float): minimum and maximum frequency of band in which to perform whitening
-		:Return:
-			- NA
-		'''
-		if not any('filter' in preprocessing for preprocessing in self.processing):
-			warn('Data has possibly not been filtered before whitening! Check preprocessing and results carefully!\ncontinuing...')
+	    '''
+	    spectral whitening of data
+        see fiber.tools.signals.whiten_signal for more details
+	    '''
+	    if not any('filter' in preprocessing for preprocessing in self.processing):
+        	    	  warn('Data has possibly not been filtered before whitening! Check'
+                     'preprocessing and results carefully!\ncontinuing...')
 
-		whitened_matrix = np.zeros_like(self.data, dtype='float32')
+	    self.data = signals.whiten_signal(freq_min=freq_min, freq_max=freq_max,
+                                    sampling_frequency=self.sampling_frequency,
+                                    total_channels=self.total_channels)
 
-		for i in tqdm(range(self.total_channels), desc='Whitening', leave=False):
-			channel = self.data[:, i]
-			n = len(channel)
-
-			f_range = float(freq_max) - float(freq_min)
-			nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / self.sampling_frequency))
-			f = np.arange(n) * self.sampling_frequency / (n - 1.0)
-			JJ = ((f > float(freq_min)) & (f < float(freq_max))).nonzero()[0]
-
-			# channel FFT
-			FFTs = np.fft.fft(channel)
-			FFTsW = np.zeros(n, dtype=complex)
-
-			# apodization left
-			smo1 = (np.cos(np.linspace(np.pi / 2, np.pi, nsmo + 1)) ** 2)
-			FFTsW[JJ[0]:JJ[0] + nsmo + 1] = smo1 * np.exp(1j * np.angle(FFTs[JJ[0]:JJ[0] + nsmo + 1]))
-
-			# boxcar
-			FFTsW[JJ[0] + nsmo + 1:JJ[-1] - nsmo] = np.ones(len(JJ) - 2 * (nsmo + 1)) * \
-				np.exp(1j * np.angle(FFTs[JJ[0] + nsmo + 1:JJ[-1] - nsmo]))
-
-			# apodization to the right
-			smo2 = (np.cos(np.linspace(0.0, np.pi / 2.0, nsmo + 1)) ** 2)
-			espo = np.exp(1j * np.angle(FFTs[JJ[-1] - nsmo:JJ[-1] + 1]))
-			FFTsW[JJ[-1] - nsmo:JJ[-1] + 1] = smo2 * espo
-
-			# channel IFFT
-			whitedata = 2.0 * np.fft.ifft(FFTsW).real
-			whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
-
-		self.data = whitened_matrix
-
-		return self
+	    return self
 
 	# Function for filtering. Shall we also declare dimensionality options here?
 	@utils._update_processing
@@ -801,7 +601,7 @@ recording parameters:
 		if pre_process:
 			self.data = signals.filt_preprocess(self.data, axis=0)
 
-		new_data = filter.point_filter(f_type=f_type, data=self.data, df=self.sampling_frequency, freq=freq, **options)
+		new_data = filters.point_filter(f_type=f_type, data=self.data, df=self.sampling_frequency, freq=freq, **options)
 		self.data = new_data
 
 		return self
@@ -900,31 +700,6 @@ recording parameters:
 		self.data = result
 
 		return self
-
-
-	#Function to detaper...
-	@utils._update_processing
-	def detaper(self, frac=0.05, dim='t'):
-		'''
-		Co-authors: --
-		Description:
-			Detapers the data in time (dim='t') or in space (dim='d'). The taper used is a tapered cosine window (Tukey).
-		:Params:
-			- frac(type:Float): it is the fraction of the taper applied to one side of the window. In total the tapered part of the data will be twice of the indicated in the parameter.
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- NA.
-		'''
-
-		axis = self.__axis__(dim)
-		M = self.num_points if axis == 0 else self.total_channels
-		taper = signal.windows.tukey(M=M, alpha=frac*2)
-		taper = taper[:,None] if axis == 0 else taper[None, :]
-
-		self.data = np.divide(self.data, taper)
-
-		return self
-
 
 	#Function for calculating the Signal to Noise Ratio. The method is based on the simple SNR from scipy at version 0.4.0 (old version, not present in recent versions). Doing it with Power Spectral energies might be something in future. For now let's keep it simple.
 	def SNR(self, dim='t'):
@@ -1323,38 +1098,36 @@ recording parameters:
 		plot.plot_record_section(signals=das_data, t=t, channels=das_channels, date=date)
 
 
-	def acf_profile(self, max_lag, dim='t', plot_mode='pyqt', deconvolve=False, window_size=None, **imshow_kwargs):
+	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
+                    window_size=None, result=False, **imshow_kwargs):
 		'''
-		Co-authors: Jonas Pätzel
-		Description:
-			Computes the autocorrelation either for each channel or each time sample and
-			optionally deconvolves the autocorrelation source term using a moving window.
-			Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record
-		:Params:
-			- max_shift (type:int): the maximum shift to use for the autocorrelation, when applied in time represents time samples, in space number of channels
-			- dim (type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-			- deconvolve (type: bool): Whether to apply deconvolution. Default is False.
-			- window_size (type: int or None): The size of the moving window to compute the average autocorrelation.
-			  If None, the average of all autocorrelations is used. Default is None.
-			- **imshow_kwargs: kwargs to be passed to plt.imshow()
-		:Return:
-			- acfs (type:numpy): 2D matrix containing the positive lag-time/space, normalized autocorrelation functions
-		'''
+		computes autocorrelation profile, see fiber.tools.wavefield.autocorrelation_profile
+        for more details
 
-		axis = self.__axis__(dim)
+	    '''
+		axis = self.__axis__('t')
+
 		max_shift = int(max_lag*self.sampling_frequency)
-		if (dim == 't' and max_shift >= self.num_points) or (dim == 'd' and max_shift >= self.total_channels):
-			raise ValueError('selected max_shift is too large, must be smaller than number of time samples if dim="t" or smaller than number of channels if dim="d"')
 
-		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis,
-                                                   dim, plot_mode, deconvolve,
-                                                   window_size, self.total_channels,
-                                                   self.distances, self.sampling_frequency,
-                                                   **imshow_kwargs)
-		return acf
+		if max_shift >= self.num_points:
+			raise ValueError('selected max_shift is too large')
+
+		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
+                                                deconvolve, self.total_channels,
+                                                self.distances, self.sampling_frequency,
+                                                window_size=window_size, **imshow_kwargs)
+
+		if result:
+			return acf
+
 
 
 	def spatial_coherence(self, max_lag, result=False, plot=True):
+		'''
+		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
+		for more details
+	    '''
+
 		coh = wavefield.spatial_coherence_matrix(data=self.data.T,
                                            max_lag=max_lag,
                                            fs=self.sampling_frequency,
@@ -1366,13 +1139,7 @@ recording parameters:
 
 	def explore(self):
 		'''
-		Co-authors: Jonas Pätzel
-		Description:
-			starts the Fobench Data Explorer Window
-		:Params:
-			- NA
-		:Return:
-			- NA
+        launches the Fobench Data Explorer
 		'''
 
 		print(f'{"-"*65}\nStarting Fobench Data Explorer')

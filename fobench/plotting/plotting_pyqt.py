@@ -13,25 +13,33 @@ from pyqtgraph.Qt import QtWidgets, QtGui
 
 
 '''
-####################################################
-Line Plot Functions Below
-####################################################
+-----------------------------------------------------------------
+Line Plot Functions
+-----------------------------------------------------------------
 '''
 
 def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
                     title:str = '') -> None:
     '''
-    Co-authors: Jonas Pätzel
-    Description:
-        generate generic time series plot using PyQtGraph, ideal for channel plots
-    :Params:
-        - timestamps(type:numpy): array containing Unix timestamps of data
-        - data(type: numpy): array containing data to plot
-        - y_label(type: str): y-axis label
-        - title(type: str): title of plot
-    :Return:
-        - NA
+    generate generic time series plot using PyQtGraph, ideal for channel plots
+
+    Parameters
+    ----------
+    timestamps : np.ndarray
+        array containing Unix timestamps of data.
+    data : np.ndarray
+        array containing data to plot.
+    y_label : str, optional
+        y-axis label. The default is ''.
+    title : str, optional
+        title of plot. The default is ''.
+
+    Returns
+    -------
+    None
+        -
     '''
+
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
@@ -69,9 +77,9 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
 
 
 '''
-####################################################
-Matrix Plot Functions Below
-####################################################
+-----------------------------------------------------------------
+Matrix Plot Functions
+-----------------------------------------------------------------
 '''
 
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
@@ -79,18 +87,32 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                        title: str = '', cmap:str = 'seismic',
                        cbar_label:str = '') -> None :
     '''
-    Co-authors: Jonas Pätzel
-    Description:
-        generate generic matrix plot where x-axis represents time, e.g.
-        waterfall visualisation of data or spectrograms,PSDs, RMSA ...
-    :Params:
-        - timestamps(type:numpy): array containing Unix timestamps of data
-        - data(type: numpy 2D): array containing data to plot
-        - y_label(type: str): y-axis label
-        - title(type: str): title of plot
-        - max_value(type:float): value that sets limits of colorbar
-    :Return:
-        - None
+    generate generic matrix plot where x-axis represents time, e.g.
+    waterfall visualisation of data or spectrograms,PSDs, RMSA ...
+
+    Parameters
+    ----------
+    timestamps : np.ndarray
+        array containing Unix timestamps of data.
+    data : np.ndarray
+        array containing data to plot.
+    y_ticks : list
+        y-axis tick labels.
+    max_value : float, optional
+        value that sets limits of colorbar. The default is None.
+    y_label : str, optional
+        y-axis label. The default is ''.
+    title : str, optional
+        plot title. The default is ''.
+    cmap : str, optional
+        colormap to use. The default is 'seismic'.
+    cbar_label : str, optional
+        label of colorbar. The default is ''.
+
+    Returns
+    -------
+    None
+        -.
     '''
 
     app = QtWidgets.QApplication.instance()
@@ -171,18 +193,35 @@ def plot_2d_distance(distances: np.ndarray, data: np.ndarray, y_ticks: list,
                      title: str = '', cmap:str = 'seismic',
                      cbar_label:str = '', invert_y=False) -> None :
     '''
-    Co-authors: Jonas Pätzel
-    Description:
-        generate generic matrix plot where x-axis represents distance
-    :Params:
-        - distances(type:numpy): array containing optical distances of channels
-        - data(type: numpy 2D): array containing data to plot
-        - y_label(type: str): y-axis label
-        - title(type: str): title of plot
-        - max_value(type:float): value that sets limits of colorbar
+    generate generic matrix plot where x-axis represents distance
 
-    :Return:
-        - None
+    Parameters
+    ----------
+    distances : np.ndarray
+        array containing optical distances of channels.
+    data : np.ndarray
+        array containing data to plot.
+    y_ticks : list
+        y-axis tick labels.
+    max_value : float, optional
+        value that sets limits of colorbar. The default is None.
+    y_label : str, optional
+        y-axis label. The default is ''.
+    x_label : str, optional
+        x-axis label. The default is 'Optical Distance [m]'.
+    title : str, optional
+        title of plot. The default is ''.
+    cmap : str, optional
+        colormap to use. The default is 'seismic'.
+    cbar_label : str, optional
+        label of colorbar. The default is ''.
+    invert_y : TYPE, optional
+        invert y-axis. The default is False.
+
+    Returns
+    -------
+    None
+        -.
     '''
 
     app = QtWidgets.QApplication.instance()

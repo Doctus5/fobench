@@ -51,6 +51,12 @@
 -taper_window is replaced by get_tukey_window, now only calling scipy.signal.windows.tukey, this is also called in filt_preprocess
 and Fiber.taper which before redundantly implemented tapering again.
 
+-seperate taper function, detaper method removed and integrated into taper function
+
+-read module renamed to file_io
+
+-filter module renamed to filters, filter is already reserved in python
+
 -print statement when reading data replaced by progress bar for consistency
 
 ###################################################################################################################################
