@@ -4,6 +4,8 @@ signal processing functions except filtering
 
 import numpy as np
 import scipy.signal as signal
+import scipy.integrate as integrate
+
 from tqdm import tqdm
 
 def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
@@ -47,6 +49,61 @@ def envelope(data: np.ndarray, axis: int = 0)-> np.ndarray:
 	#env = (data**2 + ht**2)**0.5 #obspy version
 
     return env
+
+def integrate_signal(data: np.ndarray, dx: int, axis: int)-> np.ndarray:
+    '''
+    integrates data in space or time using the cumulative trapezoid method
+
+    Parameters
+    ----------
+    data : np.ndarray
+        data to integrate
+    dx : int
+        time or space sampling.
+    axis : int
+        axis along which to apply operation.
+
+    Returns
+    -------
+    np.ndarray
+        integrated and detrended data
+
+    '''
+
+    integ = integrate.cumulative_trapezoid(y=data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
+    return signal.detrend(integ, axis=axis)
+
+
+def differentiate_signal(data: np.ndarray, method: str, axis: int, dt: int)-> np.ndarray:
+    '''
+	differentiates data in time or space
+
+    Parameters
+    ----------
+    data : np.ndarray
+        data to differentate.
+    method : str
+        sets the prefered method for differentiation. can be 'gradient' or 'diff',
+        when using 'diff' data is prepended with inital value along specified axis.
+    axis : int
+        axis along which to apply operation.
+    dt : int
+        sampling period of data.
+
+    Returns
+    -------
+    diff : np.ndarray
+        differentiated data.
+
+    '''
+
+    if method == 'gradient':
+        diff = np.gradient(data, dt, axis=axis)
+    elif method == 'diff':
+        padding = np.take(data, [0], axis=axis)
+        diff = np.diff(data, axis=axis, prepend=padding) / dt
+
+    return diff
 
 def detrend_signal(o_signal: np.ndarray, order: int, axis:int =-1)-> np.ndarray:
     '''
@@ -100,7 +157,7 @@ def demean_signal(o_signal: np.ndarray, axis: int = None)-> np.ndarray:
     Parameters
     ----------
     o_signal : np.ndarray
-        DESCRIPTION.
+        signal(s) to demean.
     axis : int, optional
         axis along which to apply demeaning. The default is None.
 
@@ -158,8 +215,8 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
     np.ndarray
         tapered data array.
     '''
-
     M = data.shape[axis]
+
     taper = get_tukey_window(M, alpha, sym=True)
 
     taper = taper[:, None] if axis == 0 else taper[None, :]
@@ -341,43 +398,10 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
   	  	whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
     return whitened_matrix
 
-def peak_to_peak_amp(data, sampl_freq, axis=0):
-	'''
-	Co-authors: --
-	Description:
-		Fiber Class method to find the peak to peak amplitude of the waveforms all across the channels.
-	:Params:
-		- data(type: numpy): numpy data fo DAS. rows are time steps and columns are channles/stations.
-		- sampl_freq(type: float): sampling frequency of the data.
-		- axis(type: int): axis to apply the method. Default is 0.
-	:Return:
-		- pp_amp(type: numpy): 1D array containing the peak to peak values per channel.
-	'''
 
-	peak_up, up_index = data.max(axis=axis), np.argmax(data, axis=axis)
-	peak_down, down_index = data.min(axis=axis), np.argmin(data, axis=axis)
-	pp_amp = peak_up - peak_down
 
-	bad_picking = np.abs((up_index - down_index)) > sampl_freq/2
-	bad_picking = list(np.where(bad_picking == True)[0])
-
-	if bad_picking:
-
-		windows = [j for j in range(0, data.shape[0], int(sampl_freq/4))]
-		pp =  np.zeros(len(bad_picking))
-
-		#for pos in bad_picking:
-		for i in range(len(windows)-1):
-
-			index, index_1 = windows[i], windows[i+1]
-			new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
-			pp[new_pp > pp] = new_pp[new_pp > pp]
-
-		pp_amp[bad_picking] = pp
-
-	return pp_amp # try to return also indexes of maximum and minimum!
-
-def spectrum(o_signal, sampling_rate, pre_processing=True, order=1, pad=0, nfft=None):
+def spectrum(o_signal, fs, pre_processing=True, order=1, pad=0, nfft=None,
+             axis=None):
 	'''
 	Co-authors: --
 	Description:
@@ -393,22 +417,19 @@ def spectrum(o_signal, sampling_rate, pre_processing=True, order=1, pad=0, nfft=
         - magnitude(type:Numpy): amplitude values of spectral curve of the signal.
 	'''
 
-	if pre_processing == True:
-
-		o_signal = filt_preprocess(o_signal, order)
+	if pre_processing:
+		o_signal = filt_preprocess(io_signal=o_signal, order=order, axis=axis)
 
 	o_signal = np.pad(o_signal, (pad-1, pad), mode='constant') if pad > 0 else o_signal # pad the signal to add points.
 
 	n = len(o_signal) if nfft is None else nfft*len(o_signal)
 	fft = np.fft.fft(o_signal, n=n)
-
-    # Calculate the frequency axis
-	freq_axis = np.fft.fftfreq(n, 1 / sampling_rate)
+	# Calculate the frequency axis
+	freq_axis = np.fft.fftfreq(n, 1 / fs)
 
     # Take the positive frequencies and their corresponding magnitudes
 	positive_freqs = freq_axis[:n//2]
 	magnitude = 2/n * np.abs(fft)[:n//2]
-
 	return positive_freqs, magnitude
 
 

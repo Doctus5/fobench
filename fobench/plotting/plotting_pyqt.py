@@ -75,6 +75,64 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
 
     pg.exec()
 
+def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
+                    x_label: str = '', title:str = '') -> None:
+    '''
+    generate generic distances series plot using PyQtGraph
+
+    Parameters
+    ----------
+    distances : np.ndarray
+        array containing optical distances values
+    data : np.ndarray
+        array containing data to plot.
+    y_label : str, optional
+        y-axis label. The default is ''.
+    x_label : str, optional
+        x-axis label. The default is ''.
+    title : str, optional
+        title of plot. The default is ''.
+
+    Returns
+    -------
+    None
+        -
+    '''
+
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
+    win = pg.GraphicsLayoutWidget(show=True)
+    win.setWindowTitle(f'Fobench: {title}')
+    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w') # white bg
+    win.resize(1200, 500)
+
+    plot = win.addPlot(title=title)
+    plot.setTitle(title, size='20pt', color='k')
+    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.plot(distances, data, pen=pg.mkPen('k', width=1))
+
+    # y axis
+    y_axis = plot.getAxis('left')
+    y_axis.setPen(pg.mkPen('k', width=2))
+    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
+    y_axis.setTextPen(pg.mkPen('k'))
+
+    # x-axis
+    x_axis = plot.getAxis('bottom')
+    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
+    x_axis.setPen(pg.mkPen('k', width=2))
+    x_axis.setTextPen(pg.mkPen('k'))
+    x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.setXRange(min(distances), max(distances), padding=0)
+    plot.getViewBox().setLimits(xMin=min(distances), xMax=max(distances),
+                                yMin=min(data), yMax=max(data))
+
+    pg.exec()
+
+
 
 '''
 -----------------------------------------------------------------

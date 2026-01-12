@@ -23,7 +23,6 @@ from tqdm import tqdm
 
 import numpy as np
 import scipy.signal as signal
-import scipy.integrate as integrate
 from scipy.fft import fftshift, ifftshift, fft2, ifft2
 
 from obspy.core import UTCDateTime as UTC
@@ -40,11 +39,11 @@ from .plotting.pyqt_explorer import Explorer
 
 class Fiber(object):
 	'''
-	IMPORTANT INFO: Most of the methods perform changes within the class permanently. Therefore it is useful to make a copy of the fiber instance
-	with the method .copy() before performing any processing or changes.
+	IMPORTANT INFO: Most of the methods perform changes within the class permanently.
+    Therefore it is useful to make a copy of the fiber instance with the method
+    .copy() before performing any processing or changes.
 	'''
 
-	#Creates the basic variables of the DAS object with its characteristics
 	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
 		'''
 		Co-authors: --
@@ -104,9 +103,9 @@ class Fiber(object):
 		self.ch_coord = None # coordinates of channels.
 
 	'''
-	####################################################
+	-----------------------------------------------------------------
 	Internal methods
-	####################################################
+	-----------------------------------------------------------------
 	'''
 
 
@@ -132,9 +131,6 @@ class Fiber(object):
 			raise TypeError('Object to add must be instance of Fiber class')
 		return self.concatenate(other, fill_gaps=0)
 
-
-	# Translates the string inout dimension into numerical axis of numpy.
-	# If there is a change in how data matrix is opperated from now on, can be regulated from here instead throug all methods.
 	def __axis__(self, dim):
 		'''
 		Co-authors: --
@@ -153,9 +149,9 @@ class Fiber(object):
 
 
 	'''
-	####################################################
+	-----------------------------------------------------------------
 	Standard methods
-	####################################################
+	-----------------------------------------------------------------
 	'''
 
 
@@ -191,7 +187,6 @@ class Fiber(object):
 		return copy.deepcopy(self)
 
 
-	#Performs instrument correction on the data to get the strain rate values.
 	def instr_correct(self, target='strain-rate'):
 		'''
 		Co-authors: --
@@ -420,12 +415,11 @@ class Fiber(object):
 
 
 	'''
-	####################################################
+	-----------------------------------------------------------------
 	Signal Processing methods
-	####################################################
+	-----------------------------------------------------------------
 	'''
 
-	#function for upsampling spatially by double/half depending if it is upsampling or downsampling spatially.
 	@utils._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
@@ -507,7 +501,6 @@ class Fiber(object):
 		return self
 
 
-	#Function to decimate the data by any frequency below the original. Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...). The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
 	@utils._update_processing
 	def decimate(self, new_freq=None, ftype='fir-remez'):
 		'''
@@ -579,7 +572,6 @@ class Fiber(object):
 
 	    return self
 
-	# Function for filtering. Shall we also declare dimensionality options here?
 	@utils._update_processing
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
@@ -606,8 +598,6 @@ class Fiber(object):
 
 		return self
 
-
-	# Function to make a fk-filter based on the input parameters.
 	@utils._update_processing
 	def fk_filter(self, freq_min, freq_max, k_min, k_max):
 		'''
@@ -639,69 +629,38 @@ class Fiber(object):
 		return np.abs(data_fk) #filt_data
 
 
-	#Function for integrating the signal
 	@utils._update_processing
-	def integrate(self, method='cum_trapezoid', dim='t', taper=True):
+	def integrate(self, dim='t', taper=True):
 		'''
-		Co-authors: --
-		Description:
-			Integrates the data in time (dim='t') or in space (dim='d').
-		:Params:
-			- method(type: String): sets the prefered method for integration. Default and only one is "cum_trapezoid" as cumulative trapezoid
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-			- taper(type: Boolean): Decided wether to apply a taper to the signal before integration to avoid offsets or trends (recommended).
-			Default is True.
-		:Return:
-			- NA.
+        integrates data using cum-trapezoids methods, tapers data by default
+        see fobench.fiber.stools.signals.integrate_signal for more details
 		'''
 
 		axis = self.__axis__(dim)
 		dx = self.dt if axis == 0 else self.spatial_interval
 
-		if taper:
-			self.taper(dim=dim)
-
-		if method == 'cum_trapezoid':
-			result = integrate.cumulative_trapezoid(y=self.data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
-
-		result = signal.detrend(result, axis=axis) #to detrend the signal
-
-		#if taper == True:
-
-		#	self.detaper(axis=axis)
-
-		self.data = result
+		if taper: self.taper(dim=dim)
+		self.data = signals.integrate_signal(data=self.data, dx=dx, axis=axis)
 
 		return self
 
-
-	#Function for differentiating the signal
 	@utils._update_processing
 	def differentiate(self, method='gradient', dim='t'):
 		'''
-		Co-authors: --
-		Description:
-			Differentiates the data in time (dim='t') or in space (dim='d').
-		:Params:
-			- method(type:String): sets the prefered method for differentiation. can be 'gradient' or 'diff', when using 'diff' data is prepended with inital value along specified axis
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- NA.
+        differentiate data in space or time, methods are 'gradient' or  'diff'
+        see fobench.fiber.tools.signals.differentiate_signal for more details
 		'''
 
+		if method not in ['gradient', 'diff']:
+			raise ValueError(f'\nInvalid method: "{method}". Choose on of:\n'
+                    ' -"gradient"\n -"diff"')
+
 		axis = self.__axis__(dim)
-		if method == 'gradient':
-			result = np.gradient(self.data, self.dt, axis=axis)
-		elif method == 'diff':
-			padding = np.take(self.data, [0], axis=axis)
-			result = np.diff(self.data, axis=axis, prepend=padding) / self.dt
-		else:
-			raise ValueError(f'Invalid method: "{method}". Choose "gradient" or "diff"')
-		self.data = result
+		self.data = signals.differentiate_signal(self.data, method=method,
+                                           axis=axis, dt=self.dt)
 
 		return self
 
-	#Function for calculating the Signal to Noise Ratio. The method is based on the simple SNR from scipy at version 0.4.0 (old version, not present in recent versions). Doing it with Power Spectral energies might be something in future. For now let's keep it simple.
 	def SNR(self, dim='t'):
 		'''
 		Co-authors: --
@@ -724,7 +683,6 @@ class Fiber(object):
 		return sd
 
 
-	#Function for plotting or returning the Root-Mean-Square amplitude (RMS-A) of the data.
 	def rmsa(self, window=None, overlap=None, dim='t', make_plot=False):
 		'''
 		Co-authors: --
@@ -758,103 +716,65 @@ class Fiber(object):
 		return times, np.array(rms_a)
 
 
-	# Function for peak to peak amplitude calculation in every channel.
-	def pp_amp(self, dim='t'):
+	def p2p_amp(self, dim='t', result=True, plot_mode='pyqt'):
 		'''
-		Co-authors: --
-		Description:
-			Calculate the peak to peak amplitude values per available channels.
-		:Params:
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- ptp_amplitude(type: numpy): complete path of the resulting file.
+        computes peak-to-peak amplitude of data in time or space
+        see fobench.fiber.tools.wavefield.peak_to_peal_amp for more details
 		'''
 
 		axis = self.__axis__(dim)
-		ptp_amplitude = signals.peak_to_peak_amp(self.data, self.sampling_frequency, axis=axis)
+		p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
+                                             self.sampling_frequency, axis=axis)
+		if plot_mode=='pyqt' and dim=='t':
+        		plot_pyqt.plot_distance(distances=self.distances, data=p2p_amplitude,
+                              y_label='Amplitude', x_label='Optical Distance [m]',
+                              title='Peak-to-Peak Amplitude Profile')
 
-		return ptp_amplitude
+		elif plot_mode=='pyqt' and dim=='d':
+        		plot_pyqt.plot_timeseries(timestamps=self.times(time_type='unix'), data=p2p_amplitude,
+                                    y_label='Amplitude',
+                                    title='Peak-to-Peak Amplitude over time')
+
+		if result:
+			return p2p_amplitude, up_index, down_index
 
 
 
 	'''
-	####################################################
-	Plotting methods below...
-	Also proper from the Class
-	####################################################
+	-----------------------------------------------------------------
+	Plotting methods
+    -----------------------------------------------------------------
 	'''
 
-
-	#Function to plot spectrogram agains channels for an specific window defined by the actual length or start/end times of the DAS object. In order to avoid by computation time, please remember to trim first the DAS object to the time window of interest and/or restrict the number of channels before executing this function.
-	def spectrogram(self, norm=False, max_value=None, order=1, nfft=None, figsize=None, show=True, cmap='viridis', results=False, file_name=None, where=None, plot_mode='pyqt', **kwargs):
+	def fx_plot(self, norm=False, max_value=None, order=1, nfft=None, figsize=None,
+                 show=True, cmap='viridis', results=False, file_name=None,
+                 where=None, plot_mode='pyqt', **kwargs):
 		'''
-		Co-authors: --
-		Description:
-			Plots the spectrogram of the DAS Class by channel instead of time dependent. The time window is defined by the actual start-time
-			and end-time of the DAS Class. To avoid large computation times, better to use the trim() function of the class to first trim
-			the data in time to the time-window of interest and then execute the spectrogram plot function.
-		:Params:
-			- norm(type:Boolean; optional): in case of True, each channel spectrum is normalized by its maximum value, so then the colorscale is not affected
-			by the global maximum. Default = False.
-			- order (type:Int): order number for detrending. Default is 1.
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, but the figure instance would be open
-			so the user can add further changes. Default = True.
-			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section).
-			Default = True.
-   			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-		:Return:
-			- NA.
+        computes frequency-distance plot
+        see fobench.tools.wavefield.frequency_content for more details
+        fobench.plotting.plotting_mpl for matplotlib plotting options
+
 		'''
 
-		spectrogram = []
+		axis = self.__axis__('t')
 
-		for i in tqdm(range(self.total_channels), desc='Comptung Frequency Content', leave=False):
+		fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
+                                           order=order, nfft=nfft, norm=norm, axis=axis)
 
-			o_signal = self.data[:,i] #- self.data[:,i].mean()
-			#N = len(o_signal)
+		if plot_mode == 'pyqt':
+			plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs,
+                        data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap, max_value=max_value,
+                           y_label='Frequency [Hz]', title='Frequency content over optical distance')
 
-			#Pre-process
-			#o_signal = tools.detrend_signal(o_signal) #detrend
-			#o_signal -= o_signal.mean() #demean
-			#o_signal *= signal.windows.tukey(M=self.num_points, alpha=0.05*2) #taper
-
-			#powers = np.abs(rfft(o_signal)) #produce real and imaginary.
-
-			#if i == 0:
-
-			#	freqs = rfftfreq(N, 1 / self.sampling_frequency)
-
-			#fft_values = np.flip(powers/powers.max()) if norm == True else np.flip(powers)
-			#fft_values  = signal.savgol_filter(fft_values, 10, 2)
-
-			freqs, fft_values = signals.spectrum(o_signal, self.sampling_frequency, True, order, int(self.num_points/4), nfft)
-			fft_values = fft_values/fft_values.max() if norm == True else fft_values
-			#fft_values  = signal.savgol_filter(fft_values, 10, 2) # to smooth the surve
-
-			spectrogram.append(fft_values)
-		spectrogram = np.array(spectrogram).T
+		elif plot_mode == 'mpl':
+			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
+                     max_value=max_value, units_y='Energy', figsize=figsize,
+                     title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name,
+                     where=where, **kwargs)
 
 		if results == True:
-			return freqs, spectrogram
+			return fx, freqs
 
-		else:
-			if plot_mode == 'pyqt':
-				plot_pyqt.plot_2d_distance(distances=self.distances,
-                               y_ticks=freqs, data=np.flip(np.rot90(spectrogram, k=1), axis=0),
-                               cmap=cmap, max_value=max_value,
-                               y_label='Frequency [Hz]',
-                               title='Frequency content over optical distance')
-
-			elif plot_mode == 'mpl':
-				plot.gen_spectrogram(spec_matrix=spectrogram[::-1], freqs=freqs,
-                         x=self.channels_num, max_value=max_value, units_y=self.units,
-                         figsize=figsize, title=self.start_time.isoformat()[:10],
-                         cmap=cmap, show=show, file_name=file_name,
-                         where=where, **kwargs)
 
 	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
 	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True,

@@ -109,23 +109,34 @@ def simple_plot(data, t, channel='', units_y=None, max_value=None, spectrogram=F
 
 #Function for the DAS spectrogram in the class DAS. Channels and the spectrogram matrix must already be computed and passed as an input. This is done in the DAS class under the method spectrogram().
 def gen_spectrogram(spec_matrix=None, freqs=None, x=None, max_value=None, units_y=None, figsize=None, cmap='viridis', title=None, show=True, file_name=None, where=None, **kwargs):
+    '''
+    - figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
 
-	fig, ax = plt.subplots() if figsize is None else plt.subplots(figsize=figsize)
+     (type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, but the figure instance would be open
+     			so the user can add further changes. Default = True.
+ 			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
 
-	plt.ylabel('Frequency [Hz]', fontsize=15)
-	plt.xlabel('Channel', fontsize=15)
-	extent = (x[0], x[-1]+1, freqs[0], freqs[-1])
+			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
+ 			(f.e.: "example.png"). Default = None.
+ 			- where(type:String; optional): path of the directory where the plot wants to be saved.
 
-	cm = ax.imshow(spec_matrix, cmap=cmap, vmin=0, vmax=max_value, extent=extent, aspect='auto', interpolation='none', **kwargs)
-	plt.colorbar(cm, ax=ax, label=units_y)
+    '''
+    fig, ax = plt.subplots() if figsize is None else plt.subplots(figsize=figsize)
 
-	ax.set_title(title, fontsize=20)
-	ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labelleft=True, labeltop=True, rotation=0)
+    plt.ylabel('Frequency [Hz]', fontsize=15)
+    plt.xlabel('Channel', fontsize=15)
+    extent = (x[0], x[-1]+1, freqs[0], freqs[-1])
 
-	if show == True:
-		plt.show()
-	if file_name is not None:
-		fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
+    cm = ax.imshow(spec_matrix, cmap=cmap, vmin=0, vmax=max_value, extent=extent, aspect='auto', interpolation='none', **kwargs)
+    plt.colorbar(cm, ax=ax, label=units_y)
+
+    ax.set_title(title, fontsize=20)
+    ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labelleft=True, labeltop=True, rotation=0)
+
+    if show == True:
+        plt.show()
+    if file_name is not None:
+        fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
 
 
 #Functino for plotting spectrogram in time for one channel in class DAS.

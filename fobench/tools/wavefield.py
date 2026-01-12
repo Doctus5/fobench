@@ -1,6 +1,7 @@
 import numpy as np
 from obspy.signal.cross_correlation import correlate
 from tqdm import tqdm
+from fobench.tools import signals
 from fobench.plotting.plotting_pyqt import plot_2d_distance
 from fobench.plotting.plotting_mpl import plot_acfs
 
@@ -134,6 +135,89 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
                   max_shift=max_shift, **imshow_kwargs)
 
     return result
+
+def rmsa_profile():
+    pass
+
+def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    '''
+    finds peak-to-peak amplitude of data
+
+    Parameters
+    ----------
+    data : np.ndarray
+        DESCRIPTION.
+    fs : int
+        sampling frequency of data
+    axis : int
+        axis along which to apply operation.
+
+    Returns
+    -------
+    pp_amp : np.ndarray
+        peak-to-peak amplitudes.
+    up_index : np.ndarray
+            indices of minima.
+    up_index : np.ndarray
+            indices of maxima.
+    '''
+
+    peak_up, up_index = data.max(axis=axis), np.argmax(data, axis=axis)
+    peak_down, down_index = data.min(axis=axis), np.argmin(data, axis=axis)
+    pp_amp = peak_up - peak_down
+
+    bad_picking = np.abs((up_index - down_index)) > fs/2
+    bad_picking = list(np.where(bad_picking == True)[0])
+
+    if bad_picking:
+        windows = [j for j in range(0, data.shape[0], int(fs/4))]
+        pp =  np.zeros(len(bad_picking))
+
+        #for pos in bad_picking:
+        for i in range(len(windows)-1):
+
+            index, index_1 = windows[i], windows[i+1]
+            new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
+            pp[new_pp > pp] = new_pp[new_pp > pp]
+        pp_amp[bad_picking] = pp
+
+    return pp_amp, up_index, down_index
+
+def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: bool,
+                      axis: int):
+    '''
+    Parameters
+    ----------
+    data : np.ndarray
+        data to transform.
+    fs : int
+        sampling frequency.
+    order : int
+        order of polynomial for detrending.
+    nfft : int
+        number of points to use for fft.
+    norm : bool
+        normalized each spectrum by its maximum value for better plotting
+    axis : int
+        axis along which to  perform the operation.
+
+    Returns
+    -------
+    amp : np.ndarray
+        fft amplitude values.
+    freq : np.ndarray
+        frequencies.
+    '''
+
+    data = signals.filt_preprocess(data, axis=axis, order=order)
+
+    n = data.shape[axis] if nfft is None else nfft
+    fft = np.fft.rfft(data, n=n, axis=axis)
+    freq = np.fft.rfftfreq(n, 1/fs)
+    amp = np.abs(fft) / fft.max() if norm else np.abs(fft)
+
+    return amp, freq
+
 
 def fk_transform(data: np.ndarray, dt: float, dx: int, plot:str ='pyqt') -> tuple[np.ndarray, np.ndarray, np.ndarray]:
 

@@ -55,6 +55,8 @@ and Fiber.taper which before redundantly implemented tapering again.
 
 -read module renamed to file_io
 
+-spectrogram method renamed to fx_plot to avoid confusion with real time spectrogram, now calls signals.frequency_content which works now without loop
+
 -filter module renamed to filters, filter is already reserved in python
 
 -print statement when reading data replaced by progress bar for consistency
