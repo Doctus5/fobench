@@ -13,11 +13,11 @@ from pyqtgraph.Qt import QtCore, QtWidgets, QtGui
 class Explorer(QtWidgets.QMainWindow):
     def __init__(self, Fiber):
         super().__init__()
-        
+
         # Set background color to white
         pg.setConfigOption('background', 'w')
         pg.setConfigOption('foreground', 'k')
-        
+
         # set up Fiber class information
         self.Fiber = Fiber
         self.times = self.Fiber.times(time_type='unix')
@@ -55,7 +55,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.hist = pg.HistogramLUTItem(image=self.matrix_image)
         self.hist.gradient.setColorMap(pg.colormap.get('seismic', source='matplotlib'))
         self.matrix_plot_widget.addItem(self.hist)
-        
+
         # tabs
         self.tab_widget = QtWidgets.QTabWidget()
         main_layout.addWidget(self.tab_widget, stretch=1)  # Tab widget takes 1 part of the layout
@@ -89,7 +89,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.slider.setValue(self.selected_channel)
         self.slider.valueChanged.connect(self.on_slider_changed)
         bottom_layout.addWidget(self.slider)  # slider to the right of the spin box
-        
+
         # colorbar max percentile spinbox
         self.cbar_spinbox = QtWidgets.QDoubleSpinBox()
         self.cbar_spinbox.setRange(0.0, 100.0)
@@ -104,13 +104,13 @@ class Explorer(QtWidgets.QMainWindow):
 
         # dropdown methods menu
         self.dropdown = QtWidgets.QComboBox()
-        self.dropdown.addItems(['Methods', 'Spectrogram', 'PSD', 'RMSA', 'P2PA'])
+        self.dropdown.addItems(['Methods', 'Spectrogram', 'PSD', 'Spectrum', 'RMSA', 'P2PA'])
         self.dropdown.currentIndexChanged.connect(self.on_dropdown_changed)
         bottom_layout.addWidget(self.dropdown)  # dropdown menu to the right of the slider
 
         self.update_plots()
 
-    # detect clicking on matrix and update 
+    # detect clicking on matrix and update
     def on_matrix_clicked(self, event):
         if event.button() == QtCore.Qt.LeftButton:
             pos = self.matrix_image.mapFromScene(event.scenePos())
@@ -143,6 +143,8 @@ class Explorer(QtWidgets.QMainWindow):
             self.plot_p2pa()
         if self.dropdown.currentText() == 'PSD':
             self.plot_psd()
+        if self.dropdown.currentText() == 'Spectrum':
+            self.plot_spectrum()
         self.dropdown.setCurrentIndex(0)  # Reset dropdown to 'Methods'
 
     def update_plots(self):
@@ -175,10 +177,10 @@ class Explorer(QtWidgets.QMainWindow):
         spectrogram_image.setImage(spectrogram_data, levels=(spectrogram_data.min(), spectrogram_data.max()))
         lut = pg.colormap.get('viridis', source='matplotlib').getLookupTable()
         spectrogram_image.setLookupTable(lut)
-        
+
         x_min, x_max = self.times[0], self.times[-1]
         y_min, y_max = min(freqs), max(freqs)
-        
+
         spectrogram_image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
         spectrogram_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                                 yMin=y_min, yMax=y_max)
@@ -206,7 +208,7 @@ class Explorer(QtWidgets.QMainWindow):
         rmsa_plot.setLabel('left', 'RMS Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
         # get RMSA data
-        rmsa_data = self.Fiber.rmsa()[1][0]
+        rmsa_data = self.Fiber.rmsa(results=True, plot_mode=None)[1][0,:]
 
         # plot RMSA data
         rmsa_curve = rmsa_plot.plot(self.Fiber.distances, rmsa_data, pen='k')
@@ -236,13 +238,13 @@ class Explorer(QtWidgets.QMainWindow):
         p2pa_plot = p2pa_plot_widget.addPlot()
 
         # get p2pa data
-        p2pa_data = self.Fiber.pp_amp()
+        p2pa_data = self.Fiber.p2p_amp(plot_mode=None)[0]
 
         # plot p2pa data
         p2pa_curve = p2pa_plot.plot(self.Fiber.distances, p2pa_data, pen='k')
         p2pa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
         p2pa_plot.setLabel('left', 'P2P Amplitude', **{'color': 'k', 'font-size': '10pt'})
-        
+
         p2pa_plot.setXRange(self.Fiber.distances[0], self.Fiber.distances[-1], padding=0)
         p2pa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
                                     yMin=min(p2pa_data), yMax=max(p2pa_data))
@@ -256,17 +258,18 @@ class Explorer(QtWidgets.QMainWindow):
         self.tab_widget.addTab(p2pa_plot_widget, 'P2PA')
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
         self.tab_widget.setCurrentWidget(p2pa_plot_widget)
-        
+
     def plot_psd(self):
         psd_plot_widget = pg.GraphicsLayoutWidget()
         psd_plot = psd_plot_widget.addPlot()
 
-        freqs, amps = self.Fiber.spectrum(self.selected_channel, s_type='psd', results=True)
-        
+        freqs, amps = self.Fiber.spectrum(self.selected_channel, mode='psd',
+                                          plot_mode=None, results=True)
+
         psd_curve = psd_plot.plot(freqs, amps, pen='k')
         psd_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
         psd_plot.setLabel('left', 'PSD Amplitude', **{'color': 'k', 'font-size': '10pt'})
-        
+
         psd_plot.setXRange(freqs[0], freqs[-1], padding=0)
         psd_plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
                                     yMin=min(amps), yMax=max(amps))
@@ -280,6 +283,31 @@ class Explorer(QtWidgets.QMainWindow):
         self.tab_widget.addTab(psd_plot_widget, f'PSD Ch: {self.selected_channel}')
         self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
         self.tab_widget.setCurrentWidget(psd_plot_widget)
+
+    def plot_spectrum(self):
+        spec_plot_widget = pg.GraphicsLayoutWidget()
+        spec_plot = spec_plot_widget.addPlot()
+
+        freqs, amps = self.Fiber.spectrum(self.selected_channel, mode='spectrum',
+                                          plot_mode=None, results=True)
+
+        spec_curve = spec_plot.plot(freqs, amps, pen='k')
+        spec_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
+        spec_plot.setLabel('left', 'FFT Amplitude', **{'color': 'k', 'font-size': '10pt'})
+
+        spec_plot.setXRange(freqs[0], freqs[-1], padding=0)
+        spec_plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
+                                    yMin=min(amps), yMax=max(amps))
+
+        # close button
+        close_button = QtWidgets.QToolButton()
+        close_button.setText('X')
+        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(spec_plot_widget)))
+
+        # add new tab
+        self.tab_widget.addTab(spec_plot_widget, f'FFT Ch: {self.selected_channel}')
+        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
+        self.tab_widget.setCurrentWidget(spec_plot_widget)
 
     def close_tab(self, index):
         self.tab_widget.removeTab(index)

@@ -42,6 +42,9 @@ class Fiber(object):
 	IMPORTANT INFO: Most of the methods perform changes within the class permanently.
     Therefore it is useful to make a copy of the fiber instance with the method
     .copy() before performing any processing or changes.
+
+    For all methods 'plot_mode' parameter can either be 'pyqt' or 'mpl', to not generate plot set
+    to anything else, e.g. None
 	'''
 
 	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
@@ -683,43 +686,43 @@ class Fiber(object):
 		return sd
 
 
-	def rmsa(self, window=None, overlap=None, dim='t', make_plot=False):
+	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False):
 		'''
-		Co-authors: --
-		Description:
-			Calculates a RMS-Amplitude along the traces. Still under construction or need evaluation for approval.
-		:Params:
-			- window(type:Float): moving window length in seconds to use for the RMS-A calculation. Default is the time length of the data.
-			- overlap(type:Float): overlapping time between windows. Still under construction. DO NOT USE.
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-			- make_plot(type: Bool): if set to True plot of the RMSA witll be generated
-		:Return:
-			- times(type:Numpy): array of the new times per each RMS-A value.
-			- rms_a(type:Numpy): array containing the RMS-A values.
+        computes root mean square amplitude for record
+        see fobench.tools.wavefield.rmsa for more details
 		'''
 
 		axis = self.__axis__(dim)
 		window = self.time_length if window == None else window
-		times_d = np.array_split(self.times('matplotlib'), int(self.time_length/window))
-		times = np.array([item[int(len(item)/2)] for item in times_d])
-		data_d = np.array_split(self.data, int(self.time_length/window), axis=axis)
-		rms_a = []
+		rmsa = wavefield.rmsa(data=self.data, axis=axis, data_length=self.time_length,
+                              window=window)
+		times = np.array_split(self.times('unix'), int(self.time_length/window))
+		times = np.array([time[int(len(time)/2)] for time in times])
+		if window == None or window == self.time_length:
+			if plot_mode == 'pyqt':
+				plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:], y_label='RMS Amplitude',
+                                        title='RMS Amplitude Profile')
+		elif window:
+			if plot_mode == 'pyqt':
+				plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
+                                             y_label='Optical Distance [m]',
+                                             title=f'RMS Amplitude, {window}s window',
+                                             cmap='inferno', cbar_label='RMS Amplitude')
 
-		for subdata in data_d:
+			elif plot_mode == 'mpl':
+				times = np.array_split(self.times('matplotlib'), int(self.time_length/window))
+				times = np.array([time[int(len(time)/2)] for time in times])
+				plot.gen_DAS_plot(data=np.array(rmsa), t=times, channels=self.channels,
+                      cmap='inferno', title = f'RMSA for {window}s window')
 
-			rms = np.sqrt(np.mean(subdata**2, axis=axis))
-			rms_a.append(rms)
-
-		if make_plot:
-			plot.gen_DAS_plot(data=np.array(rms_a), t=times, channels=self.channels, cmap='inferno', title = f'RMSA for {window}s window')
-
-		return times, np.array(rms_a)
+		if results:
+			return times, rmsa
 
 
 	def p2p_amp(self, dim='t', result=True, plot_mode='pyqt'):
 		'''
         computes peak-to-peak amplitude of data in time or space
-        see fobench.fiber.tools.wavefield.peak_to_peal_amp for more details
+        see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
 		'''
 
 		axis = self.__axis__(dim)
@@ -772,115 +775,43 @@ class Fiber(object):
                      title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name,
                      where=where, **kwargs)
 
-		if results == True:
+		if results:
 			return fx, freqs
 
+	def spectrum(self, channel, plot_mode='pyqt', norm=False, pre_processing=True,
+                 order=1, pad=0, nfft=None, mode='spectrum', figsize=None, show=True,
+                 nperseg=None, file_name=None, where=None, legend=True, results=False, **kwargs):
+		"""
+        compute spectrum of a channel, mode can be 'spectrum' or 'psd'
+        see fobench.tools.signals.signal_spectrum for more details
+        for mpl plotting options see fobench.plotting.plotting_mpl.simple_spectrum
+        """
 
-	#Function to plot a spectrum (1D signal; freq vs Amplitude) of defined channel(s). Due to the label, it is recommended to not use many channels for plotting the spectrum, or can do it, but then legend must be turned off in the options (default = True).
-	def spectrum(self, channels=None, norm=False, pre=True, order=1, pad=0, nfft=None, s_type='spectrum', figsize=None, show=True,
-			  file_name=None, where=None, legend=True, results=False, **kwargs):
-		'''
-		Co-authors: --
-		Description:
-			Plots the spectrum of a specified channel, a list of them, or all the channels of the DAS Class. It is recommended not to use many channels
-			with the legend option set as True.
-		:Params:
-			- channels(type:String or Int or Float or List; optional): channel to compute the spectrum.
-			In case of a list, is all the channels specified in the list.
-			In case is None, all spectrums of each channel would be computed. Default = None.
-			- norm(type:Boolean; optional): in case of True, each channel spectrum is normalized by its maximum value. Default = False.
-			- order (type:Int): order number for detrending. Default is 1.
-			- pad(type:int): number of zeros to add to the signal before and after to increase num of points.
-			- nfft(type:Int): number of samples in total Fast Fourier Transform.
-			- s_type(type:String): Mode of spectral curve. 'spectrum' from normal spectral surve,
-				'psd' for Power Spectral Density on Welch method. Default is 'spectrum'.
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-			but the figure instance would be open so the user can add further changes. Default = True.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-			- legend(type:Boolean): sets if the legend would be shown or not. If many channels are being used, it's better to set this False.
-			- results(type:Boolean): if set to True, the function will return the values for further manipulation (read Return section).
-			Default = True.
-		:Return:
-			- spectrums(type:Numpy-Array): matrix spectral amplitude values of channels in order of the "channels" input variable.
-			- freqs(type:Numpy-Array): frequencies used in the spectrum.
-		'''
+		axis = self.__axis__('t')
 
-		spectrums = []
+		ch_idx = self.channels_num.index(channel)
+		o_signal = np.take(self.data, indices=ch_idx, axis=axis)
 
-		# Evaluates how many chanels are comin as input. It can be one Int, or a list containing several Ints.
-		if channels == None:
+		f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_frequency, mode=mode,
+                norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg)
 
-			channels = self.channels_num
-
-		else:
-
-			channels = [channels] if isinstance(channels,list) == False else channels
-
-		for i in range(len(channels)):
-
-			ch = int(channels[i])
-			index = self.channels_num.index(ch)
-			o_signal = self.data[:,index] #- self.data[:,index].mean()
-			#N = len(o_signal)
-
-			#Pre-process
-			#o_signal = tools.detrend_signal(o_signal) #detrend
-			#o_signal -= o_signal.mean() #demean
-			#o_signal *= signal.windows.tukey(M=self.num_points, alpha=0.05*2) #taper
-
-			#powers = np.abs(rfft(o_signal)) #produce real and imaginary.
-
-			#if i == 0:
-
-			#	freqs = rfftfreq(N, 1 / self.sampling_frequency)
-
-			#fft_values = powers/powers.max() if norm == True else powers
-			#fft_values = signal.savgol_filter(fft_values,15,2) smooth curve
-
-			if s_type == 'spectrum':
-
-				freqs, fft_values = signals.spectrum(o_signal, self.sampling_frequency, pre, order, pad, nfft)
-				y_units = self.units
-
-			if s_type == 'psd':
-
-				freqs, fft_values = signals.psd(o_signal, self.sampling_frequency, pre, order, nfft)
-				y_units = self.units.split(' ')[-1]
-				y_units = y_units+'$^{2}$/Hz'
-
-			fft_values = fft_values/fft_values.max() if norm == True else fft_values
-			#fft_values = signal.savgol_filter(fft_values,15,2) smooth curve
-			spectrums.append(fft_values)
-
-		spectrums = np.array(spectrums)
-		spectrums = spectrums[0] if spectrums.shape[0] == 1 and results == True else spectrums
-
-		if results == True:
-			return freqs, np.array(spectrums)
-		else:
-			plot.simple_spectrum(spectrums=np.array(spectrums), freqs=freqs, channels=channels, y_units=y_units, legend=legend, figsize=figsize,
+		if plot_mode=='pyqt':
+			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}^2/Hz"
+			plot_pyqt.plot_distance(distances=f, data=spec, y_label =f'{units}',
+                                x_label='Frequency [Hz]', title= f'{mode} for channel {channel}')
+		elif plot_mode=='mpl':
+			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
+			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
 						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
+		if results:
+			return f, spec
 
-	def channel_plot(self, channel, max_value=None, figsize=None, show=True, file_name=None, where=None, plot_mode='pyqt', **kwargs):
+	def channel_plot(self, channel, max_value=None, figsize=None, show=True,
+                  file_name=None, where=None, plot_mode='pyqt', **kwargs):
 		'''
-		Co-authors: --
-		Description:
-			Plots the time-signal of a single selected channel.
-		:Params:
-			- channel(type:String or Int or Float): channel to plot.
-			- max_value(type:Float; optional): maximum value of the y-axis. It will limit the plot in a range of -max_value to max_value. Default = None.
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-			but the figure instance would be open so the user can add further changes. Default = True.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-		:Return:
-			- NA.
+        generates simple plot of channel data
+        for mpl mode see fobench.plotting.plotting_mpl.simple_plot for details
 		'''
 
 		channel = int(channel)
@@ -890,18 +821,17 @@ class Fiber(object):
 		if plot_mode=='pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units,
-							 title='')
+							 title=f'Channel {channel}')
 
 		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
-			plot.simple_plot(data=selected, t=t, channel=str(channel),
-					units_y=self.units, max_value=max_value, spectrogram=False,
-					show=show, figsize=figsize,
-					title=self.start_time.isoformat()[:10],
-					file_name=file_name, where=where, **kwargs)
+			plot.simple_plot(data=selected, t=t, channel=str(channel), units_y=self.units,
+                    max_value=max_value, spectrogram=False, show=show, figsize=figsize,
+                    title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
 
 
-	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic', file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
+	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic',
+          file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -932,8 +862,9 @@ class Fiber(object):
 					 show=show, title=self.start_time.isoformat()[:10], cmap=cmap,
 					 file_name=file_name, where=where, add_data=add_data, **kwargs)
 
-	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None, show=True, cmap='viridis', file_name=None, where=None, freq_lim=None, verbose=False, make_plot=True,
-						 plot_mode='pyqt', **kwargs):
+	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
+                         show=True, cmap='viridis', file_name=None, where=None,
+                         freq_lim=None, verbose=False, make_plot=True,plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:

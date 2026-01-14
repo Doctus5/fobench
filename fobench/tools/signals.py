@@ -215,7 +215,13 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
     np.ndarray
         tapered data array.
     '''
-    M = data.shape[axis]
+    if axis is None: #1D case
+        M = data.shape[0]
+        taper = get_tukey_window(M, alpha, sym=True)
+        if not detaper:
+            return data * taper
+        elif detaper:
+            return data / taper
 
     taper = get_tukey_window(M, alpha, sym=True)
 
@@ -346,11 +352,10 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
     performs spectral whitening of all channels
     signals should be adequatly preprocessed
 
-
     Parameters
     ----------
     data : np.ndarray
-        DESCRIPTION.
+        data to spectrally whiten.
     freq_min,freq_max : int, int
         minimum and maximum of frequency band in which to perform spectral whitening.
     total_channels : int
@@ -362,7 +367,6 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
     -------
     whitened_matrix : np.ndarray
         whitened data matrix
-
     '''
 
     whitened_matrix = np.zeros_like(data, dtype='float32')
@@ -398,59 +402,65 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
   	  	whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
     return whitened_matrix
 
+def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_processing: bool = True,
+    norm: bool = False, order: int = 1, pad: int = 0, nfft: int | None = None,
+    nperseg: int | None = None,) -> tuple[np.ndarray, np.ndarray]:
+    '''
+    computes the spectrum for a signal, can either be through FFT or Welch's method
 
+    Parameters
+    ----------
+    o_signal : np.ndarray
+        signal to process.
+    fs : int
+        sampling frequency of signal.
+    mode : str, optional
+        'spectrum' or 'psd'. The default is 'spectrum'.
+    pre_processing : bool, optional
+        signal is demeaned, detrended and tapered. The default is True.
+    norm : bool, optional
+        if True, result is normalized by maximum value. The default is False.
+    order : int, optional
+        order of polynomial to detrend. The default is 1.
+    pad : int, optional
+        mber of zeros to add to the signal before and after to increase num of points. The default is 0.
+    nfft : int | None, optional
+        number of samples in for FFT. The default is None.
+    nperseg : int | None, optional
+        DESCRIPTION. The default is None.
 
-def spectrum(o_signal, fs, pre_processing=True, order=1, pad=0, nfft=None,
-             axis=None):
-	'''
-	Co-authors: --
-	Description:
-		Calculates de spectrum of a given signal with a specified sampling frequency.
-	:Params:
-		- signal(type:Numpy): original signal.
-		- sampling_rate(type:Float): sampling rate of the signal.
-		- pre_processing(type:Boolean): if True, signal will be detrend, demean, and tapered. Default is True.
-		- order(type:int): polinomial order of the detrending curve.
-		- pad(type:int): number of zeros to add to the signal before and after to increase num of points.
-	:Return:
-		- positive_freqs(type:Numpy): frequency values of the spectral curve.
-        - magnitude(type:Numpy): amplitude values of spectral curve of the signal.
-	'''
+    Raises
+    ------
+    ValueError
+        not a valid mode chosen.
 
-	if pre_processing:
-		o_signal = filt_preprocess(io_signal=o_signal, order=order, axis=axis)
+    Returns
+    -------
+    positive_freqs : np.ndarray
+        frequency vector.
+    magnitude : np.ndarray
+        magnitude vector.
+    '''
 
-	o_signal = np.pad(o_signal, (pad-1, pad), mode='constant') if pad > 0 else o_signal # pad the signal to add points.
+    if pre_processing:
+        o_signal = filt_preprocess(io_signal=o_signal, order=order)
 
-	n = len(o_signal) if nfft is None else nfft*len(o_signal)
-	fft = np.fft.fft(o_signal, n=n)
-	# Calculate the frequency axis
-	freq_axis = np.fft.fftfreq(n, 1 / fs)
+    if mode == 'spectrum':
+        	o_signal = np.pad(o_signal, (pad-1, pad), mode='constant') if pad > 0 else o_signal
+        	n = len(o_signal) if nfft is None else nfft*len(o_signal)
+        	fft = np.fft.fft(o_signal, n=n)
+        	freq_axis = np.fft.fftfreq(n, 1 / fs)
+        	positive_freqs = freq_axis[:n//2]
+        	magnitude = 2/n * np.abs(fft)[:n//2]
 
-    # Take the positive frequencies and their corresponding magnitudes
-	positive_freqs = freq_axis[:n//2]
-	magnitude = 2/n * np.abs(fft)[:n//2]
-	return positive_freqs, magnitude
+    elif mode == 'psd':
+        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg)
 
+    else:
+        raise ValueError('Invalid mode. Choose one of:\n'
+                         ' - "spectrum"\n - "psd"')
 
-def psd(o_signal, sampling_rate, pre_processing=True, order=1, n=None):
-	'''
-	Co-authors: --
-	Description:
-		Calculates de power spectral density based on the Welch method.
-	:Params:
-		- signal(type:Numpy): original signal.
-		- sampling_rate(type:Float): sampling rate of the signal.
-		- pre_processing(type:Boolean): if True, signal will be detrend, demean, and tapered. Default is True.
-	:Return:
-		- positive_freqs(type:Numpy): frequency values of the PSD curve.
-		- magnitude(type:Numpy): amplitude values of PSD curve of the signal.
-	'''
+    if norm:
+        magnitude = magnitude / magnitude.max()
 
-	if pre_processing == True:
-		o_signal = filt_preprocess(o_signal, order)
-
-	# We compute the PSD based on the Welch method.
-	positive_freqs, magnitude = signal.welch(o_signal, sampling_rate, nperseg=n)
-
-	return positive_freqs, magnitude
+    return positive_freqs, magnitude

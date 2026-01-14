@@ -76,7 +76,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     pg.exec()
 
 def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
-                    x_label: str = '', title:str = '') -> None:
+                    x_label: str = 'Optical Distance [m]', title:str = '') -> None:
     '''
     generate generic distances series plot using PyQtGraph
 
@@ -89,7 +89,7 @@ def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
     y_label : str, optional
         y-axis label. The default is ''.
     x_label : str, optional
-        x-axis label. The default is ''.
+        x-axis label. The default is 'Optical Distance [m]'.
     title : str, optional
         title of plot. The default is ''.
 

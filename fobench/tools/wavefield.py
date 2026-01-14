@@ -136,8 +136,32 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
 
     return result
 
-def rmsa_profile():
-    pass
+def rmsa(data: np.ndarray, axis: int, data_length: int, window: int) -> np.ndarray:
+    '''
+    computes the root mean square amplitude of data, data is split into windows
+    before, pass window equal to data_length to compute one RMSA vector for full record
+
+    Parameters
+    ----------
+    data : np.ndarray
+        input data.
+    axis : int
+        axis along which to compute RMSA.
+    data_length : int
+        length of data in seconds.
+    window : int
+        window lengths.
+
+    Returns
+    -------
+    np.ndarray
+        array containing RMSA values.
+
+    '''
+
+    data = np.array_split(data, int(data_length / window), axis=axis)
+    return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
+
 
 def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''

@@ -81,30 +81,46 @@ def gen_DAS_plot(data=None, t=None, channels=None, units_y=None, max_value=None,
 
 #Function for simple plot of a channel for the DAS class object.
 def simple_plot(data, t, channel='', units_y=None, max_value=None, spectrogram=False, show=True, figsize=None, title=None, file_name=None, where=None, **kwargs):
+    '''
+	Co-authors: --
+	Description:
+		Plots the time-signal of a single selected channel.
+	Params:
+		- channel(type:String or Int or Float): channel to plot.
+		- max_value(type:Float; optional): maximum value of the y-axis. It will limit the plot in a range of -max_value to max_value. Default = None.
+		- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
+		- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
+		but the figure instance would be open so the user can add further changes. Default = True.
+		- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
+		(f.e.: "example.png"). Default = None.
+		- where(type:String; optional): path of the directory where the plot wants to be saved.
+	:Return:
+		- NA.
+	'''
 
-	fig, ax = plt.subplots(1,1, sharex=True, gridspec_kw={'hspace': 0.3}) if figsize is None else plt.subplots(1,1, sharex=True, gridspec_kw={'hspace': 0.3}, figsize=figsize)
-	fig.autofmt_xdate()
+    fig, ax = plt.subplots(1,1, sharex=True, gridspec_kw={'hspace': 0.3}) if figsize is None else plt.subplots(1,1, sharex=True, gridspec_kw={'hspace': 0.3}, figsize=figsize)
+    fig.autofmt_xdate()
 
-	ax.plot(t, data, c='black', linewidth=0.7, label=str(channel).zfill(5), **kwargs)
+    ax.plot(t, data, c='black', linewidth=0.7, label=str(channel).zfill(5), **kwargs)
 	# max_val = max(data.max(), abs(data.min())) if max_value == None else max_value
-	min_val, max_val = data.min(), data.max()
-	ax.set_ylim(min_val+(min_val*0.2), max_val+(max_val*0.2))
+    min_val, max_val = data.min(), data.max()
+    ax.set_ylim(min_val+(min_val*0.2), max_val+(max_val*0.2))
 
-	ax.xaxis_date()
-	precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-	ax.xaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
-	ax.set_xlim(t[0],t[-1])
+    ax.xaxis_date()
+    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
+    ax.xaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
+    ax.set_xlim(t[0],t[-1])
 
-	ax.legend(loc=1)
-	ax.set_ylabel(units_y, fontsize=15)
-	ax.set_xlabel('Time', fontsize=15)
-	ax.set_title(title, fontsize=20)
-	plt.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+    ax.legend(loc=1)
+    ax.set_ylabel(units_y, fontsize=15)
+    ax.set_xlabel('Time', fontsize=15)
+    ax.set_title(title, fontsize=20)
+    plt.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
 
-	if show == True:
-		plt.show()
-	if file_name is not None:
-		fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
+    if show == True:
+        plt.show()
+    if file_name is not None:
+        fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
 
 
 #Function for the DAS spectrogram in the class DAS. Channels and the spectrogram matrix must already be computed and passed as an input. This is done in the DAS class under the method spectrogram().
@@ -193,7 +209,6 @@ def simple_spectrogram(data=None, freq=None, t=None, units_y=None, figsize=None,
 		fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
 
 
-#Function to plot simple spectrum (1D) for certain channels of DAS class.
 def simple_spectrum(spectrums=None, freqs=None, channels=None, y_units=None, legend=True, figsize=None, show=True,
                     file_name=None, where=None, title=None, **kwargs):
 
