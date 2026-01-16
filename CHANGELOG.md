@@ -33,6 +33,7 @@
 >-removed attribute 'dataset' completely, it holds only the reference to h5 datasets and prevents .copy() method to work
 
 >-Fiber.base was initialized but then immediatly deleted, instead of holding the reference to the h5 file its now called Fiber.basefile and holds the initial file name as a string
+>-__filepath__ attribute removed
 
 >-Fiber.basefile gets extended when another Fiber object is concatenated, so that one Fiber object keeps track of all original file paths
 
@@ -65,20 +66,9 @@ and Fiber.taper which before redundantly implemented tapering again.
 
 TODO:
 
--new folder structure, sorts functionality in different categories, longer methods moved outside Fiber class and replaced by
-simple function calls.
-
--all imports adapted to new folder structure
-
--added methods to call both plots from the fiber class
-
 -integrate Johannes fk plot
 
--taper call taper method Fiber.taper + filter.taper
-
 -filter error message, high = 1.0??
-
--replace make_plot logic
 
 MAYBE:
 -keep DTS references and logic around or unlikely to be implemented?

@@ -47,6 +47,13 @@ TEMP_UNIT_MAP = {        # mapping for temperature data
 1: 'temperature rate',
 2: 'temperature acceleration'}
 
+UNKNOW_UNIT_MAP = { # mapping for data with unknow unit
+-1: 'integrated units',
+0: 'units',
+1: 'd/dt units',
+2: 'd/dt^2 units'}
+
+
 
 def _update_processing(func):
 	'''
@@ -84,6 +91,7 @@ def _update_processing(func):
 				unit_map = STRAIN_UNIT_MAP
 				if fiber.company == 'terra15':
 					if fiber.attributes['properties']['data_product'] == 'velocity': unit_map = VEL_UNIT_MAP
+				if fiber.company == 'sintela': unit_map = UNKNOW_UNIT_MAP
 			elif fiber.sensing == 'dts':
 				unit_map = TEMP_UNIT_MAP
 

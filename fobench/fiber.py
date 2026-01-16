@@ -19,7 +19,6 @@ Last modification on 2024-06-28 19:17:00
 import sys
 import copy
 from warnings import warn
-from tqdm import tqdm
 
 import numpy as np
 import scipy.signal as signal
@@ -30,7 +29,6 @@ from obspy.core import UTCDateTime as UTC
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets
 
-# inner functions
 from .tools import file_io, utils, filters, signals, wavefield
 from .plotting import plotting_mpl as plot
 from .plotting import plotting_pyqt as plot_pyqt
@@ -69,18 +67,16 @@ class Fiber(object):
                 ' -"terra15"\n -"sintela"'
             )
 
-		# Private attributes
 		self.__filepath__ = filepath
 
-		# Public attributes
 		self.company = company
 		self.format = filepath.split('.')[-1]
 
 		self.attributes = file_io.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
 
-		self.basefiles = [self.attributes['basefile']]
+		self.basefiles = [self.attributes['basefile']] # path(s) of input file(s)
 		self.fiber = self.attributes['fiber']
-		self.properties = self.attributes['properties']
+		self.properties = self.attributes['properties'] # all metadata of input file
 		self.channels = self.attributes['chans']
 		self.channels_num = self.attributes['chans_nums']
 		self.total_channels = self.attributes['list_chans_num']
@@ -102,8 +98,7 @@ class Fiber(object):
 		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
 		self.distances = [(num * self.spatial_interval) + self.channel_offset for num in self.channels_num]
 
-		# Attributed not initialized since beginning. Requires further processing to be initialized
-		self.ch_coord = None # coordinates of channels.
+		self.ch_coord = None # coordinates of channels, requires more input ot be filled
 
 	'''
 	-----------------------------------------------------------------
@@ -160,22 +155,17 @@ class Fiber(object):
 
 	def metadata(self, meta_dict=False):
 		'''
-		Co-authors: --
-		Description:
-			Print out the metadata in an organized way.
-		:Params:
-			- meta_dict(type:Boolean): if True, metadata is returned as dictionary. Default is False.
-		:Return:
-			- NA.
+        print out metadata, optionally return all metadata as dictionary
 		'''
+
+		for prop, value in self.properties.items():
+			print(f"{prop} = {value}")
 
 		if meta_dict:
 			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
 			return metainfo
 
-		else:
-			for prop, value in self.properties.items():
-				print(f"{prop} = {value}")
+
 
 	def copy(self):
 		'''
@@ -330,7 +320,6 @@ class Fiber(object):
 		return self
 
 
-	#Return the data with a channel specified if it's wanted
 	def get_data(self, channel=None):
 		'''
 		Co-authors: --
@@ -343,9 +332,7 @@ class Fiber(object):
 		'''
 
 		if channel is not None:
-
-			ch = int(channel)
-			index = self.channels_num.index(ch)
+			index = self.channels_num.index(int(channel))
 			return self.data[:,index]
 
 		return self.data
@@ -411,8 +398,8 @@ class Fiber(object):
 
 	def to_traces(self, t_type='obspy'):
 		'''
-        returns channels as 'obspy' or 'pyrocko' streams, see fiber.tools.utils.to_traces
-        for more details
+        returns channels as 'obspy' or 'pyrocko' streams, see
+        fobench.tools.utils.to_traces for more details
 		'''
 		return utils.to_traces(self, t_type)
 
@@ -569,7 +556,7 @@ class Fiber(object):
         	    	  warn('Data has possibly not been filtered before whitening! Check'
                      'preprocessing and results carefully!\ncontinuing...')
 
-	    self.data = signals.whiten_signal(freq_min=freq_min, freq_max=freq_max,
+	    self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
                                     sampling_frequency=self.sampling_frequency,
                                     total_channels=self.total_channels)
 
@@ -664,26 +651,19 @@ class Fiber(object):
 
 		return self
 
-	def SNR(self, dim='t'):
+	def SNR(self, dim='t', results=False, plot_mode='pyqt'):
 		'''
-		Co-authors: --
-		Description:
-			under construction. DON'T USE THIS METHOD!
-		:Params:
-			- dim(type: String): dimension to where to apply the operation ('t' = time, 'd' = space). Default is 't'.
-		:Return:
-			- return1(type:--): --.
+        computes signal to noise ratio, defined as ratio between mean and standard
+        deviation of signal
 		'''
 
 		axis = self.__axis__(dim)
-
-		#m = self.data.mean(axis=0)
-		sd = self.data.std(axis=axis)
-		#result = np.where(sd == 0, 0, m/sd)
-		#result = 20*np.log10(abs(result)) #For dB values
-		#result = sd
-
-		return sd
+		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
+		if plot_mode == 'pyqt':
+			plot_pyqt.plot_distance(distances=self.distances, data=snr, y_label='SNR [-]',
+                                    title='SNR Profile')
+		if results:
+			return snr
 
 
 	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False):
@@ -864,7 +844,7 @@ class Fiber(object):
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
                          show=True, cmap='viridis', file_name=None, where=None,
-                         freq_lim=None, verbose=False, make_plot=True,plot_mode='pyqt', **kwargs):
+                         freq_lim=None, results=False, make_plot=True,plot_mode='pyqt', **kwargs):
 		'''
 		Co-authors: --
 		Description:
@@ -913,7 +893,7 @@ class Fiber(object):
 						title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel),
 						show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
 
-		if verbose is True:
+		if results:
 			return Sxx, f, t
 		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 

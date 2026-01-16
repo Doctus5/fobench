@@ -105,6 +105,7 @@ class Explorer(QtWidgets.QMainWindow):
         # dropdown methods menu
         self.dropdown = QtWidgets.QComboBox()
         self.dropdown.addItems(['Methods', 'Spectrogram', 'PSD', 'Spectrum', 'RMSA', 'P2PA'])
+        self.dropdown.setToolTip('Basic Signal Analysis Methods')
         self.dropdown.currentIndexChanged.connect(self.on_dropdown_changed)
         bottom_layout.addWidget(self.dropdown)  # dropdown menu to the right of the slider
 

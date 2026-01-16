@@ -223,6 +223,7 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
         elif detaper:
             return data / taper
 
+    M = data.shape[axis]
     taper = get_tukey_window(M, alpha, sym=True)
 
     taper = taper[:, None] if axis == 0 else taper[None, :]

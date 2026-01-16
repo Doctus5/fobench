@@ -255,7 +255,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
-        fiber = 'standard'
+        fiber = properties['FiberID']
         sampling_frequency = properties['PulseRate']
         o_sampling_frequency = sampling_frequency
         num_points = dataset.shape[0]
@@ -266,7 +266,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         spatial_interval = float(properties['SpatialSamplingInterval'])
         channel_offset = properties['StartLocusIndex']*spatial_interval
         gauge_length = float(properties['GaugeLength'])
-        units = 'strain' #???? Check
+        units = 'units' # unit is not coded in metadata for Sintela .h5
         conv_factor = None
 
 	# ####################################################
