@@ -248,6 +248,8 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF%
+        print('Data units (strain, strain-rate...) can not be extracted from Sintela files\n'
+             'you can set it manually by editing Fiber.units')
         pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file')
         file_file = h5.File(filepath, 'r')
         properties = file_file['Acquisition'].attrs

@@ -57,14 +57,9 @@ UNKNOW_UNIT_MAP = { # mapping for data with unknow unit
 
 def _update_processing(func):
 	'''
-	Co-authors: Jonas Pätzel
-	Description:
-		internal decorator function that updates the Fiber.processing attribute after each processing function
-		in case of integration or differentiation of the data also updates Fiber.units
-	:Params:
-		-func(type: function): preprocessing function that will be logged
-	:Return:
-		- NA
+	decorator function that updates the Fiber.processing attribute after each
+	processing step, in case of integration or differentiation of the data
+	also updates Fiber.units
 	'''
 
 	@functools.wraps(func)
@@ -109,11 +104,6 @@ def _update_processing(func):
 
 		return result
 	return wrapper
-
-
-
-
-
 
 # NEW DATA INSTRUMENT CORRECTION
 #Does the simple instrumental correction for the DAS, Infrasound or BroadBand data by a simple per-count multiplication of instrumental factors. No instruemnt RESP file is needed.	Returns the corrected data.

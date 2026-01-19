@@ -170,7 +170,7 @@ def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, n
     Parameters
     ----------
     data : np.ndarray
-        DESCRIPTION.
+        input data.
     fs : int
         sampling frequency of data
     axis : int
@@ -186,24 +186,29 @@ def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, n
             indices of maxima.
     '''
 
+    data_dim = data.ndim
     peak_up, up_index = data.max(axis=axis), np.argmax(data, axis=axis)
     peak_down, down_index = data.min(axis=axis), np.argmin(data, axis=axis)
     pp_amp = peak_up - peak_down
 
     bad_picking = np.abs((up_index - down_index)) > fs/2
-    bad_picking = list(np.where(bad_picking == True)[0])
+    if data_dim > 1:
+        bad_picking = list(np.where(bad_picking)[0])
 
     if bad_picking:
         windows = [j for j in range(0, data.shape[0], int(fs/4))]
-        pp =  np.zeros(len(bad_picking))
+        pp =  np.zeros(len(bad_picking)) if data_dim > 1 else 0
 
-        #for pos in bad_picking:
-        for i in range(len(windows)-1):
-
+        for i in range(len(windows)-1):         #for pos in bad_picking:
             index, index_1 = windows[i], windows[i+1]
-            new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
-            pp[new_pp > pp] = new_pp[new_pp > pp]
-        pp_amp[bad_picking] = pp
+
+            if data_dim > 1:
+                new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
+                pp[new_pp > pp] = new_pp[new_pp > pp]
+            else:
+                new_pp = np.ptp(data[index:index_1], axis=axis)
+                pp = max(pp, new_pp)
+            pp_amp[bad_picking] = pp if data_dim > 1 else pp_amp
 
     return pp_amp, up_index, down_index
 
@@ -241,20 +246,3 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
     amp = np.abs(fft) / fft.max() if norm else np.abs(fft)
 
     return amp, freq
-
-
-def fk_transform(data: np.ndarray, dt: float, dx: int, plot:str ='pyqt') -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-
-    n_samp, n_ch = data.shape
-    fk_f= np.fft.rfft(data, axis=0)
-    fk = np.fft.fftshift(np.fft.fft(fk_f, axis=1), axes=1)
-    f = np.fft.rfftfreq(n_samp, dt)
-    k = np.fft.fftshift(np.fft.fftfreq(n_ch, dx))
-
-    if plot == 'pyqt':
-        fk_plot(fk, f, k)
-
-    return fk, f, k
-
-def fk_plot(fk: np.ndarray, f: np.ndarray, k: np.ndarray)-> None:
-    pass

@@ -51,7 +51,17 @@ Matplotlib plotting functions below
 
 #Plotting the DAS as an image in the Class DAS.
 def gen_DAS_plot(data=None, t=None, channels=None, units_y=None, max_value=None, figsize=None, title=None, cmap='seismic', show=True, file_name=None, where=None, add_data=None, **kwargs):
-
+	'''
+	- max_value(type:Float; optional): maximum value of the colormap. It will limit the plot in a range of -max_value to max_value.
+	All values above this will look saturated with the color limits of the colormap.
+	- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
+	- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
+	but the figure instance would be open so the user can add further changes. Default = True.
+	- cmap(type:String; optional): name of the matplotlib colormap to use for the data. Default = 'seismic'.
+	- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
+	(f.e.: "example.png"). Default = None.
+	- where(type:String; optional): path of the directory where the plot wants to be saved.
+	'''
 	fig, ax = plt.subplots() if figsize is None else plt.subplots(figsize=figsize)
 	fig.autofmt_xdate()
 	max_val = max(data.max(), abs(data.min())) if max_value == None else max_value

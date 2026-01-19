@@ -1,9 +1,6 @@
 """
 Class "Fiber" for creating, storing and manipulating fiber optic sensing data.
-So far it recieves TDMS format (Silixa) and H5 format (Febus).
-
 Created on 2022-08-19 12:07:17
-Last modification on 2024-06-28 19:17:00
 
 :authors:
 	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
@@ -15,7 +12,6 @@ Last modification on 2024-06-28 19:17:00
 
 """
 
-#Necessary packages to import
 import sys
 import copy
 from warnings import warn
@@ -108,10 +104,6 @@ class Fiber(object):
 
 
 	def __str__(self):
-		'''
-		defines output of print(Fiber); overview of most important recording parameters
-		'''
-
 		attributes = ['units', 'start_time', 'end_time', 'num_points', 'total_channels',
 					'spatial_interval', 'sampling_frequency', 'gauge_length']
 
@@ -122,9 +114,6 @@ class Fiber(object):
 	__repr__ = __str__
 
 	def __iadd__(self, other):
-		'''
-		allows to concatenate two Fiber instances with self += other
-		'''
 		if not isinstance(other, Fiber):
 			raise TypeError('Object to add must be instance of Fiber class')
 		return self.concatenate(other, fill_gaps=0)
@@ -152,12 +141,10 @@ class Fiber(object):
 	-----------------------------------------------------------------
 	'''
 
-
 	def metadata(self, meta_dict=False):
 		'''
         print out metadata, optionally return all metadata as dictionary
 		'''
-
 		for prop, value in self.properties.items():
 			print(f"{prop} = {value}")
 
@@ -165,20 +152,11 @@ class Fiber(object):
 			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
 			return metainfo
 
-
-
 	def copy(self):
 		'''
-		Co-authors: --
-		Description: Returns a deep copy of the class in the moment of execution.
-		:Params:
-			- NA.
-		:Return:
-			- (type:DAS Class): Same DAS Class in the state when the method is called.
+        returns a deep copy the Fiber class object in its current state
 		'''
-
 		return copy.deepcopy(self)
-
 
 	def instr_correct(self, target='strain-rate'):
 		'''
@@ -191,16 +169,12 @@ class Fiber(object):
 		:Return:
 			- NA.
 		'''
-
 		if self.corrected == False:
-
 			self.data, self.units, self.channels, self.channels_num, self.total_channels = utils.instr_corr(self.data, vars(self), target=target)
 			self.corrected = True
 
 		return self
 
-
-	#Slice the data on time. Waring, this affect the original data and prior time-lenghts can not be retrieved. See ".copy()" function. Input can be in ISO-format (String)
 	def trim(self, t0=None, tf=None):
 		'''
 		Co-authors: --
@@ -234,18 +208,10 @@ class Fiber(object):
 		return self
 
 
-	#Slice the data spatially (ranges of channels) by establshing the intial and the final channel. Anyformat of the channel code is acceptable.
 	def restrict_channels(self, ch0, chf):
 		'''
-		Co-authors: --
-		Description:
-			Trims the data spatially. Only one channel is selected in the first channel is only specified. If the second channel is specified
-			then the channels between the first and second specified are selected. Updates properties of the class.
-		:Params:
-			- ch0(type:Int or String): first channel ID to be selected.
-			- chf(type:Int or String, optional): second channel ID to be selected.
-		:Return:
-			- NA.
+        trims data in space, between ch0 and chf, a single channel is returned
+        when ch0 = chf, updates Fiber class attributes
 		'''
 
 		ch0, chf = int(min(ch0, chf)), int(max(ch0, chf)) # in case ch0 and chf not ordered
@@ -259,7 +225,6 @@ class Fiber(object):
 		return self
 
 
-	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.
 	def append_coord(self, n_ch, x_ch, y_ch, z_ch):
 		'''
 		Co-authors: --
@@ -288,7 +253,6 @@ class Fiber(object):
 
 		return self
 
-	#Attach X and Y coordinates (generally lon and lat) to the Fibre class.
 	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
 		Co-authors: --
@@ -322,15 +286,8 @@ class Fiber(object):
 
 	def get_data(self, channel=None):
 		'''
-		Co-authors: --
-		Description:
-			Returns the data in the same way as using the attribute "data", however, this has an option for selecting the data corresponding to one channel.
-		:Params:
-			- channel(type:Int or Float): Channel number to get the data from. If not specified, it will be as same as adquiring the attribute "data".
-		:Return:
-			- data_n(type:Numpy): The data with the specific channel of interest, or the entire dataset.
+        returns data similar to Fiber.data but has option to return only a specified channel
 		'''
-
 		if channel is not None:
 			index = self.channels_num.index(int(channel))
 			return self.data[:,index]
@@ -341,12 +298,10 @@ class Fiber(object):
 	def times(self, time_type='UTCDateTime'):
 		'''
         returns array of sample times, can be 'UTCDateTime', 'isoformat', 'matplotlib'
-        or 'unix´'
+        or 'unix'
 	    '''
 		return utils.return_times(self, time_type)
 
-
-	#Function to concatenate 2 DAS classes. The concatenation will be done on the same class where the function is called. The 2 DAS objects must have the same characcteristics (sampling frequency, channels)
 	def concatenate(self, input_das=None, fill_gaps=0):
 		'''
 		Co-authors: --
@@ -403,7 +358,6 @@ class Fiber(object):
 		'''
 		return utils.to_traces(self, t_type)
 
-
 	'''
 	-----------------------------------------------------------------
 	Signal Processing methods
@@ -459,7 +413,6 @@ class Fiber(object):
         detrend signal with specified order polynomial
         see fiber.tools.signals.detrend_signal for more details
 	    '''
-
 		axis = self.__axis__(dim)
 		self.data = signals.detrend_signal(self.data, order=order, axis=axis)
 
@@ -471,7 +424,6 @@ class Fiber(object):
         remove mean of signal along specified dimension
         see fiber.tools.signals.demean_signal for more details
 		'''
-
 		axis = self.__axis__(dim)
 		self.data = signals.demean_signal(self.data, axis=axis)
 
@@ -483,7 +435,6 @@ class Fiber(object):
         taper data
         see fiber.tools.signals.taper_signal for more details
 		'''
-
 		axis = self.__axis__(dim)
 		self.data = signals.taper_signal(data=self.data, axis=axis,
                                    alpha=alpha, detaper=detaper)
@@ -492,44 +443,33 @@ class Fiber(object):
 
 
 	@utils._update_processing
-	def decimate(self, new_freq=None, ftype='fir-remez'):
+	def decimate(self, new_freq=None, f_type='fir-remez'):
 		'''
-		Co-authors: --
-		Description:
-			Decimates the data by any frequency below the original (preferably a divisible one).
-			Carefull when applying decimations with factors over or equal to 13, then better to call decimation twice (see scipy.signal.decimate for more...).
-			The decimation function of scipy performs a pre-filtering process to avoid anti-aliasing on the signals.
-		:Params:
-			- new_frequency(type:Int or Float): the new sampling frequency or sampling rate of the decimated data.
-			- ftype(type:String): There are 3 types of available pre-filters: 1) "fir-remez" Marius Isken adptative antialiasing filter, 2)
-			"fir235" Javier Quinteros designed filter for DAS, and if "None", then a order 8 Chebyshev type I filter is used.
-		:Return:
-			- NA.
-		'''
+        decimates data to new sampling frequeny, target frequency should divide
+        original sampling frequency evenly
 
-		axis = self.__axis__('t') # axis to apply, default is time.
+        ! careful when decimating using factors >= 13, it is then preferable to
+        call decimation twice (see scipy.signal.decimate for more info) !
+
+        options for filters are
+            - 'fir-remez', an adaptative antialiasing filter (author: Marius Isken)
+            - 'fir235' (author: Javier Quinteros)
+            - 'None', scipy's default anti-aliasing order 8 Chebyshev Type I filter
+        '''
+		axis = self.__axis__('t')
 
 		if self.sampling_frequency % new_freq != 0:
 			warn(f'Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead')
 		down_factor = int(self.sampling_frequency / new_freq)
 		new_freq = self.sampling_frequency / down_factor
 
-		#Check prefilter... which one is?
-		if ftype is not None:
+		self.data = filters.decimate(data=self.data, factor=down_factor, f_type=f_type, axis=axis)
 
-			new_data = filters.decimate(data=self.data, factor=down_factor, ftype=ftype, axis=axis)
-
-		else:
-
-			new_data = signal.decimate(x=self.data, q=down_factor, axis=axis)
-
-		self.data = new_data
-		self.sampling_frequency = new_freq
+		self.sampling_frequency  = new_freq
 		self.dt = 1 / self.sampling_frequency
 		self.num_points = self.data.shape[0]
 
 		return self
-
 
 	@utils._update_processing
 	def normalize(self, method='absolute max', dim='d', ram_window=None):
@@ -537,7 +477,6 @@ class Fiber(object):
 	    normalize data, methods are 'absolute max', 'trace max', 'running mean' and '1bit'
         see fiber.tools.signals.normalize_signal for more details
 	    '''
-
 		axis = self.__axis__(dim)
 		self.data = signals.normalize_signal(self.data, method=method,
                                        ram_window=ram_window, axis=axis,
@@ -565,59 +504,32 @@ class Fiber(object):
 	@utils._update_processing
 	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
 		'''
-		Co-authors: --
-		Description:
-			Filters the data based on a specified type of filter (lowpass, bandpass, highpass, bandstop, median) and the values. Filters are based on Obspy codes
-			and so the multiple options are also.
-		:Params:
-			- f_type(type:String): type of filter to apply. Options are: 'lowpass', 'bandpass', 'highpass', 'bandstop' and 'median'
-			- freq(type:Int, Float, Tuple): cut-off value for the filter in 'lowpass' and 'highpass'. If it for 'bandpass', then it must be a tuple containing the cut-offs of the bandwith.
-			- pre_process(type:Boolean): to use to detren, demean and tape before filtering. Default is True. Automatically set to False when using median filter
-			- frac(type:Float): see description in method "taper".
-			- order(type:Int): order of polynomuial fit for detrending.
-		:Return:
-			- NA.
-		'''
-		if f_type == 'median':
-			pre_process = False
-		if pre_process:
+        filters data using specified filter, based on Obspy.signal.filter module
+        for frequency filters, data is optionally pre-processed
+        filter types are bandpass', 'bandstop', 'lowpass', 'highpass' and 'median''
+        if 'bandpass' or 'bandstop', freq must be tuple(float, float)
+        '''
+		if pre_process and f_type != 'median':
 			self.data = signals.filt_preprocess(self.data, axis=0)
 
-		new_data = filters.point_filter(f_type=f_type, data=self.data, df=self.sampling_frequency, freq=freq, **options)
+		new_data = filters.point_filter(f_type=f_type, data=self.data,
+                                  df=self.sampling_frequency, freq=freq, **options)
 		self.data = new_data
 
 		return self
 
 	@utils._update_processing
-	def fk_filter(self, freq_min, freq_max, k_min, k_max):
+	def fk_filter(self, bands, use_velocity=False, alpha=0.2, transition=0.1):
 		'''
-		Co-authors: --
-		Description:
-			under construction. DON'T USE THIS METHOD!
-		:Params:
-			- param1(type:--): --.
-		:Return:
-			- return1(type:--): --.
+		applies frequency wavenumber filter to data
 		'''
+		self.data = filters.apply_fk_filter(data=self.data, bands=bands, num_points=self.num_points,
+                                      total_channels=self.total_channels,
+                                      spatial_interval=self.spatial_interval,
+                                      use_velocity=use_velocity,
+                                      alpha=alpha, transition=transition)
 
-		data_fk = fftshift(fft2(ifftshift(self.data)))
-
-		# Define the frequency and wavenumber grids
-		#num_rows, num_cols = self.data.shape
-		freq_grid = np.fft.fftfreq(self.num_points)
-		k_grid = 2 * np.pi * np.fft.fftfreq(self.total_channels, d=self.spatial_interval)#.reshape((1,self.total_channels))
-
-		freq_mesh, k_mesh = np.meshgrid(freq_grid, k_grid, indexing='ij')
-
-		# Define the filter mask
-		mask = (np.abs(freq_mesh) >= freq_min) & (np.abs(freq_mesh) <= freq_max) & (np.abs(k_mesh) >= k_min) & (np.abs(k_mesh) <= k_max)
-		filt_fk = data_fk * mask
-
-		# Apply inverse 2D Fourier transform to obtain the filtered data
-		filt_data = np.abs(fftshift(ifft2(ifftshift(filt_fk))))
-
-		return np.abs(data_fk) #filt_data
-
+		return self
 
 	@utils._update_processing
 	def integrate(self, dim='t', taper=True):
@@ -625,7 +537,6 @@ class Fiber(object):
         integrates data using cum-trapezoids methods, tapers data by default
         see fobench.fiber.stools.signals.integrate_signal for more details
 		'''
-
 		axis = self.__axis__(dim)
 		dx = self.dt if axis == 0 else self.spatial_interval
 
@@ -640,7 +551,6 @@ class Fiber(object):
         differentiate data in space or time, methods are 'gradient' or  'diff'
         see fobench.fiber.tools.signals.differentiate_signal for more details
 		'''
-
 		if method not in ['gradient', 'diff']:
 			raise ValueError(f'\nInvalid method: "{method}". Choose on of:\n'
                     ' -"gradient"\n -"diff"')
@@ -656,7 +566,6 @@ class Fiber(object):
         computes signal to noise ratio, defined as ratio between mean and standard
         deviation of signal
 		'''
-
 		axis = self.__axis__(dim)
 		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
 		if plot_mode == 'pyqt':
@@ -671,7 +580,6 @@ class Fiber(object):
         computes root mean square amplitude for record
         see fobench.tools.wavefield.rmsa for more details
 		'''
-
 		axis = self.__axis__(dim)
 		window = self.time_length if window == None else window
 		rmsa = wavefield.rmsa(data=self.data, axis=axis, data_length=self.time_length,
@@ -704,13 +612,12 @@ class Fiber(object):
         computes peak-to-peak amplitude of data in time or space
         see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
 		'''
-
 		axis = self.__axis__(dim)
 		p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
                                              self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
         		plot_pyqt.plot_distance(distances=self.distances, data=p2p_amplitude,
-                              y_label='Amplitude', x_label='Optical Distance [m]',
+                              y_label='P2P Amplitude', x_label='Optical Distance [m]',
                               title='Peak-to-Peak Amplitude Profile')
 
 		elif plot_mode=='pyqt' and dim=='d':
@@ -720,7 +627,6 @@ class Fiber(object):
 
 		if result:
 			return p2p_amplitude, up_index, down_index
-
 
 
 	'''
@@ -736,9 +642,7 @@ class Fiber(object):
         computes frequency-distance plot
         see fobench.tools.wavefield.frequency_content for more details
         fobench.plotting.plotting_mpl for matplotlib plotting options
-
 		'''
-
 		axis = self.__axis__('t')
 
 		fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
@@ -813,21 +717,8 @@ class Fiber(object):
 	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic',
           file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
-		Co-authors: --
-		Description:
-			Plot the DAS Class data (matrix) as a colormap (Channel vs. Time).
-		:Params:
-			- max_value(type:Float; optional): maximum value of the colormap. It will limit the plot in a range of -max_value to max_value.
-			All values above this will look saturated with the color limits of the colormap.
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-			but the figure instance would be open so the user can add further changes. Default = True.
-			- cmap(type:String; optional): name of the matplotlib colormap to use for the data. Default = 'seismic'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-		:Return:
-			- NA.
+        generates plot of data, for more details see fobench.plotting.plotting_pyqt
+        anf .plotting_mpl
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
@@ -934,7 +825,6 @@ class Fiber(object):
 		'''
 		computes autocorrelation profile, see fiber.tools.wavefield.autocorrelation_profile
         for more details
-
 	    '''
 		axis = self.__axis__('t')
 
@@ -958,7 +848,6 @@ class Fiber(object):
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
 	    '''
-
 		coh = wavefield.spatial_coherence_matrix(data=self.data.T,
                                            max_lag=max_lag,
                                            fs=self.sampling_frequency,
@@ -972,7 +861,6 @@ class Fiber(object):
 		'''
         launches the Fobench Data Explorer
 		'''
-
 		print(f'{"-"*65}\nStarting Fobench Data Explorer')
 		app = QtWidgets.QApplication.instance()
 		if app is None:

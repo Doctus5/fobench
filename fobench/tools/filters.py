@@ -15,18 +15,21 @@ Various Seismogram Filtering Functions
 :license:
     GNU Lesser General Public License, Version 3
     (https://www.gnu.org/copyleft/lesser.html)
-:modified by: 
+:modified by:
 	Sergio Diaz (GFZ-Potsdam, sergioad@gfz-potsdam.de)
 	27.07.2022
 """
 
-import os
 import warnings
+from pathlib import Path
 
 import numpy as np
+import scipy.signal as signal
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
                           remez, medfilt2d)
-import scipy.signal as signal
+from scipy.fft import fftshift, ifftshift, fft2, ifft2
+
+
 from pyrocko.util import decimate_coeffs
 try:
     from scipy.signal import sosfilt
@@ -54,8 +57,6 @@ def point_filter(f_type=None, data=None, df=None, freq=None, **options):
 	else:
 		raise ValueError(f'Unsupported filter type: {f_type}')
 	return result
-	
-
 
 def bandpass(data, freqmin, freqmax, df, corners=4, zerophase=False):
     """
@@ -79,7 +80,7 @@ def bandpass(data, freqmin, freqmax, df, corners=4, zerophase=False):
     """
     nyq = 0.5 * df
     low, high = freqmin/nyq, freqmax/nyq
-    
+
     # Check for Nyquist Frequency
     if high >= 1:
         msg = (f'Selected high corner frequency ({freqmax}) of bandpass is at or above Nyquist ({nyq}). Applying high-pass instead.')
@@ -92,7 +93,7 @@ def bandpass(data, freqmin, freqmax, df, corners=4, zerophase=False):
     z, p, k = iirfilter(corners, [low, high], btype='band',
                         ftype='butter', output='zpk')
     sos = zpk2sos(z, p, k)
-        
+
     if zerophase:
         firstpass = sosfilt(sos, data, axis=0)
         return sosfilt(sos, firstpass[::-1], axis=0)[::-1]
@@ -131,7 +132,7 @@ def bandstop(data, freqmin, freqmax, df, corners=4, zerophase=False):
     if low >= 1:
         msg = 'Selected low corner frequency ({freqmin}) is at or above Nyquist ({nyq}).'
         raise ValueError(msg)
-    z, p, k = iirfilter(corners, [low, high], btype='bandstop', ftype='butter', 
+    z, p, k = iirfilter(corners, [low, high], btype='bandstop', ftype='butter',
                         output='zpk')
     sos = zpk2sos(z, p, k)
     if zerophase:
@@ -216,75 +217,75 @@ def highpass(data, freq, df, corners=4, zerophase=False):
 def median_filter(data, kernel_size=3):
 	'''
 	Co-authors: Jonas Pätzel
-	Description: 
+	Description:
 		applies 2 dimensional median filter to data, calls scipy.signal.medfilt2d
 	:Params:
 		- data(type: numpy): array to filter
-		- kernel_size(type: int or lst): size of filter kernel, must be odd, if scalar then used as size in each dimension, default is 3x3
+		- kernel_size(type: int or lst): size of filter kernel, must be odd,
+        if scalar then used as size in each dimension, default is 3x3
 	:Return:
 		- filtered data
 	'''
 	return medfilt2d(data, kernel_size)
-    
+
 def lremez_fir_coeff(factor, n=None):
 	'''
 	Co-authors: Marius Isken (GFZ-Potsdam - Pyrocko)
-	Description: 
+	Description:
 		Calculate filter coefficients for FIR-remez adaptative antialiaising filter based on the decimation factor.
 	:Params:
 		- factor(type:Int or Float): the decimation factor to be applied to the data.
 	:Return:
-		- NA.  
+		- NA.
 	'''
-	
+
 	factor = int(factor)
 	b, a, n = decimate_coeffs(factor, n=n, ftype='fir-remez')
-	
+
 	return b, a, n
-	
+
 def lfir235():
 	'''
 	Co-authors: Javier Quinteros (GFZ-Potsdam)
-	Description: 
+	Description:
 		Calculate filter coefficients for FIR-235 filter of Javier Quinteros based on the decimation factor.
 	:Params:
 		- factor(type:Int or Float): the decimation factor to be applied to the data.
 	:Return:
-		- NA.  
+		- NA.
 	'''
-	filename = os.path.join(os.path.dirname(__file__),'./filter_coeffs/fir235_quinteros.txt')
+	filename = Path(__file__).resolve().parent.parent / 'filter_coeffs/fir235_quinteros.txt'
 	b = np.loadtxt(filename)
 	a = np.array([1.0])
 	n = len(b) - 1
-	
+
 	return b, a, n
-	
-	
-def decimate(data, factor, ftype, axis=0):
+
+
+def decimate(data, factor, f_type, axis=0):
 	'''
 	Co-authors: Marius Isken (GFZ-Potsdam - Pyrocko)
 	Description:
-		Decimate the data by first applied a low pass filter. Options can be: 1) "fir-remez" which is an antialiasing adaptative filter, 
+		Decimate the data by first applied a low pass filter. Options can be: 1) "fir-remez" which is an antialiasing adaptative filter,
 		with cut-off of 75% of the nyquist frequency, or 2) 'fir235' which is developed by Javier Quinteros. This filter type is NOT adaptative.
 		Calculate filter coefficients for FIR-remez adaptative antialiaising filter based on the decimation factor.
 	:Params:
 		- factor(type:Int or Float): the decimation factor to be applied to the data.
 	:Return:
-		- NA.  
+		- NA.
 	'''
-	 
-	if ftype == 'fir-remez':
-	
+
+	if f_type == 'fir-remez':
 		b, a, n = lremez_fir_coeff(factor, n=None)
-		
-	if ftype == 'fir235':
-	
+	elif f_type == 'fir235':
 		b, a, n = lfir235()
-	
-	filtered = signal.lfilter(b=b, a=a, x=data, axis=axis) # low pass filtering.
-	filtered = filtered[n//2::factor,:] if axis==0 else filtered[:,n//2::factor] # decimation.
-	
-	return filtered
+	elif f_type == None:
+		return signal.decimate(x=data, q=factor, axis=axis)
+
+	decimated = signal.lfilter(b=b, a=a, x=data, axis=axis) # low pass filtering.
+	decimated = decimated[n//2::factor,:] if axis==0 else decimated[:,n//2::factor] # decimation.
+
+	return decimated
 
 
 def remez_fir(data, freqmin, freqmax, df):
@@ -473,3 +474,106 @@ def lowpass_cheby_2(data, freq, df, maxorder=12, ba=False,
     if freq_passband:
         return sosfilt(sos, data, axis=0), wp * nyquist
     return sosfilt(sos, data, axis=0)
+
+def fk_mask(N_points, N_sensors, dx, bands, use_velocity=False, alpha=.3, transition=0.1):
+    '''
+    Co-authors: Johannes Hart.
+    Description:
+        under construction. DON'T USE THIS METHOD!
+    :Params:
+        - N_points(type:Int): number of time samples.
+        - N_sensors(type:Int): number of sensors in the array. Ideally in a straight path.
+        - dx(type:Float): spacing in meters between sensors.
+        - bands(type:List): List of tuples containing [(fmin, fmax, kmin, kmax)] or velocity bounds [(fmin, fmax, vmin, vmax)]
+        in case "use_velocity == True".
+        - use_velocity(type:Boolean): If True, kmin and kmax from "bands" will be interpreted as velocity bounds vmin and vmax.
+        - alpha(type:Float): Tukey smooth edge parameter (0 = no smooth, 1 = Gaussian).
+        - transition(type:Float): fraction of band edge used for soft taper (e.g., 0.1 = 10% of band width).
+    :Return:
+        - full_mask(type:Array): 2D array in the FK domain that acts as a mask. It is meant to
+    '''
+
+    freq_grid = np.fft.fftfreq(N_points)
+    k_grid = fftshift(2 * np.pi * np.fft.fftfreq(N_sensors, d=dx))#.reshape((1,self.total_channels))
+
+    freq_mesh, k_mesh = np.meshgrid(freq_grid, k_grid, indexing='ij')
+    omega_mesh = 2 * np.pi * freq_mesh
+
+    full_mask = np.zeros_like(freq_mesh, dtype=bool).astype(float) # define an initial size mask
+
+    for fmin, fmax, kmin, kmax in bands:
+
+        # check if there no limit defined
+        fmin = 0 if fmin == None else fmin
+        fmax = freq_mesh.max() if fmax == None else fmax
+        kmin = 0 if kmin == None else kmin
+        kmax = k_mesh.max() if kmax == None else kmax
+
+        # correction in case one of the values is 0, to avoid division by zeros.
+        kmin = 1e-6 if kmin == 0 else kmin
+        kmax = 1e-6 if kmax == 0 else kmax
+
+        kmin = 2 * np.pi * fmin/kmax if use_velocity == True else kmin
+        kmax = 2 * np.pi * fmax/kmin if use_velocity == True else kmax
+
+        main_band = (np.abs(freq_mesh) >= fmin) & (np.abs(freq_mesh) <= fmax) & \
+                (np.abs(k_mesh) >= kmin) & (np.abs(k_mesh) <= kmax).astype(float)
+
+        # Build 1D Tukey tapers
+        freq_taper = np.ones_like(freq_grid)
+        k_taper = np.ones_like(k_grid)
+
+        f_width = fmax - fmin
+        k_width = kmax - kmin
+
+        f_start = fmin - transition * f_width
+        f_end = fmax + transition * f_width
+        k_start = kmin - transition * k_width
+        k_end = kmax + transition * k_width
+
+        # Create Tukey windows in 1D
+        f_win = signal.windows.tukey(np.sum((np.abs(freq_grid) >= f_start) & (np.abs(freq_grid) <= f_end)), alpha=alpha)
+        k_win = signal.windows.tukey(np.sum((np.abs(k_grid) >= k_start) & (np.abs(k_grid) <= k_end)), alpha=alpha)
+
+        # Place tapers in full-size arrays
+        f_indices = np.where((np.abs(freq_grid) >= f_start) & (np.abs(freq_grid) <= f_end))[0]
+        k_indices = np.where((np.abs(k_grid) >= k_start) & (np.abs(k_grid) <= k_end))[0]
+        freq_taper[f_indices] = f_win
+        k_taper[k_indices] = k_win
+
+        # Outer product for 2D taper
+        smooth_mask = np.outer(freq_taper, k_taper)
+
+        # Combine soft mask only in the band region
+        full_mask += smooth_mask * main_band
+
+    # clip in case of overlapping.
+    full_mask = np.clip(full_mask, 0, 1)
+
+    return full_mask
+
+def apply_fk_filter(data, bands, num_points, total_channels, spatial_interval,
+              use_velocity=False, alpha=0.2, transition=0.1):
+	'''
+	Co-authors: Johannes Hart.
+	Description:
+	:Params:
+		- bands(type:List): List of tuples containing [(fmin, fmax, kmin, kmax)] or velocity bounds [(fmin, fmax, vmin, vmax)]
+		in case "use_velocity == True".
+		- use_velocity(type:Boolean): If True, kmin and kmax from "bands" will be interpreted as velocity bounds vmin and vmax.
+		- alpha(type:Float): Tukey smooth edge parameter (0 = no smooth, 1 = Gaussian).
+		- transition(type:Float): fraction of band edge used for soft taper (e.g., 0.1 = 10% of band width).
+	:Return:
+		- return1(type:--): --.
+    '''
+
+	data_fk = fftshift(fft2(ifftshift(data)))
+	mask = fk_mask(num_points, total_channels, spatial_interval,
+                       bands, use_velocity=use_velocity, alpha=alpha,
+                       transition=transition)
+
+	filt_fk = data_fk * mask
+	filt_data = np.abs(fftshift(ifft2(ifftshift(filt_fk))))
+	data = filt_data
+
+	return data
