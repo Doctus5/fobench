@@ -14,7 +14,7 @@ class Explorer(QtWidgets.QMainWindow):
     def __init__(self, Fiber):
         super().__init__()
 
-        # Set background color to white
+        # set background color to white
         pg.setConfigOption('background', 'w')
         pg.setConfigOption('foreground', 'k')
 
@@ -33,7 +33,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QtWidgets.QVBoxLayout(central_widget)
 
-        #boundaries for main data plot
+        # boundaries for main data plot
         x_min, x_max = self.times[0], self.times[-1]
         y_min, y_max = self.Fiber.distances[0], self.Fiber.distances[-1]
 

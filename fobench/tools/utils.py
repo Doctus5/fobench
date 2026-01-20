@@ -8,6 +8,8 @@ from pyrocko.orthodrome import distance_accurate50m_numpy as deg2m
 from obspy.core.trace import Trace as oTrace
 from obspy.core.stream import Stream
 
+from obspy.core import UTCDateTime as UTC
+
 from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
 
@@ -22,7 +24,6 @@ def scan_hdf5(path, recursive=True, tab_step=2):
                 scan_node(v, tabs=tabs + tab_step)
     with h5.File(path, 'r') as f:
         scan_node(f)
-
 
 
 '''
@@ -105,8 +106,6 @@ def _update_processing(func):
 		return result
 	return wrapper
 
-# NEW DATA INSTRUMENT CORRECTION
-#Does the simple instrumental correction for the DAS, Infrasound or BroadBand data by a simple per-count multiplication of instrumental factors. No instruemnt RESP file is needed.	Returns the corrected data.
 def instr_corr(data=None, attributes=None, target='strain-rate'):
 	'''
 	Co-authors: --
@@ -135,7 +134,7 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 
     # if (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
 
-	if (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
+	elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
 
 		if units == 'counts' and target == 'strain-rate':
 
@@ -148,25 +147,22 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 
     # if format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
-	if (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
-
+	elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
 		if units == 'm/s' and target == 'strain-rate':
-
 			gauge_samples = int(round(attributes['gauge_length'] / attributes['spatial_interval']))
-			print(gauge_samples)
 			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / (gauge_samples * attributes['spatial_interval'])
 			n_decim = int(gauge_samples/2)
 			attributes['channels'] = attributes['channels'][n_decim:-n_decim]
 			attributes['channels_num'] = attributes['channels_num'][n_decim:-n_decim]
 			attributes['total_channels'] = attributes['channels'].size
 
-	if (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
+	elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
 
 		if units == 'rad/(strain*m)' and target == 'strain-rate':
 
 			data = data / attributes['conv_factor'] # divide by sensitivities. It seems they already provide the conversion factor
 
-	if (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
+	elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
 
 		if target == 'strain-rate':
 
@@ -181,14 +177,14 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
 	# ####################################################
 
-	if format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+	elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
 		if units == 'counts' and target == 'strain':
 
 			factor = 1E-6 / 18.4 # strain per count (WEIRD!)
 			data = np.multiply(data,factor)
 
-	if (format == 'h5' or format == 'hdf5') and company == 'michelle': # Michelle HDF5 decimated from Silixa
+	elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # Michelle HDF5 decimated from Silixa
 
 		if units == 'counts' and target == 'strain-rate':
 
@@ -293,14 +289,10 @@ def auto_cascf(in_fs, out_fs):
 	n = in_fs / out_fs # overall decimation factor
 
 	for d in pref_factors:
-
 		while n % d == 0:
-
 			factors.append(d)
 			n //= d
-
 	if n > 1:
-
 		factors.append(n)  # Include any remaining prime factor
 
 	return factors
@@ -442,3 +434,46 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 
     times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.data.shape[0])]
     return np.array([converters[time_type](t) for t in times])
+
+def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
+              start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
+    '''
+    trims data in Fiber class in time dimension between given start and end times
+
+    Parameters
+    ----------
+    t0, tf : UTC datetime object or str
+        new desired start and end timea of data
+    data : np.ndarray
+        original data to trim
+    times : np.ndarray
+        timestamps of Fiber class
+    start_time, end_time : UTC datetime
+        original start and end time of data
+
+    Raises
+    ------
+    ValueError
+        t0 > tf
+
+    Returns
+    -------
+    data : np.ndarray
+        trimmed data
+    start_time, end_time : UTC datetime
+        new start and end time of data
+    '''
+    t0, tf = UTC(t0), UTC(tf)
+
+    t0 = max(t0, start_time)
+    tf = min(tf, end_time)
+
+    if tf < t0: raise ValueError("End time (tf) must be after start time (t0).")
+    t0_pos = max(0, np.searchsorted(times, t0, side='right') - 1)
+    tf_pos = max(0, np.searchsorted(times, tf, side='right') - 1)
+
+    data = data[t0_pos:tf_pos, :]
+    start_time = times[t0_pos]
+    end_time = times[tf_pos]
+
+    return data, start_time, end_time

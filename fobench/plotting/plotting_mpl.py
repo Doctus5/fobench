@@ -165,9 +165,18 @@ def gen_spectrogram(spec_matrix=None, freqs=None, x=None, max_value=None, units_
         fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
 
 
-#Functino for plotting spectrogram in time for one channel in class DAS.
 def simple_spectrogram(data=None, freq=None, t=None, units_y=None, figsize=None, trace=None, cmap='viridis', title=None, show=None, file_name=None, where=None, freq_lim=None, **kwargs):
-
+	'''
+			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
+			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
+			but the figure instance would be open so the user can add further changes. Default = True.
+			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
+			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
+			(f.e.: "example.png"). Default = None.
+			- where(type:String; optional): path of the directory where the plot wants to be saved.
+			- verbose(type:bool): if set to true, result (Spectrum, frequencies, time) is returned
+		:Return:
+	'''
 	if trace is not None:
 
 		fig, ax = plt.subplots(2,1, sharex=True, gridspec_kw={'hspace': 0.02,'height_ratios':[3,1]}, constrained_layout=True) if figsize is None else plt.subplots(2,1, sharex=True, gridspec_kw={'hspace': 0.2,'height_ratios':[3,1]}, figsize=figsize)

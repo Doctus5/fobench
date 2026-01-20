@@ -75,6 +75,67 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
 
     pg.exec()
 
+def plot_record_section(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
+                    title:str = '') -> None:
+    '''
+    extended version of timeseries plot for multi-channel data
+
+    Parameters
+    ----------
+    timestamps : np.ndarray
+        array containing Unix timestamps of data.
+    data : np.ndarray
+        array containing data to plot.
+    y_label : str, optional
+        y-axis label. The default is ''.
+    title : str, optional
+        title of plot. The default is ''.
+
+    Returns
+    -------
+    None
+        -
+    '''
+
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
+    win = pg.GraphicsLayoutWidget(show=True)
+    win.setWindowTitle(f'Fobench: {title}')
+    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w') # white bg
+    win.resize(1200, 500)
+
+    plot = win.addPlot(title=title)
+    plot.setTitle(title, size='20pt', color='k')
+    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
+    for i in range(data.shape[1]):
+        plot.plot(timestamps, data[:, i] - i*data[:].max(), pen=pg.mkPen('k', width=1))
+
+    # y axis
+    y_axis = plot.getAxis('left')
+    y_axis.setPen(pg.mkPen('k', width=2))
+    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
+    y_axis.setTextPen(pg.mkPen('k'))
+    y_axis.setStyle(showValues=False)
+
+    # x-axis
+    plot.setAxisItems({'bottom': pg.DateAxisItem()})
+    x_axis = plot.getAxis('bottom')
+    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
+    x_axis.setPen(pg.mkPen('k', width=2))
+    x_axis.setTextPen(pg.mkPen('k'))
+    date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
+    x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
+    plot.setXRange(min(timestamps), max(timestamps), padding=0)
+    plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
+                                yMax=max(data[:, 0]),
+                                yMin=min(data[:, i] - i*data[:].max()))
+
+    pg.exec()
+
+
 def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
                     x_label: str = 'Optical Distance [m]', title:str = '') -> None:
     '''

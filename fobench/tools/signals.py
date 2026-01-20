@@ -465,3 +465,38 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_p
         magnitude = magnitude / magnitude.max()
 
     return positive_freqs, magnitude
+
+def signal_spectrogram(data: np.ndarray, sampling_frequency: int, axis: int,
+                       norm: bool)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
+	'''
+    computes spectrogram of signal
+
+    Parameters
+    ----------
+    data : np.ndarray
+        signal to process.
+    sampling_frequency : int
+        sampling frequency of signal.
+    axis : int
+        time axis index.
+    norm : bool
+        whther to normalize results by maximum value.
+
+    Returns
+    -------
+    f : np.ndarray
+        frequency axis vector.
+    t : np.ndarray
+        time axis vector.
+    Sxx : np.ndarray
+        spectrogram image.
+
+    '''
+	nyquist = sampling_frequency/2
+	nfft, nperseg = nyquist*2, int(sampling_frequency/5)
+	noverlap = int(nperseg/2)
+	f, t, Sxx = signal.spectrogram(data, sampling_frequency, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
+	Sxx = np.flip(Sxx, axis=axis)
+	Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
+
+	return f, t, Sxx

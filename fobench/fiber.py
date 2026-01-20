@@ -18,7 +18,6 @@ from warnings import warn
 
 import numpy as np
 import scipy.signal as signal
-from scipy.fft import fftshift, ifftshift, fft2, ifft2
 
 from obspy.core import UTCDateTime as UTC
 
@@ -33,16 +32,21 @@ from .plotting.pyqt_explorer import Explorer
 
 class Fiber(object):
 	'''
-	IMPORTANT INFO: Most of the methods perform changes within the class permanently.
+	NOTE: Most of the methods perform changes within the class permanently.
     Therefore it is useful to make a copy of the fiber instance with the method
     .copy() before performing any processing or changes.
 
-    For all methods 'plot_mode' parameter can either be 'pyqt' or 'mpl', to not generate plot set
-    to anything else, e.g. None
+    For most methods 'plot_mode' parameter can either be 'pyqt' or 'mpl',
+    to not generate plot set to anything else, e.g. None
 	'''
 
 	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
 		'''
+
+
+        if 'load_data' is False, class is initialized containing only metadata
+
+
 		Co-authors: --
 		Description:
 			Initializes a DAS Class which is reading a DAS file and saving all variables and metadata.
@@ -116,20 +120,15 @@ class Fiber(object):
 	def __iadd__(self, other):
 		if not isinstance(other, Fiber):
 			raise TypeError('Object to add must be instance of Fiber class')
+
 		return self.concatenate(other, fill_gaps=0)
 
 	def __axis__(self, dim):
 		'''
-		Co-authors: --
-		Description:
-			Translates a string input into numerical axial value for numpy. Used for the other methods.
-		:Params:
-			- dim(type: String): 't', or 'd' to differentiate between time or distance respectively.
-		:Return:
-			- axis(type: Int): integer value which denotes in numpy dimension where is time and distance.
+        translates string to numerical axis value for numpy arrays, dim can be 't' (time)
+        or 'd' (distance)
+        axis 0 corresponds to rows, axis 1 to columns
 		'''
-
-		# Axis 0 in a matrix is the row dimension (downwards) and the 1 is column-wise (rightwards, elements inside each sub-array.)
 		axial = {'t':0, 'd':1}
 
 		return axial[dim]
@@ -160,50 +159,27 @@ class Fiber(object):
 
 	def instr_correct(self, target='strain-rate'):
 		'''
-		Co-authors: --
-		Description:
-			Originally all data comes in counts. This method calls tools from another file to correct them to strain-rate (default).
-			In future this can change.
-		:Params:
-			- NA.
-		:Return:
-			- NA.
+        converts data from counts to strain-rate, exact conversion depends on manufacturer and data format
 		'''
-		if self.corrected == False:
-			self.data, self.units, self.channels, self.channels_num, self.total_channels = utils.instr_corr(self.data, vars(self), target=target)
+		if not self.corrected:
+			(self.data, self.units, self.channels, self.channels_num,
+    				self.total_channels) = utils.instr_corr(self.data, vars(self), target=target)
 			self.corrected = True
 
 		return self
 
 	def trim(self, t0=None, tf=None):
 		'''
-		Co-authors: --
-		Description:
-			Cuts the data in time between a given start-time and end-time. Updates properties of the class.
-		:Params:
-			- t0(type:UTC or String): start-time in UTC Class or string in ISOformat style.
-			- tf(type:UTC or String): end-time in UTC Class or string in ISOformat style.
-		:Return:
-			- NA.
+        cuts data between given start and end times, t0 and tf can be UTC datetime
+        or ISOformat style str
 		'''
 
-		t0, tf = UTC(t0), UTC(tf)
+		data, start_time, end_time = utils.trim_time(t0=t0, tf=tf, data=self.data,
+                                                     times=self.times(), start_time=self.start_time,
+                                                     end_time=self.end_time)
 
-		# in case one of the triming times is beyond the range of the start and end times of the data, it redefines the limits to the ones of the data.
-		t0 = max(t0, self.start_time)
-		tf = min(tf, self.end_time)
-
-		if tf < t0: raise ValueError("End time (tf) must be after start time (t0).")
-
-		t = self.times()
-		t0_pos = max(0, np.searchsorted(t, t0, side='right') - 1)
-		tf_pos = max(0, np.searchsorted(t, tf, side='right') - 1)
-
-		self.data = self.data[t0_pos:tf_pos, :]
-		self.start_time = t[t0_pos]
-		self.end_time = t[tf_pos]
-		self.time_length = self.end_time - self.start_time
-		self.num_points = self.data.shape[0]
+		self.data, self.start_time, self.end_time, self.time_length, self.num_points = (data,
+        		start_time, end_time, end_time-start_time, data.shape[0])
 
 		return self
 
@@ -304,48 +280,20 @@ class Fiber(object):
 
 	def concatenate(self, input_das=None, fill_gaps=0):
 		'''
-		Co-authors: --
-		Description:
-			Concatenates 2 different DAS Classes, the one with the method called, and the one that enters as parameter.
-			The code will identify the order of concatenation based on each class start and end-times. If there is an overlap, the data will be filled
-			with one of them and continue filling with the other class once the overlap is finished.
-			Updates variables and properties as consequence.
-			Updates the Class itself to contain the data of both Classes.
-			It is assumed that the host Class and the input Class have the same sampling rate and channels.
-		:Params:
-			- input_das(type:DAS Class): The Class to concatenate with. No matter if the class start-time is before or after the one to concatenate with.
-			- fill_gaps(type:Int): If there is a gap between the 2 DAS Classes, then the gap will be filled with any specified value. Default = 0.0. Can also be np.nan
-		:Return:
-			- NA.
+        concats two Fiber class objects assuming they have the same sampling rate and channels
+        order is determined automatically, gaps are filled with value of 'fill_gaps', overlapping times are taken
+        from self, the rest filled with input_das
+        updates class properties
 		'''
 
 		axis = self.__axis__('t')
 
-		if self.start_time <= input_das.start_time:
-
-			first, second = self, input_das
-
-		else:
-
-			first, second = input_das, self
-
-		tf = first.end_time + first.dt
-		num_t = int((second.start_time + second.dt - first.end_time) / first.dt) - 1
-
-# 		if num_t < 0:
-# 			num_t = abs(num_t)
-# 			second.data = second.data[num_t:,:]
-#
-# 		if num_t > 0:
-# 			fill = np.zeros((num_t, first.total_channels))
-# 			fill[fill==0] = np.nan if fill_gaps == None else fill_gaps #Can also work for putting NonType values (NaN) if fill_gaps is None or any value.
-# 			first.data = np.concatenate((first.data, fill), axis=axis)
+		first, second = (self, input_das) if self.start_time <= input_das.start_time else (input_das, self)
 
 		self.data = np.concatenate((first.data, second.data), axis=axis)
-		self.start_time = first.start_time
-		self.end_time = second.end_time
-		self.num_points = self.data.shape[axis]
+		self.start_time, self.end_time = first.start_time, second.end_time
 		self.time_length = self.end_time - self.start_time
+		self.num_points = self.data.shape[axis]
 		self.basefiles.extend(input_das.basefiles)
 
 		return self
@@ -367,43 +315,21 @@ class Fiber(object):
 	@utils._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
-		Co-authors: --
-		Description:
-			Affects the spatial resolution by adding to the data artifical channels between each channel (upsampling),
-			or erases them in an interleaved order (downsampling).
-			In case of upsampling, the artificial channels are made by inporlating the values in between.
-			This method duplicates or divides by half the number of channels, and therefore the data. In case of wanting more spatial resolution,
-			or less, the method must be applied several times.
-			For future this can be changed an addapted, maybe to a desired channel spacing.
-			For reference, in both upsamplig or downsampling, he first channel is always present (not affected).
-			Updates properties and variables afterwards.
-		:Params:
-			- rs_type(type:String): Selects the mode for spatial resampling. Only 2 options possible: 1) 'upsampling' or 'downsampling'.
-		:Return:
-			- NA.
-		'''
-
-		if rs_type == 'upsampling':
-
-			print('Upsampling takes longer than downsampling. It might take a while...')
-			new_data, new_channels_num = utils.spatial_upsampling(self)
-			self.spatial_interval = self.spatial_interval / 2
-
-		elif rs_type == 'downsampling':
-
-			new_data, new_channels_num = utils.spatial_downsampling(self)
-			self.spatial_interval = self.spatial_interval * 2
-
-		#if (rs_type != 'downsampling') & (rs_type != 'upsampling'):
+        modifies spatial sampling of the data by adding or removing channels,
+        for 'upsampling' adds a channel between each channel pair by interpolating the values,
+        for 'downsampling' removes every second channel, first channel is always unaltered
+        see fobench.tools.utils.spatial_upsampling and .spatial_downsample for details
+        '''
+		if rs_type in ['upsampling', 'upsample']:
+			self.data, self.channels_num = utils.spatial_upsampling(self)
+			self.spatial_interval /= 2
+		elif rs_type in ['downsampling', 'downsample']:
+			self.data, self.channels_num = utils.spatial_downsampling(self)
+			self.spatial_interval *= 2
 		else:
-
-			raise ValueError('Spatial resampling type is not recognizable. Only (upsampling) or (downsampling).')
-
-		self.data = new_data
-		self.channels_num = new_channels_num
+			raise ValueError(f'\nInvalid resample type: "{rs_type}". Choose on of:\n'
+                    ' -"upsampling"\n -"downsampling"')
 		self.total_channels = len(self.channels_num)
-
-		# print(data.shape, )
 
 		return self
 
@@ -440,7 +366,6 @@ class Fiber(object):
                                    alpha=alpha, detaper=detaper)
 
 		return self
-
 
 	@utils._update_processing
 	def decimate(self, new_freq=None, f_type='fir-remez'):
@@ -512,9 +437,8 @@ class Fiber(object):
 		if pre_process and f_type != 'median':
 			self.data = signals.filt_preprocess(self.data, axis=0)
 
-		new_data = filters.point_filter(f_type=f_type, data=self.data,
+		self.data = filters.point_filter(f_type=f_type, data=self.data,
                                   df=self.sampling_frequency, freq=freq, **options)
-		self.data = new_data
 
 		return self
 
@@ -628,7 +552,6 @@ class Fiber(object):
 		if result:
 			return p2p_amplitude, up_index, down_index
 
-
 	'''
 	-----------------------------------------------------------------
 	Plotting methods
@@ -718,7 +641,7 @@ class Fiber(object):
           file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
         generates plot of data, for more details see fobench.plotting.plotting_pyqt
-        anf .plotting_mpl
+        and .plotting_mpl
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
@@ -735,41 +658,20 @@ class Fiber(object):
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
                          show=True, cmap='viridis', file_name=None, where=None,
-                         freq_lim=None, results=False, make_plot=True,plot_mode='pyqt', **kwargs):
+                         freq_lim=None, results=False, make_plot=True, plot_mode='pyqt', **kwargs):
 		'''
-		Co-authors: --
-		Description:
-			Plots the spectrogram of a specific channel. This is different to the function spectrogram(), as this one is usng one channel,
-			and its the spectrum shown in time, while spectrogram() shows it by space for a fixed time-window.
-		:Params:
-			- channel(type:String or Int or Float): channel to calculate the spectrogram.
-			- norm(type:Boolean; optional): in case of True, each spectrogram window in time is normalized by its maximum value,
-			so then the colorscale is not affected by the global maximum. Default = False
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-			but the figure instance would be open so the user can add further changes. Default = True.
-			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-			- verbose(type:bool): if set to true, result (Spectrum, frequencies, time) is returned
-		:Return:
-			- NA.
+        computes and plots spectrogram for a 'channel', is normalized to maximum value if norm is True
+        if using 'mpl' plot mode, see fobench.plotting.plotting_mpl.simple_spectrogram
+        for details on plotting parameters
 		'''
 
 		axis = self.__axis__('t')
 		channel = int(channel)
 		index = self.channels_num.index(channel)
-		spec= self.data[:,index]
+		data = self.data[:, index]
 
-		nyquist = self.sampling_frequency/2
-		#nfft, nperseg = nyquist*2, int(self.sampling_frequency/5) # TUNNING MUST BE DONE WITH PHILIPPE!
-		nfft, nperseg = nyquist*2, int(self.sampling_frequency/5) # TUNNING MUST BE DONE WITH PHILIPPE!
-		noverlap = int(nperseg/2)
-		f, t, Sxx = signal.spectrogram(spec, self.sampling_frequency, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
-		Sxx = np.flip(Sxx,axis=axis)
-		Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
-		trace = spec if trace == True else None
+		f, t, Sxx = signals.signal_spectrogram(data=data, sampling_frequency=self.sampling_frequency,
+                                         axis=axis, norm=norm)
 
 		if make_plot is True and plot_mode=='pyqt':
 			t = self.times(time_type='unix')
@@ -780,44 +682,38 @@ class Fiber(object):
 		elif make_plot is True and plot_mode=='mpl':
 			t = self.times(time_type='matplotlib')
 			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
-						trace=trace, figsize=figsize, cmap=cmap,
+						trace=data if trace == True else None, figsize=figsize, cmap=cmap,
 						title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel),
 						show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
 
 		if results:
 			return Sxx, f, t
-		#simple_spectrogram(spec_matrix=selected, freqs=self.sampling_frequency, x=t, units_x='time', figsize=figsize, cmap=cmap, title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
-	def plot_record_section(self, channels):
+	def record_section(self, channels, plot_mode='pyqt'):
 		'''
-		Co-authors: --
-		Description:
-			Plot the DAS data as multiple seismograms in the same image (record section).
-		:Params:
-			- channels(type: tuple or list): channels to plot into the record section,
-			if tuple all channels in the range will be plotted
-			if list all channels given in the list will be plotted
-		:Return:
-			- NA.
+        plots record section of multiple channels, if channels is tuple the range
+        between lower and upper limit will be plotted, if list only channels in list
+        will be plotted
 		'''
 
 		if isinstance(channels, tuple):
-			ch0, chf = int(channels[0]), int(channels[1])
+			ch0, chf = map(int, channels)
 			ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
-			das_data = self.data[:,ch0:chf+1]
-			das_channels = self.channels_num[ch0:chf+1]
+			ch_idx = slice(ch0, chf + 1)
 
 		elif isinstance(channels, list):
-			channels = [int(channel) for channel in channels]
-			ch_i = [self.channels_num.index(channel) for channel in channels]
-			ch_i.sort()
-			das_data = self.data[:, ch_i]
-			das_channels = [self.channels_num[ind] for ind in ch_i]
+			channels = list(map(int, channels))
+			ch_idx = sorted(self.channels_num.index(ch) for ch in channels)
 
-		t = self.times('matplotlib')
-		date = self.times()[0].isoformat()[:10]
+		das_data = self.data[:, ch_idx]
+		das_channels = np.array(self.channels_num)[ch_idx]
 
-		plot.plot_record_section(signals=das_data, t=t, channels=das_channels, date=date)
+		if plot_mode=='pyqt':
+			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
+                                 title='Record Section')
+		elif plot_mode=='mpl':
+			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
+                            channels=das_channels, date=self.times()[0].isoformat()[:10])
 
 
 	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
@@ -841,8 +737,6 @@ class Fiber(object):
 		if result:
 			return acf
 
-
-
 	def spatial_coherence(self, max_lag, result=False, plot=True):
 		'''
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
@@ -855,7 +749,6 @@ class Fiber(object):
                                            plot=plot, result=result)
 		if result:
 			return coh
-
 
 	def explore(self):
 		'''
