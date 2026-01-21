@@ -17,8 +17,6 @@ import copy
 from warnings import warn
 
 import numpy as np
-import scipy.signal as signal
-
 from obspy.core import UTCDateTime as UTC
 
 import pyqtgraph as pg
@@ -122,7 +120,6 @@ class Fiber(object):
 		axial = {'t':0, 'd':1}
 
 		return axial[dim]
-
 
 	'''
 	-----------------------------------------------------------------
@@ -388,7 +385,8 @@ class Fiber(object):
 	    return self
 
 	@utils._update_processing
-	def filter(self, f_type=None, freq=None, pre_process=True, frac=0.05, order=1, **options):
+	def filter(self, f_type=None, freq=None, pre_process=True, alpha=0.05, order=1, sym=True,
+            **options):
 		'''
         filters data using specified filter, based on Obspy.signal.filter module
         for frequency filters, data is optionally pre-processed
@@ -396,11 +394,22 @@ class Fiber(object):
         if 'bandpass' or 'bandstop', freq must be tuple(float, float)
         '''
 		if pre_process and f_type != 'median':
-			self.data = signals.filt_preprocess(self.data, axis=0)
+			self.preprocess(alpha=alpha, sym=sym, order=order,
+                               axis=0)
 
 		self.data = filters.point_filter(f_type=f_type, data=self.data,
                                   df=self.sampling_frequency, freq=freq, **options)
 
+		return self
+
+	@utils._update_processing
+	def preprocess(self, alpha=0.05, order=1, sym=True, axis=0, steps=(True, True, True)):
+		'''
+        performs demeaning, detrending and tapering, see fobench.tools.signals.filt_preprocess
+        for more details
+	    '''
+		self.data = signals.filt_preprocess(io_signal=self.data, order=order,
+                                      alpha=alpha, sym=sym, axis=axis)
 		return self
 
 	@utils._update_processing

@@ -195,7 +195,8 @@ def get_tukey_window(M: int, alpha: float, sym: bool)-> np.ndarray:
     '''
     return signal.windows.tukey(M, alpha, sym)
 
-def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool = False) -> np.ndarray:
+def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool = False,
+                 sym: bool = True) -> np.ndarray:
     '''
     taper signal using Tukey window
 
@@ -209,6 +210,8 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
         axis along which to perform tapering.
     detaper : bool
         option to remove taper from signal
+    sym : bool
+        symmetric window for tapering if True. The default is True.
 
     Returns
     -------
@@ -217,7 +220,7 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
     '''
     if axis is None: #1D case
         M = data.shape[0]
-        taper = get_tukey_window(M, alpha, sym=True)
+        taper = get_tukey_window(M, alpha, sym=sym)
         if not detaper:
             return data * taper
         elif detaper:

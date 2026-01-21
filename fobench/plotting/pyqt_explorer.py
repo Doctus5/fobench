@@ -314,7 +314,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.tab_widget.removeTab(index)
 
     def spectrogram(self, channel):
-        Sxx, f, t = self.Fiber.channel_spectrogram(channel, verbose=True, make_plot=False)
+        Sxx, f, t = self.Fiber.channel_spectrogram(channel, results=True, make_plot=False)
         return Sxx.T, f
 
     def update_colorbar_levels(self):
