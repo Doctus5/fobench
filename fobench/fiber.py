@@ -42,23 +42,13 @@ class Fiber(object):
 
 	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
 		'''
-
-
-        if 'load_data' is False, class is initialized containing only metadata
-
-
-		Co-authors: --
-		Description:
-			Initializes a DAS Class which is reading a DAS file and saving all variables and metadata.
-			The basis for manipulating the data is numpy. Tools are inspired in Obspy, however using
-			an obspy class for this takes long time in their processing tools.
-		:Params:
-			- filepath(type:String): complete path of the file to be read.
-			- company(type:String): manufacturer or the instrument that generates the data. Currently supporting 'silixa', 'febus'', 'bam', 'aragon', 'quantx','asn' and 'terra15'
-			- range_ch(type:Int or List): channel number(s) to load only in data. Method to avoid loading all the data.
-			- sensing(type:String): specifies the type of fiber optic sensing technique of the data. Default is 'das'.
-		:Return:
-			- NA.
+        Initializes base class of Fobench, reading in data and metadata, data is manipulated mostly
+        using numpy and scipy, tools are inspired by obspy
+        needs 'filepath' to data file to read and manufacturer of interrogator, currently supported companies are:
+        'silixa', 'febus', 'aragon', 'quantx', 'asn', 'terra15' and 'sintela'
+        'sensing' indicates type of fiber optic sensing technology, defaulting to 'das'
+        only part of data can be loaded when specifing the channel range; if 'load_data' is False,
+        class is initialized containing only metadata
 		'''
 		if not company:
 			raise ValueError(
@@ -183,7 +173,6 @@ class Fiber(object):
 
 		return self
 
-
 	def restrict_channels(self, ch0, chf):
 		'''
         trims data in space, between ch0 and chf, a single channel is returned
@@ -200,65 +189,39 @@ class Fiber(object):
 
 		return self
 
-
 	def append_coord(self, n_ch, x_ch, y_ch, z_ch):
 		'''
-		Co-authors: --
-		Description:
-			Attach coordinates of specified channels for the class instance. Necessary for plotting the fibre path and other spatial operations.
-		:Params:
-			- n_ch(type:Numpy): 1D array of channel number.
-			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
-			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
-			- z_ch(type:Numpy): 1D array of Z (depth - meters) coordinates of the channels specified in "n_ch".
-		:Return:
-			- NA.
+        attaches channel coordinates for later plotting
+        takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+        and elevation in m (z_ch)
 		'''
+		coords = [n_ch,
+                  np.zeros_like(n_ch) if x_ch is None else x_ch,
+                  np.zeros_like(n_ch) if y_ch is None else y_ch,
+                  np.zeros_like(n_ch) if z_ch is None else z_ch]
 
-		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
-		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
-		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
-
-		ch_coord = np.zeros((n_ch.size, 4))
-		ch_coord[:,0] = n_ch
-		ch_coord[:,1] = x_ch
-		ch_coord[:,2] = y_ch
-		ch_coord[:,3] = z_ch
-
-		self.ch_coord = ch_coord
+		self.ch_coord = np.column_stack(coords)
 
 		return self
 
 	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
-		Co-authors: --
-		Description:
-			Georeferencing of channels of the data. If tap tests were done to geolocate specific channels, this ones can be used for
-			georeferencing other channels by linear interpolations between the located ones (assuming straight paths).
-			It automatically attach the new coordinates to the Fiber class.
-		:Params:
-			- n_ch(type:Numpy): 1D array of channel number (ID) that were located with tap tests.
-			- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
-			- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
-			- z_ch(type:Numpy): 1D array of Z altitude [meters] of the channels specified in "n_ch".
-			- system(type:String): Defined the receiving coordinate systems for X and Y. It can be 'decimal' for decimal degrees
-			or 'utm' for Universal Transverse Mercator. Default is 'decimal'.
-			- err(type:Float - Optional): maximum accepted error from interpolation in decimals. In case is given, the method will evaluate
-			the error of the calculated channel spacing vs. the original one from the metadata.
-		:Return:
-			- NA.
+        takes known channel locations, e.g. from tap tests and interpolates channel locations
+        inbetween, attaches new coordinates
+        takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+        and elevation in m (z_ch), coordinate system can be for lon and lat can be 'decimal' or 'utm'
+        'err' is maximum accepted interpolation error between original metadata location and new interpolated
+        location
 		'''
-
 		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
 		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
 		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
 
-		n_ch, x_ch, y_ch, z_ch = utils.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, self.spatial_interval) # georeferencing new channels between the tap tests points.
-
+		n_ch, x_ch, y_ch, z_ch = utils.interpolate_channels(n_ch, x_ch, y_ch,
+                                                      z_ch, system, err, self.spatial_interval)
 		self.append_coord(n_ch, x_ch, y_ch, z_ch)
 
 		return self
-
 
 	def get_data(self, channel=None):
 		'''
@@ -269,7 +232,6 @@ class Fiber(object):
 			return self.data[:,index]
 
 		return self.data
-
 
 	def times(self, time_type='UTCDateTime'):
 		'''
@@ -297,7 +259,6 @@ class Fiber(object):
 		self.basefiles.extend(input_das.basefiles)
 
 		return self
-
 
 	def to_traces(self, t_type='obspy'):
 		'''
@@ -498,7 +459,6 @@ class Fiber(object):
 		if results:
 			return snr
 
-
 	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False):
 		'''
         computes root mean square amplitude for record
@@ -530,8 +490,7 @@ class Fiber(object):
 		if results:
 			return times, rmsa
 
-
-	def p2p_amp(self, dim='t', result=True, plot_mode='pyqt'):
+	def p2p_amp(self, dim='t', results=True, plot_mode='pyqt'):
 		'''
         computes peak-to-peak amplitude of data in time or space
         see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
@@ -549,7 +508,7 @@ class Fiber(object):
                                     y_label='Amplitude',
                                     title='Peak-to-Peak Amplitude over time')
 
-		if result:
+		if results:
 			return p2p_amplitude, up_index, down_index
 
 	'''
@@ -636,7 +595,6 @@ class Fiber(object):
                     max_value=max_value, spectrogram=False, show=show, figsize=figsize,
                     title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
 
-
 	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic',
           file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
@@ -715,9 +673,8 @@ class Fiber(object):
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
                             channels=das_channels, date=self.times()[0].isoformat()[:10])
 
-
 	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
-                    window_size=None, result=False, **imshow_kwargs):
+                    window_size=None, results=False, **imshow_kwargs):
 		'''
 		computes autocorrelation profile, see fiber.tools.wavefield.autocorrelation_profile
         for more details
@@ -734,7 +691,7 @@ class Fiber(object):
                                                 self.distances, self.sampling_frequency,
                                                 window_size=window_size, **imshow_kwargs)
 
-		if result:
+		if results:
 			return acf
 
 	def spatial_coherence(self, max_lag, result=False, plot=True):
