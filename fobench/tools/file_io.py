@@ -157,7 +157,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = [i for i in range(properties['nx'])] if range_ch == None else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset['data'], format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset['data'], format, company, list(chans_nums)) if load_data else None
         fiber = 'standard'
         dt = float(properties['dt_computer'])
         sampling_frequency = 1 / dt
@@ -231,7 +231,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         pbar.set_description('Extracting Attributes')
         fiber = 'standard'
         sampling_frequency = float(properties['trigger_frequency'][0])
@@ -415,8 +415,6 @@ def h5_to_dict(h5_obj):
 
     return result
 
-
-#Loads the data of the tdms file into a numpy array. Axis 0 is the time, and axis 1 are the channels.
 def __data__(extract_point, format, company, range_ch, LAG=None):
     '''
     Co-authors: --

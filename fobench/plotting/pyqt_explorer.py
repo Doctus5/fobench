@@ -117,7 +117,7 @@ class Explorer(QtWidgets.QMainWindow):
             pos = self.matrix_image.mapFromScene(event.scenePos())
             x, y = int(pos.x()), int(pos.y())
             if 0 <= y < self.Fiber.data.shape[1]:
-                self.selected_channel = y # set selected channel to y value
+                self.selected_channel = y + self.Fiber.channels_num[0] # set selected channel to y value
                 self.slider.setValue(self.selected_channel) # update slider
                 self.spin_box.setValue(self.selected_channel) # update spinbox
                 self.update_plots()

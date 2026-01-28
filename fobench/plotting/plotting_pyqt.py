@@ -2,7 +2,7 @@
 contains all functionality related to plotting using PyQtGraph, i.e.
 whenever plot_mode is set to 'pyqt'
 '''
-
+import time
 import sys
 import datetime
 import numpy as np
@@ -39,7 +39,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     None
         -
     '''
-
+    t0 = time.perf_counter()
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
@@ -74,6 +74,9 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
                                 yMin=min(data), yMax=max(data))
 
     pg.exec()
+    QtWidgets.QApplication.processEvents()
+    t1 = time.perf_counter()
+    print(f"Render time: {t1 - t0:.4f} s")
 
 def plot_record_section(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
                     title:str = '') -> None:
