@@ -2,12 +2,10 @@
 contains the Explorer class
 '''
 
-import sys
-sys.path.append('/home/joni/Dokumente/GEO4D/Software/fobench/')
-
-from pathlib import Path
+import datetime
 import numpy as np
 import pyqtgraph as pg
+from pathlib import Path
 from pyqtgraph.Qt import QtCore, QtWidgets, QtGui
 
 class Explorer(QtWidgets.QMainWindow):
@@ -51,8 +49,24 @@ class Explorer(QtWidgets.QMainWindow):
         self.matrix_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                                 yMin=y_min, yMax=y_max)
 
+        # cursor tracking in data units
+        self.matrix_label = pg.LabelItem(justify='left')
+        self.matrix_plot_widget.addItem(self.matrix_label, row=1, col=0)
+
+        def mouse_moved(evt):
+            pos = evt[0]
+            mouse_point = self.matrix_plot.getViewBox().mapSceneToView(pos)
+            x_val = mouse_point.x()
+            y_val = mouse_point.y()
+            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S')
+            self.matrix_label.setText(f'Time: {x_datetime} | Optical Distance [m]: {y_val:.1f}', color='k')
+
+        self.matrix_mouse_proxy = pg.SignalProxy(self.matrix_plot.scene().sigMouseMoved,
+            rateLimit=60, slot=mouse_moved)
+
         # histogram to main plot
         self.hist = pg.HistogramLUTItem(image=self.matrix_image)
+        self.hist.setToolTip('Right click to change colormap')
         self.hist.gradient.setColorMap(pg.colormap.get('seismic', source='matplotlib'))
         self.matrix_plot_widget.addItem(self.hist)
 
@@ -84,6 +98,7 @@ class Explorer(QtWidgets.QMainWindow):
 
         # channel selection slider
         self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
+        self.slider.setToolTip('Selects Channel to plot')
         self.slider.setMinimum(self.ch0)
         self.slider.setMaximum(self.chf)
         self.slider.setValue(self.selected_channel)

@@ -11,7 +11,6 @@ from PyQt5 import QtCore
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtGui
 
-
 '''
 -----------------------------------------------------------------
 Line Plot Functions
@@ -195,8 +194,6 @@ def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
                                 yMin=min(data), yMax=max(data))
 
     pg.exec()
-
-
 
 '''
 -----------------------------------------------------------------
