@@ -60,7 +60,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans = file_file['Measurement'].channels() if range_ch == None else [file_file['Measurement'].channels()[i] for i in range_ch]
         chans_nums = [int(chan.name) for chan in chans]
         # loading of the data conditioned.
-        data = __data__(file_file['Measurement'], format, company, chans_nums) if load_data == True else None
+        data = __data__(file_file['Measurement'], format, company, chans_nums) if load_data else None
         fiber = properties['name'].split('_')[0]
         sampling_frequency = properties['SamplingFrequency[Hz]']
         o_sampling_frequency = sampling_frequency
@@ -103,7 +103,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans = [i for i in range(properties['NumberOfLoci'])] if not range_ch else range_ch
         chans_nums = np.array(chans)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         fiber = properties['FibreType']
         sampling_frequency = properties['OutputDataRate']
         o_sampling_frequency = sampling_frequency
@@ -137,7 +137,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         dt = 1/sampling_frequency
         SEMILAG = properties['BlockRate'][0]*1e-3 if getattr(properties['BlockRate'], "size", 0) == 1 else properties['BlockRate']*1e-3 # unpacking value sif is inside list.
         SEMILAG = int(np.round((1/SEMILAG) / dt))
-        data = __data__(dataset, format, company, list(chans_nums), SEMILAG) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums), SEMILAG) if load_data else None
         start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
         end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * SEMILAG)
         spatial_interval = properties['Spacing'][0]
@@ -182,7 +182,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = [i for i in range(int(file_file['header']['dimensionRanges']['dimension1']['size'][()]))] if range_ch == None else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         fiber = 'standard'
         dt = float(file_file['header']['dt'][()])
         sampling_frequency = 1 / dt
@@ -207,7 +207,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = [i for i in range(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']))] if range_ch == None else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset['RawData'], format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset['RawData'], format, company, list(chans_nums)) if load_data else None
         fiber = 'standard'
         sampling_frequency = float(dataset.attrs['OutputDataRate'])
         o_sampling_frequency = sampling_frequency
@@ -256,7 +256,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         dataset = file_file['Acquisition/Raw[0]/RawData']
         chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         fiber = properties['FiberID']
         sampling_frequency = properties['PulseRate']
         o_sampling_frequency = sampling_frequency
@@ -285,7 +285,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = [i for i in range(dataset.shape[1])] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(filepath, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(filepath, format, company, list(chans_nums)) if load_data else None
         fiber = 'La Chida'
         sampling_frequency = 100000
         o_sampling_frequency = sampling_frequency
@@ -310,7 +310,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = [i for i in range(len(dataset['distance']))] if not range_ch else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(filepath, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(filepath, format, company, list(chans_nums)) if load_data else None
         fiber = 'La Chida'
         sampling_frequency = dataset['freq']
         o_sampling_frequency = sampling_frequency
@@ -334,7 +334,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = list(file_file['ChannelMap']) if range_ch == None else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data == True else None
+        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         fiber = properties['Fibre Type'].decode('UTF-8')
         dt = float(properties['Sampletime'][0])
         sampling_frequency = 1 / dt

@@ -7,6 +7,9 @@ import numpy as np
 import pyqtgraph as pg
 from pathlib import Path
 from pyqtgraph.Qt import QtCore, QtWidgets, QtGui
+from pyqtgraph.dockarea.Dock import Dock
+from pyqtgraph.dockarea.DockArea import DockArea
+
 
 class Explorer(QtWidgets.QMainWindow):
     def __init__(self, Fiber):
@@ -21,15 +24,26 @@ class Explorer(QtWidgets.QMainWindow):
         self.times = self.Fiber.times(time_type='unix')
         self.ch0, self.chf = self.Fiber.channels[0], self.Fiber.channels[-1]
         self.selected_channel = self.ch0
+        self.selected_distance = self.Fiber.distances[0]
 
         # set up window
         self.setWindowTitle('Fobench Data Explorer')
         self.setGeometry(100, 100, 1200, 800)
         self.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
 
-        central_widget = QtWidgets.QWidget()
-        self.setCentralWidget(central_widget)
-        main_layout = QtWidgets.QVBoxLayout(central_widget)
+        self.area = DockArea()
+        self.setCentralWidget(self.area)
+
+        # set up docks
+        # main dock for data view
+        self.dock_1 = Dock('Data View', size=(1200,600), closable=False)
+        self.area.addDock(self.dock_1)
+        # channel view dock
+        self.dock_2 = Dock(f'Channel {self.selected_channel}', size=(1200,200), closable=False)
+        self.area.addDock(self.dock_2, 'bottom', self.dock_1)
+        # controls dock
+        self.dock_3 = Dock('Controls', size=(150,200), closable=False)
+        self.area.addDock(self.dock_3, 'right', self.dock_2)
 
         # boundaries for main data plot
         x_min, x_max = self.times[0], self.times[-1]
@@ -37,17 +51,25 @@ class Explorer(QtWidgets.QMainWindow):
 
         # main data plot
         self.matrix_plot_widget = pg.GraphicsLayoutWidget()
-        main_layout.addWidget(self.matrix_plot_widget, stretch=3)  # matrix plot is 3 parts of the layout
         self.matrix_plot = self.matrix_plot_widget.addPlot()
         self.matrix_image = pg.ImageItem(image=self.Fiber.data)
         self.matrix_plot.addItem(self.matrix_image)
         self.matrix_plot.setAspectLocked(False)
-        self.matrix_plot.scene().sigMouseClicked.connect(self.on_matrix_clicked)
         self.matrix_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)}) # when is utcoffset necessary??
         self.matrix_plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
         self.matrix_image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
         self.matrix_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                                 yMin=y_min, yMax=y_max)
+        self.dock_1.addWidget(self.matrix_plot_widget)
+
+
+        # line tool channel selector
+        self.y_picker = pg.InfiniteLine(pos=self.Fiber.distances[0], angle=0, movable=True,
+                markers=[('^', 0, 16), ('v', 1, 16)], pen=pg.mkPen('k', width=1, style=pg.QtCore.Qt.DashLine),
+                hoverPen=pg.mkPen('k', width=1, style=pg.QtCore.Qt.SolidLine))
+        self.y_picker.setBounds([y_min, y_max])
+        self.matrix_plot.addItem(self.y_picker)
+        self.y_picker.sigDragged.connect(self.on_picker_moved)
 
         # cursor tracking in data units
         self.matrix_label = pg.LabelItem(justify='left')
@@ -70,40 +92,24 @@ class Explorer(QtWidgets.QMainWindow):
         self.hist.gradient.setColorMap(pg.colormap.get('seismic', source='matplotlib'))
         self.matrix_plot_widget.addItem(self.hist)
 
-        # tabs
-        self.tab_widget = QtWidgets.QTabWidget()
-        main_layout.addWidget(self.tab_widget, stretch=1)  # Tab widget takes 1 part of the layout
-
-        # channel plot tab
+        # channel plot
         self.line_plot_widget = pg.GraphicsLayoutWidget()
         self.line_plot = self.line_plot_widget.addPlot()
         self.line_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
         self.line_curve = self.line_plot.plot(pen='k')
-        self.tab_widget.addTab(self.line_plot_widget, 'Channel')
-
-        bottom_layout = QtWidgets.QHBoxLayout()
-        main_layout.addLayout(bottom_layout)
-
-        self.channel_label = QtWidgets.QLabel('Channel:')
-        bottom_layout.addWidget(self.channel_label)  # channel label in the same line as spinbox and slider
+        self.dock_2.addWidget(self.line_plot_widget)
 
         # channel selection spinbox
         self.spin_box = QtWidgets.QSpinBox()
         self.spin_box.setToolTip('Selects Channel to plot')
         self.spin_box.setMinimum(self.ch0)
         self.spin_box.setMaximum(self.chf)
+        self.spin_box.setPrefix('Channel: ')
         self.spin_box.setValue(self.selected_channel)
         self.spin_box.valueChanged.connect(self.on_spin_box_changed)
-        bottom_layout.addWidget(self.spin_box)  # spinbox to the left of the slider
-
-        # channel selection slider
-        self.slider = QtWidgets.QSlider(QtCore.Qt.Horizontal)
-        self.slider.setToolTip('Selects Channel to plot')
-        self.slider.setMinimum(self.ch0)
-        self.slider.setMaximum(self.chf)
-        self.slider.setValue(self.selected_channel)
-        self.slider.valueChanged.connect(self.on_slider_changed)
-        bottom_layout.addWidget(self.slider)  # slider to the right of the spin box
+        self.dock_3.addWidget(self.spin_box, row=0, col=0)
+        self.distance_indicator = QtWidgets.QLabel(f'Distance: {self.selected_distance}')
+        self.dock_3.addWidget(self.distance_indicator, row=1, col=0)
 
         # colorbar max percentile spinbox
         self.cbar_spinbox = QtWidgets.QDoubleSpinBox()
@@ -111,60 +117,69 @@ class Explorer(QtWidgets.QMainWindow):
         self.cbar_spinbox.setDecimals(0)
         self.cbar_spinbox.setSingleStep(1)
         self.cbar_spinbox.setValue(90)  # default to 90th percentile
+        self.cbar_spinbox.setPrefix('Colorbar max: ')
+        self.cbar_spinbox.setSuffix(' %')
         self.cbar_spinbox.setToolTip('Sets data percentile to be represented by colorbar (0–100)')
         self.cbar_spinbox.valueChanged.connect(self.update_colorbar_levels)
-        bottom_layout.addWidget(QtWidgets.QLabel('Colorbar max %:'))
-        bottom_layout.addWidget(self.cbar_spinbox)
+        self.dock_3.addWidget(self.cbar_spinbox, row=2, col=0)
         self.update_colorbar_levels()
 
-        # dropdown methods menu
-        self.dropdown = QtWidgets.QComboBox()
-        self.dropdown.addItems(['Methods', 'Spectrogram', 'PSD', 'Spectrum', 'RMSA', 'P2PA'])
-        self.dropdown.setToolTip('Basic Signal Analysis Methods')
-        self.dropdown.currentIndexChanged.connect(self.on_dropdown_changed)
-        bottom_layout.addWidget(self.dropdown)  # dropdown menu to the right of the slider
-
+        # dropdown channel analysis menu
+        self.dropdown_ch = QtWidgets.QComboBox()
+        self.dropdown_ch.addItems(['Channel Analysis', 'Spectrogram', 'PSD', 'Spectrum'])
+        self.dropdown_ch.setToolTip('Basic Signal Analysis Methods')
+        self.dropdown_ch.currentIndexChanged.connect(self.on_dropdown_ch_changed)
         self.update_plots()
+        self.dock_3.addWidget(self.dropdown_ch, row=3, col=0)
 
-    # detect clicking on matrix and update
-    def on_matrix_clicked(self, event):
-        if event.button() == QtCore.Qt.LeftButton:
-            pos = self.matrix_image.mapFromScene(event.scenePos())
-            x, y = int(pos.x()), int(pos.y())
-            if 0 <= y < self.Fiber.data.shape[1]:
-                self.selected_channel = y + self.Fiber.channels_num[0] # set selected channel to y value
-                self.slider.setValue(self.selected_channel) # update slider
-                self.spin_box.setValue(self.selected_channel) # update spinbox
-                self.update_plots()
+        # dropdown data analysis menu
+        self.dropdown_data = QtWidgets.QComboBox()
+        self.dropdown_data.addItems(['Data Analysis', 'RMSA', 'P2PA', 'f-x Plot'])
+        self.dropdown_data.setToolTip('Basic Data Analysis Methods')
+        self.dropdown_data.currentIndexChanged.connect(self.on_dropdown_data_changed)
+        self.update_plots()
+        self.dock_3.addWidget(self.dropdown_data, row=4, col=0)
 
-    # detect channel selection with slider
-    def on_slider_changed(self, value):
-        self.selected_channel = value
-        self.spin_box.setValue(self.selected_channel)
+    # detect channel change with moving horizontal line
+    def on_picker_moved(self):
+        idx = np.abs(np.asarray(self.Fiber.distances) - self.y_picker.getYPos()).argmin()
+        self.selected_channel = self.Fiber.channels[idx]
         self.update_plots()
 
     # detect channel selection with spin box
     def on_spin_box_changed(self, value):
         self.selected_channel = int(value)
-        self.slider.setValue(self.selected_channel)
         self.update_plots()
 
-    # detect selection of method in dropdown menu
-    def on_dropdown_changed(self, index):
-        if self.dropdown.currentText() == 'Spectrogram':
+    # detect selection of method in dropdown channel menu
+    def on_dropdown_ch_changed(self, index):
+        if self.dropdown_ch.currentText() == 'Spectrogram':
             self.plot_spectrogram()
-        if self.dropdown.currentText() == 'RMSA':
-            self.plot_rmsa()
-        if self.dropdown.currentText() == 'P2PA':
-            self.plot_p2pa()
-        if self.dropdown.currentText() == 'PSD':
+        if self.dropdown_ch.currentText() == 'PSD':
             self.plot_psd()
-        if self.dropdown.currentText() == 'Spectrum':
+        if self.dropdown_ch.currentText() == 'Spectrum':
             self.plot_spectrum()
-        self.dropdown.setCurrentIndex(0)  # Reset dropdown to 'Methods'
+        self.dropdown_ch.setCurrentIndex(0)  # Reset dropdown menus
 
+    # detect selection of method in dropdown data menu
+    def on_dropdown_data_changed(self, index):
+        if self.dropdown_data.currentText() == 'RMSA':
+            self.plot_rmsa()
+        if self.dropdown_data.currentText() == 'P2PA':
+            self.plot_p2pa()
+        if self.dropdown_data.currentText() == 'f-x Plot':
+            self.plot_fx()
+        self.dropdown_data.setCurrentIndex(0)
+
+    # update all plots and widgets
     def update_plots(self):
-        row_data = self.Fiber.data[:, self.selected_channel-self.ch0]
+        ind = self.selected_channel-self.ch0
+        self.selected_distance = self.Fiber.distances[ind]
+        self.spin_box.setValue(self.selected_channel)
+        self.distance_indicator.setText(f'Distance: {self.selected_distance}')
+        self.dock_2.setTitle(f'Channel {self.selected_channel}')
+        self.y_picker.setValue(self.selected_distance)
+        row_data = self.Fiber.data[:, ind]
         self.line_curve.setData(y=row_data, x=self.times)
         x_min, x_max = self.times[0], self.times[-1]
         y_min, y_max = min(row_data), max(row_data)
@@ -176,13 +191,6 @@ class Explorer(QtWidgets.QMainWindow):
         spectrogram_data, freqs = self.spectrogram(self.selected_channel)
         spectrogram_data = np.flip(spectrogram_data, axis=1)
 
-        # Check if the spectrogram tab already exists
-        for i in range(self.tab_widget.count()):
-            if self.tab_widget.tabText(i) == f'Spectrogram {self.selected_channel}':
-                self.tab_widget.setCurrentIndex(i)
-                return
-
-        # Create a new tab for the spectrogram plot
         spectrogram_plot_widget = pg.GraphicsLayoutWidget()
         spectrogram_plot = spectrogram_plot_widget.addPlot()
         spectrogram_image = pg.ImageItem()
@@ -201,136 +209,117 @@ class Explorer(QtWidgets.QMainWindow):
         spectrogram_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                                 yMin=y_min, yMax=y_max)
 
-        # close button
-        close_button = QtWidgets.QToolButton()
-        close_button.setText('x')
-        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(spectrogram_plot_widget)))
+        self.dock_spec = Dock(f'Spectrogram Ch {self.selected_channel}', size=(1200,200), closable=True)
+        self.area.addDock(self.dock_spec, 'above', self.dock_2)
+        self.dock_spec.addWidget(spectrogram_plot_widget)
 
-        self.tab_widget.addTab(spectrogram_plot_widget, f'Spectrogram Ch {self.selected_channel}')
-        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
-        self.tab_widget.setCurrentWidget(spectrogram_plot_widget)
+    def plot_fx(self):
+        fx, freqs = self.fx()
+
+        fx_plot_widget = pg.GraphicsLayoutWidget()
+        fx_plot = fx_plot_widget.addPlot()
+        fx_image = pg.ImageItem()
+        fx_plot.addItem(fx_image)
+        fx_plot.setAspectLocked(False)
+        fx_plot.setLabel('left', 'Frequency [Hz]')
+        fx_plot.setLabel('bottom', 'Optical Distance [m]')
+        fx_image.setImage(fx.T, levels=(fx.min(), fx.max()))
+        lut = pg.colormap.get('viridis', source='matplotlib').getLookupTable()
+        fx_image.setLookupTable(lut)
+
+        x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
+        y_min, y_max = min(freqs), max(freqs)
+
+        fx_image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
+        fx_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
+                                                yMin=y_min, yMax=y_max)
+        data_range = np.nanmax(fx) - np.nanmin(fx)
+        cmap = pg.colormap.get('viridis', source='matplotlib')
+        bar = pg.ColorBarItem(colorMap=cmap, interactive=True, rounding=0.001*data_range)
+        bar.setImageItem(fx_image, insert_in=fx_plot)
+
+        self.dock_fx = Dock(f'Frequency-Distance', size=(1200,600), closable=True)
+        self.area.addDock(self.dock_fx, 'above', self.dock_1)
+        self.dock_fx.addWidget(fx_plot_widget)
 
     def plot_rmsa(self):
-        # Check if the RMSA tab already exists
-        for i in range(self.tab_widget.count()):
-            if self.tab_widget.tabText(i) == 'RMSA':
-                self.tab_widget.setCurrentIndex(i)
-                return
+        rmsa_data = self.Fiber.rmsa(results=True, plot_mode=None)[1][0,:]
 
-        # create a new tab for the RMSA plot
         rmsa_plot_widget = pg.GraphicsLayoutWidget()
         rmsa_plot = rmsa_plot_widget.addPlot()
         rmsa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
         rmsa_plot.setLabel('left', 'RMS Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
-        # get RMSA data
-        rmsa_data = self.Fiber.rmsa(results=True, plot_mode=None)[1][0,:]
-
-        # plot RMSA data
         rmsa_curve = rmsa_plot.plot(self.Fiber.distances, rmsa_data, pen='k')
         rmsa_plot.setXRange(self.Fiber.distances[0], self.Fiber.distances[-1], padding=0)
         rmsa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
                                     yMin=min(rmsa_data), yMax=max(rmsa_data))
 
-        # close button
-        close_button = QtWidgets.QToolButton()
-        close_button.setText('x')
-        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(rmsa_plot_widget)))
+        self.dock_rmsa = Dock('RMS Amplitude', size=(1200,200), closable=True)
+        self.area.addDock(self.dock_rmsa, 'above', self.dock_2)
+        self.dock_rmsa.addWidget(rmsa_plot_widget)
 
-        # add new tab
-        self.tab_widget.addTab(rmsa_plot_widget, 'RMSA')
-        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
-        self.tab_widget.setCurrentWidget(rmsa_plot_widget)
 
     def plot_p2pa(self):
-        # check if the tab already exists
-        for i in range(self.tab_widget.count()):
-            if self.tab_widget.tabText(i) == 'P2PA':
-                self.tab_widget.setCurrentIndex(i)
-                return
-
-        # create a new tab for the p2pa plot
         p2pa_plot_widget = pg.GraphicsLayoutWidget()
         p2pa_plot = p2pa_plot_widget.addPlot()
-
-        # get p2pa data
-        p2pa_data = self.Fiber.p2p_amp(plot_mode=None)[0]
-
-        # plot p2pa data
-        p2pa_curve = p2pa_plot.plot(self.Fiber.distances, p2pa_data, pen='k')
         p2pa_plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '10pt'})
         p2pa_plot.setLabel('left', 'P2P Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
+        p2pa_data = self.Fiber.p2p_amp(plot_mode=None)[0]
+
+        p2pa_curve = p2pa_plot.plot(self.Fiber.distances, p2pa_data, pen='k')
         p2pa_plot.setXRange(self.Fiber.distances[0], self.Fiber.distances[-1], padding=0)
         p2pa_plot.getViewBox().setLimits(xMin=self.Fiber.distances[0], xMax=self.Fiber.distances[-1],
                                     yMin=min(p2pa_data), yMax=max(p2pa_data))
 
-        # close button
-        close_button = QtWidgets.QToolButton()
-        close_button.setText('X')
-        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(p2pa_plot_widget)))
+        self.dock_p2p = Dock('P2P Amplitude', size=(1200,200), closable=True)
+        self.area.addDock(self.dock_p2p, 'above', self.dock_2)
+        self.dock_p2p.addWidget(p2pa_plot_widget)
 
-        # add new tabe
-        self.tab_widget.addTab(p2pa_plot_widget, 'P2PA')
-        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
-        self.tab_widget.setCurrentWidget(p2pa_plot_widget)
 
     def plot_psd(self):
         psd_plot_widget = pg.GraphicsLayoutWidget()
         psd_plot = psd_plot_widget.addPlot()
+        psd_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
+        psd_plot.setLabel('left', 'PSD Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
         freqs, amps = self.Fiber.spectrum(self.selected_channel, mode='psd',
                                           plot_mode=None, results=True)
 
         psd_curve = psd_plot.plot(freqs, amps, pen='k')
-        psd_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
-        psd_plot.setLabel('left', 'PSD Amplitude', **{'color': 'k', 'font-size': '10pt'})
-
         psd_plot.setXRange(freqs[0], freqs[-1], padding=0)
         psd_plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
                                     yMin=min(amps), yMax=max(amps))
 
-        # close button
-        close_button = QtWidgets.QToolButton()
-        close_button.setText('X')
-        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(psd_plot_widget)))
-
-        # add new tab
-        self.tab_widget.addTab(psd_plot_widget, f'PSD Ch: {self.selected_channel}')
-        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
-        self.tab_widget.setCurrentWidget(psd_plot_widget)
+        self.dock_psd = Dock(f'PSD Ch {self.selected_channel}', size=(1200,200), closable=True)
+        self.area.addDock(self.dock_psd, 'above', self.dock_2)
+        self.dock_psd.addWidget(psd_plot_widget)
 
     def plot_spectrum(self):
         spec_plot_widget = pg.GraphicsLayoutWidget()
         spec_plot = spec_plot_widget.addPlot()
+        spec_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
+        spec_plot.setLabel('left', 'FFT Amplitude', **{'color': 'k', 'font-size': '10pt'})
 
         freqs, amps = self.Fiber.spectrum(self.selected_channel, mode='spectrum',
                                           plot_mode=None, results=True)
 
         spec_curve = spec_plot.plot(freqs, amps, pen='k')
-        spec_plot.setLabel('bottom', 'Frequency [Hz]', **{'color': 'k', 'font-size': '10pt'})
-        spec_plot.setLabel('left', 'FFT Amplitude', **{'color': 'k', 'font-size': '10pt'})
-
         spec_plot.setXRange(freqs[0], freqs[-1], padding=0)
         spec_plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
                                     yMin=min(amps), yMax=max(amps))
 
-        # close button
-        close_button = QtWidgets.QToolButton()
-        close_button.setText('X')
-        close_button.clicked.connect(lambda: self.close_tab(self.tab_widget.indexOf(spec_plot_widget)))
-
-        # add new tab
-        self.tab_widget.addTab(spec_plot_widget, f'FFT Ch: {self.selected_channel}')
-        self.tab_widget.tabBar().setTabButton(self.tab_widget.count() - 1, QtWidgets.QTabBar.RightSide, close_button)
-        self.tab_widget.setCurrentWidget(spec_plot_widget)
-
-    def close_tab(self, index):
-        self.tab_widget.removeTab(index)
+        self.dock_fft = Dock(f'FFT Ch {self.selected_channel}', size=(1200,200), closable=True)
+        self.area.addDock(self.dock_fft, 'above', self.dock_2)
+        self.dock_fft.addWidget(spec_plot_widget)
 
     def spectrogram(self, channel):
         Sxx, f, t = self.Fiber.channel_spectrogram(channel, results=True, make_plot=False)
         return Sxx.T, f
+
+    def fx(self):
+        return self.Fiber.fx_plot(plot_mode=None, results=True)
 
     def update_colorbar_levels(self):
         percentile = self.cbar_spinbox.value()
