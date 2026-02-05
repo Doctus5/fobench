@@ -1,12 +1,6 @@
 LICENSE
 README.md
 setup.py
-database/__init__.py
-database/dataset.py
-database/manager.py
-database/parallel.py
-database/project.py
-database/unit.py
 fobench/__init__.py
 fobench/fiber.py
 fobench.egg-info/PKG-INFO
@@ -19,8 +13,8 @@ fobench/plotting/plotting_mpl.py
 fobench/plotting/plotting_pyqt.py
 fobench/plotting/pyqt_explorer.py
 fobench/tools/__init__.py
-fobench/tools/filter.py
-fobench/tools/read_data.py
+fobench/tools/file_io.py
+fobench/tools/filters.py
 fobench/tools/signals.py
 fobench/tools/stacking.py
 fobench/tools/utils.py

@@ -31,29 +31,29 @@ from .plotting.pyqt_explorer import Explorer
 class Fiber(object):
 	'''
 	NOTE: Most of the methods perform changes within the class permanently.
-    Therefore it is useful to make a copy of the fiber instance with the method
-    .copy() before performing any processing or changes.
+	Therefore it is useful to make a copy of the fiber instance with the method
+	.copy() before performing any processing or changes.
 
-    For most methods 'plot_mode' parameter can either be 'pyqt' or 'mpl',
-    to not generate plot set to anything else, e.g. None
+	For most methods 'plot_mode' parameter can either be 'pyqt' or 'mpl',
+	to not generate plot set to anything else, e.g. None
 	'''
 
 	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
 		'''
-        Initializes base class of Fobench, reading in data and metadata, data is manipulated mostly
-        using numpy and scipy, tools are inspired by obspy
-        needs 'filepath' to data file to read and manufacturer of interrogator, currently supported companies are:
-        'silixa', 'febus', 'aragon', 'quantx', 'asn', 'terra15' and 'sintela'
-        'sensing' indicates type of fiber optic sensing technology, defaulting to 'das'
-        only part of data can be loaded when specifing the channel range; if 'load_data' is False,
-        class is initialized containing only metadata
+		Initializes base class of Fobench, reading in data and metadata, data is manipulated mostly
+		using numpy and scipy, tools are inspired by obspy
+		needs 'filepath' to data file to read and manufacturer of interrogator, currently supported companies are:
+		'silixa', 'febus', 'aragon', 'quantx', 'asn', 'terra15' and 'sintela'
+		'sensing' indicates type of fiber optic sensing technology, defaulting to 'das'
+		only part of data can be loaded when specifing the channel range; if 'load_data' is False,
+		class is initialized containing only metadata
 		'''
 		if not company:
 			raise ValueError(
-                '\nNo company provided! Please choose one of:\n'
-                ' -"silixa"\n -"febus"\n -"bam"\n -"aragon"\n -"quantx"\n -"asn"\n'
-                ' -"terra15"\n -"sintela"'
-            )
+				'\nNo company provided! Please choose one of:\n'
+				' -"silixa"\n -"febus"\n -"bam"\n -"aragon"\n -"quantx"\n -"asn"\n'
+				' -"terra15"\n -"sintela"'
+			)
 
 		self.__filepath__ = filepath
 
@@ -100,8 +100,8 @@ class Fiber(object):
 					'spatial_interval', 'sampling_frequency', 'gauge_length']
 
 		return ('Instance of Fiber class\n'
-                'recording parameters:\n'
-                f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
+				'recording parameters:\n'
+				f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
 
 	__repr__ = __str__
 
@@ -113,9 +113,9 @@ class Fiber(object):
 
 	def __axis__(self, dim):
 		'''
-        translates string to numerical axis value for numpy arrays, dim can be 't' (time)
-        or 'd' (distance)
-        axis 0 corresponds to rows, axis 1 to columns
+		translates string to numerical axis value for numpy arrays, dim can be 't' (time)
+		or 'd' (distance)
+		axis 0 corresponds to rows, axis 1 to columns
 		'''
 		axial = {'t':0, 'd':1}
 
@@ -129,7 +129,7 @@ class Fiber(object):
 
 	def metadata(self, meta_dict=False):
 		'''
-        print out metadata, optionally return all metadata as dictionary
+		print out metadata, optionally return all metadata as dictionary
 		'''
 		for prop, value in self.properties.items():
 			print(f"{prop} = {value}")
@@ -140,40 +140,40 @@ class Fiber(object):
 
 	def copy(self):
 		'''
-        returns a deep copy the Fiber class object in its current state
+		returns a deep copy the Fiber class object in its current state
 		'''
 		return copy.deepcopy(self)
 
 	def instr_correct(self, target='strain-rate'):
 		'''
-        converts data from counts to strain-rate, exact conversion depends on manufacturer and data format
+		converts data from counts to strain-rate, exact conversion depends on manufacturer and data format
 		'''
 		if not self.corrected:
 			(self.data, self.units, self.channels, self.channels_num,
-    				self.total_channels) = utils.instr_corr(self.data, vars(self), target=target)
+					self.total_channels) = utils.instr_corr(self.data, vars(self), target=target)
 			self.corrected = True
 
 		return self
 
 	def trim(self, t0=None, tf=None):
 		'''
-        cuts data between given start and end times, t0 and tf can be UTC datetime
-        or ISOformat style str
+		cuts data between given start and end times, t0 and tf can be UTC datetime
+		or ISOformat style str
 		'''
 
 		data, start_time, end_time = utils.trim_time(t0=t0, tf=tf, data=self.data,
-                                                     times=self.times(), start_time=self.start_time,
-                                                     end_time=self.end_time)
+													 times=self.times(), start_time=self.start_time,
+													 end_time=self.end_time)
 
 		self.data, self.start_time, self.end_time, self.time_length, self.num_points = (data,
-        		start_time, end_time, end_time-start_time, data.shape[0])
+				start_time, end_time, end_time-start_time, data.shape[0])
 
 		return self
 
 	def restrict_channels(self, ch0, chf):
 		'''
-        trims data in space, between ch0 and chf, a single channel is returned
-        when ch0 = chf, updates Fiber class attributes
+		trims data in space, between ch0 and chf, a single channel is returned
+		when ch0 = chf, updates Fiber class attributes
 		'''
 
 		ch0, chf = int(min(ch0, chf)), int(max(ch0, chf)) # in case ch0 and chf not ordered
@@ -188,14 +188,14 @@ class Fiber(object):
 
 	def append_coord(self, n_ch, x_ch, y_ch, z_ch):
 		'''
-        attaches channel coordinates for later plotting
-        takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
-        and elevation in m (z_ch)
+		attaches channel coordinates for later plotting
+		takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+		and elevation in m (z_ch)
 		'''
 		coords = [n_ch,
-                  np.zeros_like(n_ch) if x_ch is None else x_ch,
-                  np.zeros_like(n_ch) if y_ch is None else y_ch,
-                  np.zeros_like(n_ch) if z_ch is None else z_ch]
+				  np.zeros_like(n_ch) if x_ch is None else x_ch,
+				  np.zeros_like(n_ch) if y_ch is None else y_ch,
+				  np.zeros_like(n_ch) if z_ch is None else z_ch]
 
 		self.ch_coord = np.column_stack(coords)
 
@@ -203,26 +203,26 @@ class Fiber(object):
 
 	def georeference(self, n_ch, x_ch, y_ch, z_ch, system='decimal', err=None):
 		'''
-        takes known channel locations, e.g. from tap tests and interpolates channel locations
-        inbetween, attaches new coordinates
-        takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
-        and elevation in m (z_ch), coordinate system can be for lon and lat can be 'decimal' or 'utm'
-        'err' is maximum accepted interpolation error between original metadata location and new interpolated
-        location
+		takes known channel locations, e.g. from tap tests and interpolates channel locations
+		inbetween, attaches new coordinates
+		takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+		and elevation in m (z_ch), coordinate system can be for lon and lat can be 'decimal' or 'utm'
+		'err' is maximum accepted interpolation error between original metadata location and new interpolated
+		location
 		'''
 		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
 		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
 		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
 
 		n_ch, x_ch, y_ch, z_ch = utils.interpolate_channels(n_ch, x_ch, y_ch,
-                                                      z_ch, system, err, self.spatial_interval)
+													  z_ch, system, err, self.spatial_interval)
 		self.append_coord(n_ch, x_ch, y_ch, z_ch)
 
 		return self
 
 	def get_data(self, channel=None):
 		'''
-        returns data similar to Fiber.data but has option to return only a specified channel
+		returns data similar to Fiber.data but has option to return only a specified channel
 		'''
 		if channel is not None:
 			index = self.channels_num.index(int(channel))
@@ -232,17 +232,17 @@ class Fiber(object):
 
 	def times(self, time_type='UTCDateTime'):
 		'''
-        returns array of sample times, can be 'UTCDateTime', 'isoformat', 'matplotlib'
-        or 'unix'
-	    '''
+		returns array of sample times, can be 'UTCDateTime', 'isoformat', 'matplotlib'
+		or 'unix'
+		'''
 		return utils.return_times(self, time_type)
 
 	def concatenate(self, input_das=None, fill_gaps=0):
 		'''
-        concats two Fiber class objects assuming they have the same sampling rate and channels
-        order is determined automatically, gaps are filled with value of 'fill_gaps', overlapping times are taken
-        from self, the rest filled with input_das
-        updates class properties
+		concats two Fiber class objects assuming they have the same sampling rate and channels
+		order is determined automatically, gaps are filled with value of 'fill_gaps', overlapping times are taken
+		from self, the rest filled with input_das
+		updates class properties
 		'''
 
 		axis = self.__axis__('t')
@@ -259,8 +259,8 @@ class Fiber(object):
 
 	def to_traces(self, t_type='obspy'):
 		'''
-        returns channels as 'obspy' or 'pyrocko' streams, see
-        fobench.tools.utils.to_traces for more details
+		returns channels as 'obspy' or 'pyrocko' streams, see
+		fobench.tools.utils.to_traces for more details
 		'''
 		return utils.to_traces(self, t_type)
 
@@ -273,11 +273,11 @@ class Fiber(object):
 	@utils._update_processing
 	def spatial_resample(self, rs_type=None):
 		'''
-        modifies spatial sampling of the data by adding or removing channels,
-        for 'upsampling' adds a channel between each channel pair by interpolating the values,
-        for 'downsampling' removes every second channel, first channel is always unaltered
-        see fobench.tools.utils.spatial_upsampling and .spatial_downsample for details
-        '''
+		modifies spatial sampling of the data by adding or removing channels,
+		for 'upsampling' adds a channel between each channel pair by interpolating the values,
+		for 'downsampling' removes every second channel, first channel is always unaltered
+		see fobench.tools.utils.spatial_upsampling and .spatial_downsample for details
+		'''
 		if rs_type in ['upsampling', 'upsample']:
 			self.data, self.channels_num = utils.spatial_upsampling(self)
 			self.spatial_interval /= 2
@@ -286,7 +286,7 @@ class Fiber(object):
 			self.spatial_interval *= 2
 		else:
 			raise ValueError(f'\nInvalid resample type: "{rs_type}". Choose on of:\n'
-                    ' -"upsampling"\n -"downsampling"')
+					' -"upsampling"\n -"downsampling"')
 		self.total_channels = len(self.channels_num)
 
 		return self
@@ -294,9 +294,9 @@ class Fiber(object):
 	@utils._update_processing
 	def detrend(self, order=1, dim='t'):
 		'''
-        detrend signal with specified order polynomial
-        see fiber.tools.signals.detrend_signal for more details
-	    '''
+		detrend signal with specified order polynomial
+		see fiber.tools.signals.detrend_signal for more details
+		'''
 		axis = self.__axis__(dim)
 		self.data = signals.detrend_signal(self.data, order=order, axis=axis)
 
@@ -305,8 +305,8 @@ class Fiber(object):
 	@utils._update_processing
 	def demean(self, dim='t'):
 		'''
-        remove mean of signal along specified dimension
-        see fiber.tools.signals.demean_signal for more details
+		remove mean of signal along specified dimension
+		see fiber.tools.signals.demean_signal for more details
 		'''
 		axis = self.__axis__(dim)
 		self.data = signals.demean_signal(self.data, axis=axis)
@@ -316,29 +316,29 @@ class Fiber(object):
 	@utils._update_processing
 	def taper(self, alpha=0.05, dim='t', detaper=False):
 		'''
-        taper data
-        see fiber.tools.signals.taper_signal for more details
+		taper data
+		see fiber.tools.signals.taper_signal for more details
 		'''
 		axis = self.__axis__(dim)
 		self.data = signals.taper_signal(data=self.data, axis=axis,
-                                   alpha=alpha, detaper=detaper)
+								   alpha=alpha, detaper=detaper)
 
 		return self
 
 	@utils._update_processing
 	def decimate(self, new_freq=None, f_type='fir-remez'):
 		'''
-        decimates data to new sampling frequeny, target frequency should divide
-        original sampling frequency evenly
+		decimates data to new sampling frequeny, target frequency should divide
+		original sampling frequency evenly
 
-        ! careful when decimating using factors >= 13, it is then preferable to
-        call decimation twice (see scipy.signal.decimate for more info) !
+		! careful when decimating using factors >= 13, it is then preferable to
+		call decimation twice (see scipy.signal.decimate for more info) !
 
-        options for filters are
-            - 'fir-remez', an adaptative antialiasing filter (author: Marius Isken)
-            - 'fir235' (author: Javier Quinteros)
-            - 'None', scipy's default anti-aliasing order 8 Chebyshev Type I filter
-        '''
+		options for filters are
+			- 'fir-remez', an adaptative antialiasing filter (author: Marius Isken)
+			- 'fir235' (author: Javier Quinteros)
+			- 'None', scipy's default anti-aliasing order 8 Chebyshev Type I filter
+		'''
 		axis = self.__axis__('t')
 
 		if self.sampling_frequency % new_freq != 0:
@@ -357,59 +357,60 @@ class Fiber(object):
 	@utils._update_processing
 	def normalize(self, method='absolute max', dim='d', ram_window=None):
 		'''
-	    normalize data, methods are 'absolute max', 'trace max', 'running mean' and '1bit'
-        see fiber.tools.signals.normalize_signal for more details
-	    '''
+		normalize data, methods are 'absolute max', 'trace max', 'running mean' and '1bit'
+		see fiber.tools.signals.normalize_signal for more details
+		'''
 		axis = self.__axis__(dim)
 		self.data = signals.normalize_signal(self.data, method=method,
-                                       ram_window=ram_window, axis=axis,
-                                       fs=self.sampling_frequency, total_channels=self.total_channels,
-                                       num_points=self.num_points)
+									   ram_window=ram_window, axis=axis,
+									   fs=self.sampling_frequency, total_channels=self.total_channels,
+									   num_points=self.num_points)
 
 		return self
 
 	@utils._update_processing
 	def whiten(self, freq_min=0.01, freq_max=100):
-	    '''
-	    spectral whitening of data
-        see fiber.tools.signals.whiten_signal for more details
-	    '''
-	    if not any('filter' in preprocessing for preprocessing in self.processing):
-        	    	  warn('Data has possibly not been filtered before whitening! Check'
-                     'preprocessing and results carefully!\ncontinuing...')
+		'''
+		spectral whitening of data
+		see fiber.tools.signals.whiten_signal for more details
+		'''
 
-	    self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
-                                    sampling_frequency=self.sampling_frequency,
-                                    total_channels=self.total_channels)
+		if not any('filter' in preprocessing for preprocessing in self.processing):
+					  warn('Data has possibly not been filtered before whitening! Check'
+					 'preprocessing and results carefully!\ncontinuing...')
 
-	    return self
+		self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
+									sampling_frequency=self.sampling_frequency,
+									total_channels=self.total_channels)
+
+		return self
 
 	@utils._update_processing
 	def filter(self, f_type=None, freq=None, pre_process=True, alpha=0.05, order=1, sym=True,
-            **options):
+			**options):
 		'''
-        filters data using specified filter, based on Obspy.signal.filter module
-        for frequency filters, data is optionally pre-processed
-        filter types are bandpass', 'bandstop', 'lowpass', 'highpass' and 'median''
-        if 'bandpass' or 'bandstop', freq must be tuple(float, float)
-        '''
+		filters data using specified filter, based on Obspy.signal.filter module
+		for frequency filters, data is optionally pre-processed
+		filter types are bandpass', 'bandstop', 'lowpass', 'highpass' and 'median''
+		if 'bandpass' or 'bandstop', freq must be tuple(float, float)
+		'''
 		if pre_process and f_type != 'median':
 			self.preprocess(alpha=alpha, sym=sym, order=order,
-                               axis=0)
+							   axis=0)
 
 		self.data = filters.point_filter(f_type=f_type, data=self.data,
-                                  df=self.sampling_frequency, freq=freq, **options)
+								  df=self.sampling_frequency, freq=freq, **options)
 
 		return self
 
 	@utils._update_processing
 	def preprocess(self, alpha=0.05, order=1, sym=True, axis=0, steps=(True, True, True)):
 		'''
-        performs demeaning, detrending and tapering, see fobench.tools.signals.filt_preprocess
-        for more details
-	    '''
+		performs demeaning, detrending and tapering, see fobench.tools.signals.filt_preprocess
+		for more details
+		'''
 		self.data = signals.filt_preprocess(io_signal=self.data, order=order,
-                                      alpha=alpha, sym=sym, axis=axis)
+									  alpha=alpha, sym=sym, axis=axis)
 		return self
 
 	@utils._update_processing
@@ -418,18 +419,18 @@ class Fiber(object):
 		applies frequency wavenumber filter to data
 		'''
 		self.data = filters.apply_fk_filter(data=self.data, bands=bands, num_points=self.num_points,
-                                      total_channels=self.total_channels,
-                                      spatial_interval=self.spatial_interval,
-                                      use_velocity=use_velocity,
-                                      alpha=alpha, transition=transition)
+									  total_channels=self.total_channels,
+									  spatial_interval=self.spatial_interval,
+									  use_velocity=use_velocity,
+									  alpha=alpha, transition=transition)
 
 		return self
 
 	@utils._update_processing
 	def integrate(self, dim='t', taper=True):
 		'''
-        integrates data using cum-trapezoids methods, tapers data by default
-        see fobench.fiber.stools.signals.integrate_signal for more details
+		integrates data using cum-trapezoids methods, tapers data by default
+		see fobench.fiber.stools.signals.integrate_signal for more details
 		'''
 		axis = self.__axis__(dim)
 		dx = self.dt if axis == 0 else self.spatial_interval
@@ -442,80 +443,80 @@ class Fiber(object):
 	@utils._update_processing
 	def differentiate(self, method='gradient', dim='t'):
 		'''
-        differentiate data in space or time, methods are 'gradient' or  'diff'
-        see fobench.fiber.tools.signals.differentiate_signal for more details
+		differentiate data in space or time, methods are 'gradient' or  'diff'
+		see fobench.fiber.tools.signals.differentiate_signal for more details
 		'''
 		if method not in ['gradient', 'diff']:
 			raise ValueError(f'\nInvalid method: "{method}". Choose on of:\n'
-                    ' -"gradient"\n -"diff"')
+					' -"gradient"\n -"diff"')
 
 		axis = self.__axis__(dim)
 		self.data = signals.differentiate_signal(self.data, method=method,
-                                           axis=axis, dt=self.dt)
+										   axis=axis, dt=self.dt)
 
 		return self
 
 	def SNR(self, dim='t', results=False, plot_mode='pyqt'):
 		'''
-        computes signal to noise ratio, defined as ratio between mean and standard
-        deviation of signal
+		computes signal to noise ratio, defined as ratio between mean and standard
+		deviation of signal
 		'''
 		axis = self.__axis__(dim)
 		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
 		if plot_mode == 'pyqt':
 			plot_pyqt.plot_distance(distances=self.distances, data=snr, y_label='SNR [-]',
-                                    title='SNR Profile')
+									title='SNR Profile')
 		if results:
 			return snr
 
 	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False):
 		'''
-        computes root mean square amplitude for record
-        see fobench.tools.wavefield.rmsa for more details
+		computes root mean square amplitude for record
+		see fobench.tools.wavefield.rmsa for more details
 		'''
 		axis = self.__axis__(dim)
 		window = self.time_length if window == None else window
 		rmsa = wavefield.rmsa(data=self.data, axis=axis, data_length=self.time_length,
-                              window=window)
+							  window=window)
 		times = np.array_split(self.times('unix'), int(self.time_length/window))
 		times = np.array([time[int(len(time)/2)] for time in times])
 		if window == None or window == self.time_length:
 			if plot_mode == 'pyqt':
 				plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:], y_label='RMS Amplitude',
-                                        title='RMS Amplitude Profile')
+										title='RMS Amplitude Profile')
 		elif window:
 			if plot_mode == 'pyqt':
 				plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
-                                             y_label='Optical Distance [m]',
-                                             title=f'RMS Amplitude, {window}s window',
-                                             cmap='inferno', cbar_label='RMS Amplitude')
+											 y_label='Optical Distance [m]',
+											 title=f'RMS Amplitude, {window}s window',
+											 cmap='inferno', cbar_label='RMS Amplitude')
 
 			elif plot_mode == 'mpl':
 				times = np.array_split(self.times('matplotlib'), int(self.time_length/window))
 				times = np.array([time[int(len(time)/2)] for time in times])
 				plot.gen_DAS_plot(data=np.array(rmsa), t=times, channels=self.channels,
-                      cmap='inferno', title = f'RMSA for {window}s window')
+					  cmap='inferno', title = f'RMSA for {window}s window')
 
 		if results:
 			return times, rmsa
 
 	def p2p_amp(self, dim='t', results=True, plot_mode='pyqt'):
 		'''
-        computes peak-to-peak amplitude of data in time or space
-        see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
+		computes peak-to-peak amplitude of data in time or space
+		see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
 		'''
 		axis = self.__axis__(dim)
 		p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
-                                             self.sampling_frequency, axis=axis)
+											 self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
-        		plot_pyqt.plot_distance(distances=self.distances, data=p2p_amplitude,
-                              y_label='P2P Amplitude', x_label='Optical Distance [m]',
-                              title='Peak-to-Peak Amplitude Profile')
+				plot_pyqt.plot_distance(distances=self.distances, data=p2p_amplitude,
+							  y_label='P2P Amplitude', x_label='Optical Distance [m]',
+							  title='Peak-to-Peak Amplitude Profile')
 
-		elif plot_mode=='pyqt' and dim=='d':
-        		plot_pyqt.plot_timeseries(timestamps=self.times(time_type='unix'), data=p2p_amplitude,
-                                    y_label='Amplitude',
-                                    title='Peak-to-Peak Amplitude over time')
+		if plot_mode=='pyqt' and dim=='d':
+				plot_pyqt.plot_timeseries(timestamps=self.times(time_type='unix'), data=p2p_amplitude,
+									y_label='Amplitude',
+									title='Peak-to-Peak Amplitude over time')
 
 		if results:
 			return p2p_amplitude, up_index, down_index
@@ -523,44 +524,44 @@ class Fiber(object):
 	'''
 	-----------------------------------------------------------------
 	Plotting methods
-    -----------------------------------------------------------------
+	-----------------------------------------------------------------
 	'''
 
 	def fx_plot(self, norm=False, max_value=None, order=1, nfft=None, figsize=None,
-                 show=True, cmap='viridis', results=False, file_name=None,
-                 where=None, plot_mode='pyqt', **kwargs):
+				 show=True, cmap='viridis', results=False, file_name=None,
+				 where=None, plot_mode='pyqt', **kwargs):
 		'''
-        computes frequency-distance plot
-        see fobench.tools.wavefield.frequency_content for more details
-        fobench.plotting.plotting_mpl for matplotlib plotting options
+		computes frequency-distance plot
+		see fobench.tools.wavefield.frequency_content for more details
+		fobench.plotting.plotting_mpl for matplotlib plotting options
 		'''
 		axis = self.__axis__('t')
 
 		fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
-                                           order=order, nfft=nfft, norm=norm, axis=axis)
+										   order=order, nfft=nfft, norm=norm, axis=axis)
 
 		if plot_mode == 'pyqt':
 			plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs,
-                        data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap, max_value=max_value,
-                           y_label='Frequency [Hz]', title='Frequency content over optical distance')
+						data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap, max_value=max_value,
+						   y_label='Frequency [Hz]', title='Frequency content over optical distance')
 
 		elif plot_mode == 'mpl':
 			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
-                     max_value=max_value, units_y='Energy', figsize=figsize,
-                     title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name,
-                     where=where, **kwargs)
+					 max_value=max_value, units_y='Energy', figsize=figsize,
+					 title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name,
+					 where=where, **kwargs)
 
 		if results:
 			return fx, freqs
 
 	def spectrum(self, channel, plot_mode='pyqt', norm=False, pre_processing=True,
-                 order=1, pad=0, nfft=None, mode='spectrum', figsize=None, show=True,
-                 nperseg=None, file_name=None, where=None, legend=True, results=False, **kwargs):
+				 order=1, pad=0, nfft=None, mode='spectrum', figsize=None, show=True,
+				 nperseg=None, file_name=None, where=None, legend=True, results=False, **kwargs):
 		"""
-        compute spectrum of a channel, mode can be 'spectrum' or 'psd'
-        see fobench.tools.signals.signal_spectrum for more details
-        for mpl plotting options see fobench.plotting.plotting_mpl.simple_spectrum
-        """
+		compute spectrum of a channel, mode can be 'spectrum' or 'psd'
+		see fobench.tools.signals.signal_spectrum for more details
+		for mpl plotting options see fobench.plotting.plotting_mpl.simple_spectrum
+		"""
 
 		axis = self.__axis__('t')
 
@@ -568,12 +569,12 @@ class Fiber(object):
 		o_signal = np.take(self.data, indices=ch_idx, axis=axis)
 
 		f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_frequency, mode=mode,
-                norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg)
+				norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg)
 
 		if plot_mode=='pyqt':
 			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}^2/Hz"
 			plot_pyqt.plot_distance(distances=f, data=spec, y_label =f'{units}',
-                                x_label='Frequency [Hz]', title= f'{mode} for channel {channel}')
+								x_label='Frequency [Hz]', title= f'{mode} for channel {channel}')
 		elif plot_mode=='mpl':
 			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
 			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
@@ -583,10 +584,10 @@ class Fiber(object):
 			return f, spec
 
 	def channel_plot(self, channel, max_value=None, figsize=None, show=True,
-                  file_name=None, where=None, plot_mode='pyqt', **kwargs):
+				  file_name=None, where=None, plot_mode='pyqt', **kwargs):
 		'''
-        generates simple plot of channel data
-        for mpl mode see fobench.plotting.plotting_mpl.simple_plot for details
+		generates simple plot of channel data
+		for mpl mode see fobench.plotting.plotting_mpl.simple_plot for details
 		'''
 
 		channel = int(channel)
@@ -601,14 +602,14 @@ class Fiber(object):
 		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
 			plot.simple_plot(data=selected, t=t, channel=str(channel), units_y=self.units,
-                    max_value=max_value, spectrogram=False, show=show, figsize=figsize,
-                    title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
+					max_value=max_value, spectrogram=False, show=show, figsize=figsize,
+					title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
 
 	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic',
-          file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
+		  file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
-        generates plot of data, for more details see fobench.plotting.plotting_pyqt
-        and .plotting_mpl
+		generates plot of data, for more details see fobench.plotting.plotting_pyqt
+		and .plotting_mpl
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
@@ -624,12 +625,12 @@ class Fiber(object):
 					 file_name=file_name, where=where, add_data=add_data, **kwargs)
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-                         show=True, cmap='viridis', file_name=None, where=None,
-                         freq_lim=None, results=False, make_plot=True, plot_mode='pyqt', **kwargs):
+						 show=True, cmap='viridis', file_name=None, where=None,
+						 freq_lim=None, results=False, make_plot=True, plot_mode='pyqt', **kwargs):
 		'''
-        computes and plots spectrogram for a 'channel', is normalized to maximum value if norm is True
-        if using 'mpl' plot mode, see fobench.plotting.plotting_mpl.simple_spectrogram
-        for details on plotting parameters
+		computes and plots spectrogram for a 'channel', is normalized to maximum value if norm is True
+		if using 'mpl' plot mode, see fobench.plotting.plotting_mpl.simple_spectrogram
+		for details on plotting parameters
 		'''
 
 		axis = self.__axis__('t')
@@ -638,7 +639,7 @@ class Fiber(object):
 		data = self.data[:, index]
 
 		f, t, Sxx = signals.signal_spectrogram(data=data, sampling_frequency=self.sampling_frequency,
-                                         axis=axis, norm=norm)
+										 axis=axis, norm=norm)
 
 		if make_plot is True and plot_mode=='pyqt':
 			t = self.times(time_type='unix')
@@ -658,9 +659,9 @@ class Fiber(object):
 
 	def record_section(self, channels, plot_mode='pyqt'):
 		'''
-        plots record section of multiple channels, if channels is tuple the range
-        between lower and upper limit will be plotted, if list only channels in list
-        will be plotted
+		plots record section of multiple channels, if channels is tuple the range
+		between lower and upper limit will be plotted, if list only channels in list
+		will be plotted
 		'''
 
 		if isinstance(channels, tuple):
@@ -677,17 +678,17 @@ class Fiber(object):
 
 		if plot_mode=='pyqt':
 			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
-                                 title='Record Section')
+								 title='Record Section')
 		elif plot_mode=='mpl':
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
-                            channels=das_channels, date=self.times()[0].isoformat()[:10])
+							channels=das_channels, date=self.times()[0].isoformat()[:10])
 
 	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
-                    window_size=None, results=False, **imshow_kwargs):
+					window_size=None, results=False, **imshow_kwargs):
 		'''
 		computes autocorrelation profile, see fiber.tools.wavefield.autocorrelation_profile
-        for more details
-	    '''
+		for more details
+		'''
 		axis = self.__axis__('t')
 
 		max_shift = int(max_lag*self.sampling_frequency)
@@ -696,9 +697,9 @@ class Fiber(object):
 			raise ValueError('selected max_shift is too large')
 
 		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
-                                                deconvolve, self.total_channels,
-                                                self.distances, self.sampling_frequency,
-                                                window_size=window_size, **imshow_kwargs)
+												deconvolve, self.total_channels,
+												self.distances, self.sampling_frequency,
+												window_size=window_size, **imshow_kwargs)
 
 		if results:
 			return acf
@@ -707,18 +708,18 @@ class Fiber(object):
 		'''
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
-	    '''
+		'''
 		coh = wavefield.spatial_coherence_matrix(data=self.data.T,
-                                           max_lag=max_lag,
-                                           fs=self.sampling_frequency,
-                                           channel_nums=self.channels_num,
-                                           plot=plot, result=result)
+										   max_lag=max_lag,
+										   fs=self.sampling_frequency,
+										   channel_nums=self.channels_num,
+										   plot=plot, result=result)
 		if result:
 			return coh
 
 	def explore(self):
 		'''
-        launches the Fobench Data Explorer
+		launches the Fobench Data Explorer
 		'''
 		print(f'{"-"*65}\nStarting Fobench Data Explorer')
 		app = QtWidgets.QApplication.instance()
