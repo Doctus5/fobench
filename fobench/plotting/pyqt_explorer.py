@@ -55,7 +55,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.matrix_image = pg.ImageItem(image=self.Fiber.data)
         self.matrix_plot.addItem(self.matrix_image)
         self.matrix_plot.setAspectLocked(False)
-        self.matrix_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)}) # when is utcoffset necessary??
+        self.matrix_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
         self.matrix_plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
         self.matrix_image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
         self.matrix_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
@@ -80,7 +80,7 @@ class Explorer(QtWidgets.QMainWindow):
             mouse_point = self.matrix_plot.getViewBox().mapSceneToView(pos)
             x_val = mouse_point.x()
             y_val = mouse_point.y()
-            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S')
+            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
             self.matrix_label.setText(f'Time: {x_datetime} | Optical Distance [m]: {y_val:.1f}', color='k')
 
         self.matrix_mouse_proxy = pg.SignalProxy(self.matrix_plot.scene().sigMouseMoved,

@@ -541,9 +541,10 @@ class Fiber(object):
 										   order=order, nfft=nfft, norm=norm, axis=axis)
 
 		if plot_mode == 'pyqt':
-			plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs,
-						data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap, max_value=max_value,
-						   y_label='Frequency [Hz]', title='Frequency content over optical distance')
+			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
+                              y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap,
+                              max_value=max_value, y_label='Frequency [Hz]',
+                              title='Frequency content over optical distance')
 
 		elif plot_mode == 'mpl':
 			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
@@ -613,9 +614,10 @@ class Fiber(object):
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=self.distances,
-						data=self.data, y_label='Optical Distance [m]',
-						title='', max_value=max_value, cbar_label=self.units)
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels_num),
+						data=self.data, y_label='Channel',
+						title='', max_value=max_value, cbar_label=self.units,
+                        distances=self.distances)
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
@@ -678,7 +680,7 @@ class Fiber(object):
 
 		if plot_mode=='pyqt':
 			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
-								 title='Record Section')
+								 title='Record Section', numbers=das_channels, y_label='Channel')
 		elif plot_mode=='mpl':
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
 							channels=das_channels, date=self.times()[0].isoformat()[:10])
