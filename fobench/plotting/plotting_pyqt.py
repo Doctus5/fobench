@@ -72,6 +72,18 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
                                 yMin=min(data), yMax=max(data))
 
+    label = pg.LabelItem(justify='left')
+    win.addItem(label, row=2, col=0)
+
+    def mouse_moved(evt):
+        pos = evt[0]
+        if plot.sceneBoundingRect().contains(pos):
+            mouse_point = plot.vb.mapSceneToView(pos)
+            x_val = mouse_point.x()
+            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
+            label.setText(f'Time: {x_datetime}', color='k')
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+
     pg.exec()
     QtWidgets.QApplication.processEvents()
 
@@ -160,8 +172,9 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, numbers:np.nda
     pg.exec()
 
 
-def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
-                    x_label: str = 'Optical Distance [m]', title:str = '') -> None:
+def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndarray,
+                  y_label: str ='', x_label: str = 'Channel',
+                  title:str = '') -> None:
     '''
     generate generic distances series plot using PyQtGraph
 
@@ -169,6 +182,8 @@ def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
     ----------
     distances : np.ndarray
         array containing optical distances values
+    channels_num : np.ndarray
+        array containing channel numbers.
     data : np.ndarray
         array containing data to plot.
     y_label : str, optional
@@ -197,7 +212,7 @@ def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.plot(distances, data, pen=pg.mkPen('k', width=1))
+    plot.plot(channels_num, data, pen=pg.mkPen('k', width=1))
 
     # y axis
     y_axis = plot.getAxis('left')
@@ -211,9 +226,55 @@ def plot_distance(distances: np.ndarray, data: np.ndarray, y_label: str ='',
     x_axis.setPen(pg.mkPen('k', width=2))
     x_axis.setTextPen(pg.mkPen('k'))
     x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.setXRange(min(distances), max(distances), padding=0)
-    plot.getViewBox().setLimits(xMin=min(distances), xMax=max(distances),
+    plot.setXRange(min(channels_num), max(channels_num), padding=0)
+    plot.getViewBox().setLimits(xMin=min(channels_num), xMax=max(channels_num),
                                 yMin=min(data), yMax=max(data))
+
+    # horizontal container
+    container = QtWidgets.QWidget()
+    h_layout = QtWidgets.QHBoxLayout(container)
+    h_layout.setContentsMargins(5, 5, 5, 5)
+
+    # label f cursor tracking
+    text_label = QtWidgets.QLabel()
+    text_label.setStyleSheet("color: black; font-size: 10pt;")
+    h_layout.addWidget(text_label)
+
+    # button for axis switching
+    button = QtWidgets.QPushButton('Distance')
+    button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
+    button.setFixedWidth(70)
+    h_layout.addWidget(button)
+
+    # cursor tracking in data units
+    def mouse_moved(evt):
+        pos = evt[0]
+        if plot.sceneBoundingRect().contains(pos):
+            mouse_point = plot.vb.mapSceneToView(pos)
+            x_val = mouse_point.x()
+            text_label.setText(f'{x_axis.labelText}: {x_val:.1f}')
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+
+    def switch_axis():
+        if button.text() == 'Distance':
+            button.setText('Channel')
+            plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
+            x_vals = distances
+        else:
+            button.setText('Distance')
+            plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
+            x_vals = channels_num
+        plot.setXRange(min(x_vals), max(x_vals), padding=0)
+        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
+        plot.clear()
+        plot.plot(x_vals, data, pen=pg.mkPen('k', width=1))
+        plot.enableAutoRange()
+
+    button.clicked.connect(switch_axis)
+
+    proxy_container = QtWidgets.QGraphicsProxyWidget()
+    proxy_container.setWidget(container)
+    win.addItem(proxy_container, row=2, col=0)
 
     pg.exec()
 

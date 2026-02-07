@@ -6,8 +6,9 @@ from fobench.plotting.plotting_pyqt import plot_2d_distance
 from fobench.plotting.plotting_mpl import plot_acfs
 
 
-def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, channel_nums: np.ndarray = None,
-                      plot: bool = True, result: bool = False) ->  np.ndarray:
+def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
+                             channel_nums: np.ndarray = None, plot: bool = True,
+                             result: bool = False) ->  np.ndarray:
     '''
 
     Parameters
@@ -18,6 +19,8 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, channel_nu
         maximum shift in seconds
     fs : int
         sampling frequency of signal
+    distances : np.ndarray
+        channel distances
     channel_nums : np.ndarray, optional
         channel numbering. The default is None.
     plot : bool, optional
@@ -51,8 +54,8 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, channel_nu
 
     if plot:
         if not channel_nums: channel_nums = np.arange(0, n_ch)
-        plot_2d_distance(distances=channel_nums, data=np.rot90(coherence_matrix),
-                         y_ticks=channel_nums,
+        plot_2d_distance(distances=distances, data=np.rot90(coherence_matrix),
+                         y_ticks=channel_nums, channels_num=channel_nums,
                          max_value = None,
                          y_label = 'Channel #',
                          x_label = 'Channel #',
@@ -63,7 +66,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, channel_nu
         return coherence_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,
-                            deconvolve: bool, total_channels: int, distances: list,
+                            deconvolve: bool, total_channels: int, distances: list, channels_num: list,
                             fs:int, window_size: int = None, **imshow_kwargs)-> np.ndarray:
     '''
     Computes the autocorrelation either for each channel or each time sample and
@@ -88,8 +91,10 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
         full record is used for deconvolution
     total_channels : int
         totalnumber of channels.
-    distances : list
+    distances : list, np.ndarray
         optical distances of channels.
+    channels_num : list, np.ndarray
+        channel numbering
     fs : int
         sampling frequency of data.
     **imshow_kwargs : TYPE
@@ -127,6 +132,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
                          y_label = 'Lag/TWT [s]',
                          title = 'Autocorrelation Profile',
                          cmap = 'viridis',
+                         channels_num=channels_num,
                          cbar_label = 'Correlation Coefficient',
                          invert_y=True)
 

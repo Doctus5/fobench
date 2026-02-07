@@ -464,8 +464,8 @@ class Fiber(object):
 		axis = self.__axis__(dim)
 		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
 		if plot_mode == 'pyqt':
-			plot_pyqt.plot_distance(distances=self.distances, data=snr, y_label='SNR [-]',
-									title='SNR Profile')
+			plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
+                                       data=snr, y_label='SNR [-]', title='SNR Profile')
 		if results:
 			return snr
 
@@ -482,7 +482,8 @@ class Fiber(object):
 		times = np.array([time[int(len(time)/2)] for time in times])
 		if window == None or window == self.time_length:
 			if plot_mode == 'pyqt':
-				plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:], y_label='RMS Amplitude',
+				plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:],
+                            y_label='RMS Amplitude', channels_num=self.channels_num,
 										title='RMS Amplitude Profile')
 		elif window:
 			if plot_mode == 'pyqt':
@@ -509,8 +510,8 @@ class Fiber(object):
 		p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
 											 self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
-				plot_pyqt.plot_distance(distances=self.distances, data=p2p_amplitude,
-							  y_label='P2P Amplitude', x_label='Optical Distance [m]',
+				plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
+                            data=p2p_amplitude, y_label='P2P Amplitude', x_label='Optical Distance [m]',
 							  title='Peak-to-Peak Amplitude Profile')
 
 		if plot_mode=='pyqt' and dim=='d':
@@ -700,7 +701,8 @@ class Fiber(object):
 
 		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
 												deconvolve, self.total_channels,
-												self.distances, self.sampling_frequency,
+												self.distances, self.channels_num,
+                                                self.sampling_frequency,
 												window_size=window_size, **imshow_kwargs)
 
 		if results:
@@ -711,8 +713,8 @@ class Fiber(object):
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
 		'''
-		coh = wavefield.spatial_coherence_matrix(data=self.data.T,
-										   max_lag=max_lag,
+		coh = wavefield.spatial_coherence_matrix(data=self.data.T, max_lag=max_lag,
+                                           distances=self.distances,
 										   fs=self.sampling_frequency,
 										   channel_nums=self.channels_num,
 										   plot=plot, result=result)
