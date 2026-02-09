@@ -2,7 +2,6 @@
 contains all functionality related to plotting using PyQtGraph, i.e.
 whenever plot_mode is set to 'pyqt'
 '''
-import time
 import sys
 import datetime
 import numpy as np
@@ -11,14 +10,16 @@ from PyQt5 import QtCore
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtGui
 
+
 '''
 -----------------------------------------------------------------
 Line Plot Functions
 -----------------------------------------------------------------
 '''
 
-def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
-                    title:str = '') -> None:
+
+def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
+                    y_label: str = '', title: str = '') -> None:
     '''
     generate generic time series plot using PyQtGraph, ideal for channel plots
 
@@ -28,6 +29,8 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
         array containing Unix timestamps of data.
     data : np.ndarray
         array containing data to plot.
+    dt : float
+        sampling period of data
     y_label : str, optional
         y-axis label. The default is ''.
     title : str, optional
@@ -44,8 +47,9 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
 
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w') # white bg
+    win.setWindowIcon(QtGui.QIcon(
+        str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w')  # white bg
     win.resize(1200, 500)
 
     plot = win.addPlot(title=title)
@@ -58,7 +62,6 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     y_axis.setPen(pg.mkPen('k', width=2))
     y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
     y_axis.setTextPen(pg.mkPen('k'))
-
 
     # x-axis
     plot.setAxisItems({'bottom': pg.DateAxisItem()})
@@ -75,20 +78,24 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, y_label: str ='',
     label = pg.LabelItem(justify='left')
     win.addItem(label, row=2, col=0)
 
-    def mouse_moved(evt):
+    def mouse_moved(evt, dt=dt):
         pos = evt[0]
         if plot.sceneBoundingRect().contains(pos):
             mouse_point = plot.vb.mapSceneToView(pos)
             x_val = mouse_point.x()
-            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
+            x_val = round(x_val / dt) * dt
+            x_datetime = datetime.datetime.utcfromtimestamp(
+                x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
             label.setText(f'Time: {x_datetime}', color='k')
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved,
+                           rateLimit=60, slot=mouse_moved)
 
     pg.exec()
     QtWidgets.QApplication.processEvents()
 
-def plot_record_section(timestamps: np.ndarray, data: np.ndarray, numbers:np.ndarray,
-                        y_label: str ='', title:str = '', ) -> None:
+
+def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
+                        numbers: np.ndarray, y_label: str = '', title: str = '') -> None:
     '''
     extended version of timeseries plot for multi-channel data
 
@@ -98,6 +105,8 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, numbers:np.nda
         array containing Unix timestamps of data.
     data : np.ndarray
         array containing data to plot.
+    dt : float
+        sampling period of data
     numbers : np.ndarray
         array containing channel numbers for plotting
     y_label : str, optional
@@ -120,8 +129,9 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, numbers:np.nda
 
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w') # white bg
+    win.setWindowIcon(QtGui.QIcon(
+        str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w')  # white bg
     win.resize(1200, 500)
 
     plot = win.addPlot(title=title)
@@ -160,21 +170,24 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, numbers:np.nda
     label = pg.LabelItem(justify='left')
     win.addItem(label, row=2, col=0)
 
-    def mouse_moved(evt):
+    def mouse_moved(evt, dt=dt):
         pos = evt[0]
         if plot.sceneBoundingRect().contains(pos):
             mouse_point = plot.vb.mapSceneToView(pos)
             x_val = mouse_point.x()
-            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
+            x_val = round(x_val / dt) * dt
+            x_datetime = datetime.datetime.utcfromtimestamp(
+                x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
             label.setText(f'Time: {x_datetime}', color='k')
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved,
+                           rateLimit=60, slot=mouse_moved)
 
     pg.exec()
 
 
 def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndarray,
-                  y_label: str ='', x_label: str = 'Channel',
-                  title:str = '') -> None:
+                  y_label: str = '', x_label: str = 'Channel',
+                  title: str = '') -> None:
     '''
     generate generic distances series plot using PyQtGraph
 
@@ -205,9 +218,12 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
 
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w') # white bg
+    win.setWindowIcon(QtGui.QIcon(
+        str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w')  # white bg
     win.resize(1200, 500)
+
+    dx = channels_num[1] - channels_num[0]
 
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
@@ -242,7 +258,8 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
 
     # button for axis switching
     button = QtWidgets.QPushButton('Distance')
-    button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
+    button.setToolTip(
+        'Switch x Axis between Channel Number and Optical Distance')
     button.setFixedWidth(70)
     h_layout.addWidget(button)
 
@@ -252,18 +269,24 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         if plot.sceneBoundingRect().contains(pos):
             mouse_point = plot.vb.mapSceneToView(pos)
             x_val = mouse_point.x()
-            text_label.setText(f'{x_axis.labelText}: {x_val:.1f}')
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+            x_val = round(x_val / dx) * dx
+            text_label.setText(f'{x_axis.labelText}: {x_val:.2f}')
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved,
+                           rateLimit=60, slot=mouse_moved)
 
     def switch_axis():
+        nonlocal dx
         if button.text() == 'Distance':
             button.setText('Channel')
             plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
             x_vals = distances
+            dx = distances[1]-distances[0]
         else:
             button.setText('Distance')
             plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
             x_vals = channels_num
+            dx = channels_num[1] - channels_num[0]
+
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
         plot.clear()
@@ -278,16 +301,18 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
 
     pg.exec()
 
+
 '''
 -----------------------------------------------------------------
 Matrix Plot Functions
 -----------------------------------------------------------------
 '''
 
+
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
-                       max_value: float = None, y_label: str = '',
-                       title: str = '', cmap:str = 'seismic',
-                       cbar_label:str = '', distances: np.ndarray = None) -> None :
+                       dt: float, max_value: float = None, y_label: str = '',
+                       title: str = '', cmap: str = 'seismic',
+                       cbar_label: str = '', distances: np.ndarray = None) -> None:
     '''
     generate generic matrix plot where x-axis represents time, e.g.
     waterfall visualisation of data or spectrograms,PSDs, RMSA ...
@@ -300,6 +325,8 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         array containing data to plot.
     y_ticks : list
         y-axis tick labels.
+    dt : float
+        sampling period of data
     max_value : float, optional
         value that sets limits of colorbar. The default is None.
     y_label : str, optional
@@ -324,10 +351,13 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         app = QtWidgets.QApplication(sys.argv)
 
     win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle('Fobench Data Plot')
-    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setWindowTitle(f'Fobench {title}')
+    win.setWindowIcon(QtGui.QIcon(
+        str(Path(__file__).resolve().parent / 'logo.png')))
     win.setBackground('w')
     win.resize(1200, 800)
+
+    dy = y_ticks[1] - y_ticks[0]
 
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
@@ -335,7 +365,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
-    plot.getViewBox().setMouseMode(pg.ViewBox.RectMode) # One-button
+    plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)  # One-button
 
     x_min, x_max = timestamps[0], timestamps[-1]
     y_min, y_max = y_ticks[0], y_ticks[-1]
@@ -379,19 +409,23 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     # button for axis switching if y axis is distance
     if distances:
         button = QtWidgets.QPushButton('Distance')
-        button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
+        button.setToolTip(
+            'Switch x Axis between Channel Number and Optical Distance')
         button.setFixedWidth(70)
         h_layout.addWidget(button)
 
         def switch_axis():
+            nonlocal dy
             if button.text() == 'Distance':
                 button.setText('Channel')
                 plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
                 y_vals = distances
+                dy = distances[1] - distances[0]
             else:
                 button.setText('Distance')
                 plot.setLabel('left', 'Channel', **{'color': 'k', 'font-size': '14pt'})
                 y_vals = y_ticks
+                dy = y_ticks[1] - y_ticks[0]
             y_min, y_max = y_vals[0], y_vals[-1]
             image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
             plot.setYRange(min(y_vals), max(y_vals), padding=0)
@@ -405,10 +439,15 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         if plot.sceneBoundingRect().contains(pos):
             mouse_point = plot.vb.mapSceneToView(pos)
             x_val = mouse_point.x()
+            x_val = round(x_val / dt) * dt
             y_val = mouse_point.y()
-            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
-            text_label.setText(f'Time: {x_datetime} | {y_axis.labelText}: {y_val:.1f}')
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+            y_val = round(y_val / dy) * dy
+
+            x_datetime = datetime.datetime.utcfromtimestamp(
+                x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
+            text_label.setText(f'Time: {x_datetime} | {y_axis.labelText}: {y_val:.2f}')
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved,
+                           rateLimit=60, slot=mouse_moved)
 
     values = (-max_value, max_value) if max_value is not None else None
     data_range = np.nanmax(data) - np.nanmin(data)
@@ -429,8 +468,8 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
                      data: np.ndarray, y_ticks: list,
                      max_value: float = None, y_label: str = '',
                      x_label: str = 'Channel',
-                     title: str = '', cmap:str = 'seismic',
-                     cbar_label:str = '', invert_y=False) -> None :
+                     title: str = '', cmap: str = 'seismic',
+                     cbar_label: str = '', invert_y=False) -> None:
     '''
     generate generic matrix plot where x-axis represents distance
 
@@ -471,9 +510,13 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
 
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle('Fobench')
-    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setWindowIcon(QtGui.QIcon(
+        str(Path(__file__).resolve().parent / 'logo.png')))
     win.setBackground('w')
     win.resize(1200, 800)
+
+    dx = channels_num[1] - channels_num[0]
+    dy = y_ticks[1] - y_ticks[0]
 
     plot = win.addPlot(title=title)
     plot.setTitle(title, size='20pt', color='k')
@@ -482,7 +525,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
-    plot.getViewBox().setMouseMode(pg.ViewBox.RectMode) # One-button
+    plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)  # One-button
     if invert_y:
         plot.getViewBox().invertY(True)
 
@@ -524,7 +567,8 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
 
     # button for axis switching
     button = QtWidgets.QPushButton('Distance')
-    button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
+    button.setToolTip(
+        'Switch x Axis between Channel Number and Optical Distance')
     button.setFixedWidth(70)
     h_layout.addWidget(button)
 
@@ -534,10 +578,13 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         if plot.sceneBoundingRect().contains(pos):
             mouse_point = plot.vb.mapSceneToView(pos)
             x_val = mouse_point.x()
+            x_val = round(x_val / dx) * dx
             y_val = mouse_point.y()
-            text_label.setText(f'{x_axis.labelText}: {x_val:.1f} | {y_label}: {y_val:.1f}')
+            y_val = round(y_val / dy) * dy
+            text_label.setText(f'{x_axis.labelText}: {x_val:.2f} | {y_label}: {y_val:.3f}')
 
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved,
+                           rateLimit=60, slot=mouse_moved)
 
     values = (-max_value, max_value) if max_value is not None else None
     data_range = np.nanmax(data) - np.nanmin(data)
@@ -548,14 +595,19 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     bar.setImageItem(image, insert_in=plot)
 
     def switch_axis():
+        nonlocal dx
         if button.text() == 'Distance':
             button.setText('Channel')
-            plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
+            plot.setLabel(
+                'bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
             x_vals = distances
+            dx = distances[1] - distances[0]
         else:
             button.setText('Distance')
-            plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
+            plot.setLabel('bottom', 'Channel', **
+                          {'color': 'k', 'font-size': '14pt'})
             x_vals = channels_num
+            dx = channels_num[1] - channels_num[0]
         x_min, x_max = x_vals[0], x_vals[-1]
         image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)

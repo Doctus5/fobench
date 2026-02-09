@@ -62,14 +62,13 @@ class Explorer(QtWidgets.QMainWindow):
                                                 yMin=y_min, yMax=y_max)
         self.dock_1.addWidget(self.matrix_plot_widget)
 
-
         # line tool channel selector
         self.y_picker = pg.InfiniteLine(pos=self.Fiber.distances[0], angle=0, movable=True,
                 markers=[('^', 0, 16), ('v', 1, 16)], pen=pg.mkPen('k', width=1, style=pg.QtCore.Qt.DashLine),
                 hoverPen=pg.mkPen('k', width=1, style=pg.QtCore.Qt.SolidLine))
         self.y_picker.setBounds([y_min, y_max])
-        self.matrix_plot.addItem(self.y_picker)
         self.y_picker.sigDragged.connect(self.on_picker_moved)
+        self.matrix_plot.addItem(self.y_picker)
 
         # cursor tracking in data units
         self.matrix_label = pg.LabelItem(justify='left')
@@ -129,7 +128,6 @@ class Explorer(QtWidgets.QMainWindow):
         self.dropdown_ch.addItems(['Channel Analysis', 'Spectrogram', 'PSD', 'Spectrum'])
         self.dropdown_ch.setToolTip('Basic Signal Analysis Methods')
         self.dropdown_ch.currentIndexChanged.connect(self.on_dropdown_ch_changed)
-        self.update_plots()
         self.dock_3.addWidget(self.dropdown_ch, row=3, col=0)
 
         # dropdown data analysis menu
@@ -137,8 +135,9 @@ class Explorer(QtWidgets.QMainWindow):
         self.dropdown_data.addItems(['Data Analysis', 'RMSA', 'P2PA', 'f-x Plot'])
         self.dropdown_data.setToolTip('Basic Data Analysis Methods')
         self.dropdown_data.currentIndexChanged.connect(self.on_dropdown_data_changed)
-        self.update_plots()
         self.dock_3.addWidget(self.dropdown_data, row=4, col=0)
+
+        self.update_plots()
 
     # detect channel change with moving horizontal line
     def on_picker_moved(self):
@@ -159,7 +158,7 @@ class Explorer(QtWidgets.QMainWindow):
             self.plot_psd()
         if self.dropdown_ch.currentText() == 'Spectrum':
             self.plot_spectrum()
-        self.dropdown_ch.setCurrentIndex(0)  # Reset dropdown menus
+        self.dropdown_ch.setCurrentIndex(0)
 
     # detect selection of method in dropdown data menu
     def on_dropdown_data_changed(self, index):

@@ -488,7 +488,7 @@ class Fiber(object):
 		elif window:
 			if plot_mode == 'pyqt':
 				plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
-											 y_label='Optical Distance [m]',
+											 y_label='Optical Distance [m]', dt=self.dt,
 											 title=f'RMS Amplitude, {window}s window',
 											 cmap='inferno', cbar_label='RMS Amplitude')
 
@@ -501,7 +501,7 @@ class Fiber(object):
 		if results:
 			return times, rmsa
 
-	def p2p_amp(self, dim='t', results=True, plot_mode='pyqt'):
+	def p2p_amp(self, dim='t', results=False, plot_mode='pyqt'):
 		'''
 		computes peak-to-peak amplitude of data in time or space
 		see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
@@ -511,7 +511,7 @@ class Fiber(object):
 											 self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
 				plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
-                            data=p2p_amplitude, y_label='P2P Amplitude', x_label='Optical Distance [m]',
+                            data=p2p_amplitude, y_label='P2P Amplitude', x_label='Channel',
 							  title='Peak-to-Peak Amplitude Profile')
 
 		if plot_mode=='pyqt' and dim=='d':
@@ -545,7 +545,7 @@ class Fiber(object):
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
                               y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap,
                               max_value=max_value, y_label='Frequency [Hz]',
-                              title='Frequency content over optical distance')
+                              title='Frequency content')
 
 		elif plot_mode == 'mpl':
 			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
@@ -576,7 +576,8 @@ class Fiber(object):
 		if plot_mode=='pyqt':
 			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}^2/Hz"
 			plot_pyqt.plot_distance(distances=f, data=spec, y_label =f'{units}',
-								x_label='Frequency [Hz]', title= f'{mode} for channel {channel}')
+								x_label='Frequency [Hz]', title= f'{mode} for channel {channel}',
+                                channels_num=self.channels_num)
 		elif plot_mode=='mpl':
 			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
 			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
@@ -599,7 +600,7 @@ class Fiber(object):
 		if plot_mode=='pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units,
-							 title=f'Channel {channel}')
+							 dt=self.dt, title=f'Channel {channel}')
 
 		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
@@ -616,7 +617,7 @@ class Fiber(object):
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels_num),
-						data=self.data, y_label='Channel',
+						data=self.data, y_label='Channel', dt=self.dt,
 						title='', max_value=max_value, cbar_label=self.units,
                         distances=self.distances)
 
@@ -646,7 +647,7 @@ class Fiber(object):
 
 		if make_plot is True and plot_mode=='pyqt':
 			t = self.times(time_type='unix')
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f,
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
 						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
 						title=f'Spectrogram channel {channel}', cmap='viridis')
 
@@ -681,7 +682,8 @@ class Fiber(object):
 
 		if plot_mode=='pyqt':
 			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
-								 title='Record Section', numbers=das_channels, y_label='Channel')
+								 title='Record Section', numbers=das_channels, dt=self.dt,
+                                 y_label='Channel')
 		elif plot_mode=='mpl':
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
 							channels=das_channels, date=self.times()[0].isoformat()[:10])
