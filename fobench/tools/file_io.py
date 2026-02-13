@@ -154,7 +154,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
         dataset = file_file['data_product']
-        chans_nums = [i for i in range(properties['nx'])] if range_ch == None else range_ch
+        chans_nums = [i for i in range(file_file['data_product/data'].shape[1])] if range_ch == None else range_ch
         chans = np.array(chans_nums)
         # loading the data conditioned
         data = __data__(dataset['data'], format, company, list(chans_nums)) if load_data else None
@@ -163,14 +163,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         sampling_frequency = 1 / dt
         o_sampling_frequency = sampling_frequency
         num_points = int(properties['nt'])
-        print(properties['nt'])
         start_time = UTC(properties['file_start_gps_time']) if properties['file_start_gps_time'] else UTC(properties['file_start_computer_time'])
         end_time = UTC(start_time + num_points * dt)
         spatial_interval = float(properties['dx'])
         time_length = end_time - start_time
         gauge_length = float(properties['gauge_length'])
         channel_offset = int(properties['sensing_range_start'] / spatial_interval)
-        units = properties['data_product_units']
+        units = 'strain-rate' if properties['data_product'] == 'strainrate' else properties['data_product']
         conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
@@ -247,7 +246,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = [key for key in file_file.keys()][2]
         conv_factor = None # conversion factor if given explicitly
 
-    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF%
+    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF5
         print('Data units (strain, strain-rate...) can not be extracted from Sintela files\n'
              'you can set it manually by editing Fiber.units')
         pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file')
@@ -435,9 +434,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
         if company == 'febus':
             dims = extract_point.shape
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
-        elif company == 'terra15':
-            values = np.array(extract_point[:, range_ch[0]:range_ch[1]])
-        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela'):
+        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'terra15'):
             values = np.array(extract_point[:, range_ch])
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
