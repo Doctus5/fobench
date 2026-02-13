@@ -146,7 +146,8 @@ class Fiber(object):
 
 	def instr_correct(self, target='strain-rate', terra15_gl=None):
 		'''
-		converts data from counts to strain-rate, exact conversion depends on manufacturer and data format
+		performs instrument correction and data conversion for various instrument types,
+		exact conversion depends on manufacturer and data format
 		'''
 		if not self.corrected:
 			(self.data, self.units, self.channels, self.channels_num,
@@ -155,7 +156,7 @@ class Fiber(object):
 			self.corrected = True
 			return self
 
-		if self.corrected:
+		elif self.corrected:
 			warn('Instrument correction has already been applied, doing nothing...')
 			return self
 
