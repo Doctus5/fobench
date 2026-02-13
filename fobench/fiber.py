@@ -575,9 +575,9 @@ class Fiber(object):
 
 		if plot_mode=='pyqt':
 			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}^2/Hz"
-			plot_pyqt.plot_distance(distances=f, data=spec, y_label =f'{units}',
-								x_label='Frequency [Hz]', title= f'{mode} for channel {channel}',
-                                channels_num=self.channels_num)
+			plot_pyqt.plot_spectral(frequencies=f, amplitudes=spec, y_label =f'{units}',
+								title= f'{mode} channel {channel}')
+
 		elif plot_mode=='mpl':
 			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
 			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
