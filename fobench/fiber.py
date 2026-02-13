@@ -144,16 +144,21 @@ class Fiber(object):
 		'''
 		return copy.deepcopy(self)
 
-	def instr_correct(self, target='strain-rate'):
+	def instr_correct(self, target='strain-rate', terra15_gl=None):
 		'''
 		converts data from counts to strain-rate, exact conversion depends on manufacturer and data format
 		'''
 		if not self.corrected:
 			(self.data, self.units, self.channels, self.channels_num,
-					self.total_channels) = utils.instr_corr(self.data, vars(self), target=target)
+					self.total_channels, self.gauge_length) = utils.instr_corr(self.data, vars(self),
+									target=target, terra15_gl=terra15_gl)
 			self.corrected = True
+			return self
 
-		return self
+		if self.corrected:
+			warn('Instrument correction has already been applied, doing nothing...')
+			return self
+
 
 	def trim(self, t0=None, tf=None):
 		'''
