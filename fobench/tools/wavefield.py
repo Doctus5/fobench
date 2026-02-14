@@ -1,14 +1,16 @@
 import numpy as np
 from obspy.signal.cross_correlation import correlate
-from tqdm import tqdm
+from tqdm import tqdm, trange
 from fobench.tools import signals
 from fobench.plotting.plotting_pyqt import plot_2d_distance
 from fobench.plotting.plotting_mpl import plot_acfs
+from warnings import warn
+
 
 
 def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
-                             channel_nums: np.ndarray = None, plot: bool = True,
-                             result: bool = False) ->  np.ndarray:
+                             channel_nums: np.ndarray = None, plot_mode:str = 'pyqt',
+                             result: bool = False, vmin: float = None, vmax: float = None) ->  np.ndarray:
     '''
 
     Parameters
@@ -26,7 +28,9 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
     plot : bool, optional
         shows plot if True. The default is True.
     result : bool, optional
-        DESCRIPTION. The default is False.
+        whether to return the resulting values. The default is False.
+    vmin, vmax : float, optional
+        minimum and maximum limits of colorbar. The default is None.
 
     Returns
     -------
@@ -38,7 +42,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
     n_ch, n_samp = data.shape
     coherence_matrix = np.zeros((n_ch, n_ch))
 
-    for i in tqdm(range(n_ch), desc='Computing Coherence Matrix', leave=False):
+    for i in trange(n_ch, desc='Computing Coherence Matrix', leave=False):
         for j in range(i, n_ch):
             ch_i = data[i]
             ch_j = data[j]
@@ -52,22 +56,26 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
             coherence_matrix[i, j] = max_corr
             coherence_matrix[j, i] = max_corr
 
-    if plot:
+    if plot_mode == 'pyqt':
         if not channel_nums: channel_nums = np.arange(0, n_ch)
+        if vmin is None: vmin = coherence_matrix.min()
+        if vmax is None: vmax = coherence_matrix.max()
         plot_2d_distance(distances=distances, data=np.rot90(coherence_matrix),
                          y_ticks=channel_nums, channels_num=channel_nums,
-                         max_value = None,
-                         y_label = 'Channel #',
-                         x_label = 'Channel #',
+                         y_label = 'Channel #', x_label = 'Channel #',
                          title = 'Spatial Coherence Matrix',
-                         cmap = 'viridis',
-                         cbar_label = 'Cross Correlation Coefficient')
+                         cmap = 'viridis', cbar_label = 'Cross Correlation Coefficient',
+                         vmin=vmin, vmax=vmax)
+
+    elif plot_mode == 'mpl':
+        warn('Matplotlib plotting not implemented for this function')
+
     if result:
         return coherence_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,
                             deconvolve: bool, total_channels: int, distances: list, channels_num: list,
-                            fs:int, window_size: int = None, **imshow_kwargs)-> np.ndarray:
+                            fs:int, window_size: int = None, vmin:float = None, vmax: float = None, **imshow_kwargs)-> np.ndarray:
     '''
     Computes the autocorrelation either for each channel or each time sample and
     optionally deconvolves the autocorrelation source term using a moving window.
@@ -97,6 +105,8 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
         channel numbering
     fs : int
         sampling frequency of data.
+    vmin, vmax : float, optional
+        minimum and maximum limits of colorbar. The default is None.
     **imshow_kwargs : TYPE
         DESCRIPTION.
 
@@ -117,7 +127,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
         else:
             avg_acf = []
             half_window = window_size // 2
-            for i in range(total_channels):
+            for i in trange(total_channels, desc='Deconvolving', leave=False):
                 start_ch = max(0, i - half_window)
                 end_ch = min(total_channels, i + half_window + 1)
                 avg_acf.append(np.mean(result[:, start_ch:end_ch], axis=1))
@@ -126,15 +136,13 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
 
 
     if plot_mode == 'pyqt':
+        if vmin is None: vmin = result.min()
+        if vmax is None: vmax = result.max()
         plot_2d_distance(distances=distances, data=np.rot90(result),
-                         y_ticks=np.arange(0, max_shift)/fs,
-                         max_value = None,
-                         y_label = 'Lag/TWT [s]',
-                         title = 'Autocorrelation Profile',
-                         cmap = 'viridis',
-                         channels_num=channels_num,
-                         cbar_label = 'Correlation Coefficient',
-                         invert_y=True)
+                         y_ticks=np.arange(0, max_shift)/fs, y_label = 'Lag/TWT [s]',
+                         title = 'Autocorrelation Profile', cmap = 'viridis',
+                         channels_num=channels_num, cbar_label = 'Correlation Coefficient',
+                         invert_y=True, vmin=vmin, vmax=vmax)
 
     elif plot_mode == 'mpl':
         plot_acfs(acfs=result, distances=distances, fs=fs,

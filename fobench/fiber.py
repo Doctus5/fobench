@@ -469,7 +469,8 @@ class Fiber(object):
 		if results:
 			return snr
 
-	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False):
+	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False,
+          vmin=None, vmax=None):
 		'''
 		computes root mean square amplitude for record
 		see fobench.tools.wavefield.rmsa for more details
@@ -487,10 +488,14 @@ class Fiber(object):
 										title='RMS Amplitude Profile')
 		elif window:
 			if plot_mode == 'pyqt':
+				p10, p95 = np.percentile(rmsa, [10, 95])
+				if vmin is None: vmin = p95
+				if vmax is None: vmax = p95
 				plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
 											 y_label='Optical Distance [m]', dt=self.dt,
 											 title=f'RMS Amplitude, {window}s window',
-											 cmap='inferno', cbar_label='RMS Amplitude')
+											 cmap='inferno', cbar_label='RMS Amplitude',
+											 vmin=vmin, vmax=vmax)
 
 			elif plot_mode == 'mpl':
 				times = np.array_split(self.times('matplotlib'), int(self.time_length/window))
@@ -528,7 +533,7 @@ class Fiber(object):
 	-----------------------------------------------------------------
 	'''
 
-	def fx_plot(self, norm=False, max_value=None, order=1, nfft=None, figsize=None,
+	def fx_plot(self, norm=False, vmin=None, vmax=None, max_value=None, order=1, nfft=None, figsize=None,
 				 show=True, cmap='viridis', results=False, file_name=None,
 				 where=None, plot_mode='pyqt', **kwargs):
 		'''
@@ -541,10 +546,14 @@ class Fiber(object):
 		fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
 										   order=order, nfft=nfft, norm=norm, axis=axis)
 
+
 		if plot_mode == 'pyqt':
+			p10, p95 = np.percentile(fx, [10, 95])
+			if vmin is None: vmin = p10
+			if vmax is None: vmax = p95
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
-                              y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap,
-                              max_value=max_value, y_label='Frequency [Hz]',
+                              y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
+                              cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
                               title='Frequency content')
 
 		elif plot_mode == 'mpl':
@@ -608,7 +617,7 @@ class Fiber(object):
 					max_value=max_value, spectrogram=False, show=show, figsize=figsize,
 					title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
 
-	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic',
+	def plot(self, vmin=None, vmax=None, max_value=None, figsize=None, show=True, cmap='seismic',
 		  file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		generates plot of data, for more details see fobench.plotting.plotting_pyqt
@@ -616,9 +625,12 @@ class Fiber(object):
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
+			p10, p95 = np.percentile(self.data, [10, 95])
+			vmin = p10 if vmin is None else vmin
+			vmax = p95 if vmax is None else vmax
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels_num),
 						data=self.data, y_label='Channel', dt=self.dt,
-						title='', max_value=max_value, cbar_label=self.units,
+						title='', vmin=vmin, vmax=vmax, cbar_label=self.units,
                         distances=self.distances)
 
 		elif plot_mode == 'mpl':
@@ -629,8 +641,9 @@ class Fiber(object):
 					 file_name=file_name, where=where, add_data=add_data, **kwargs)
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-						 show=True, cmap='viridis', file_name=None, where=None,
-						 freq_lim=None, results=False, make_plot=True, plot_mode='pyqt', **kwargs):
+						show=True, cmap='viridis', file_name=None, where=None,
+						freq_lim=None, results=False, plot_mode='pyqt', vmin=None,
+						vmax=None, **kwargs):
 		'''
 		computes and plots spectrogram for a 'channel', is normalized to maximum value if norm is True
 		if using 'mpl' plot mode, see fobench.plotting.plotting_mpl.simple_spectrogram
@@ -645,13 +658,16 @@ class Fiber(object):
 		f, t, Sxx = signals.signal_spectrogram(data=data, sampling_frequency=self.sampling_frequency,
 										 axis=axis, norm=norm)
 
-		if make_plot is True and plot_mode=='pyqt':
+		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
+			if vmin is None: vmin = 0
+			if vmax is None: vmax = np.percentile(Sxx, 95)
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
 						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
-						title=f'Spectrogram channel {channel}', cmap='viridis')
+						title=f'Spectrogram channel {channel}', cmap='viridis',
+						vmin=vmin, vmax=vmax)
 
-		elif make_plot is True and plot_mode=='mpl':
+		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
 			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
 						trace=data if trace == True else None, figsize=figsize, cmap=cmap,
@@ -689,7 +705,7 @@ class Fiber(object):
 							channels=das_channels, date=self.times()[0].isoformat()[:10])
 
 	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
-					window_size=None, results=False, **imshow_kwargs):
+					window_size=None, results=False, vmin=None, vmax=None, **imshow_kwargs):
 		'''
 		computes autocorrelation profile, see fiber.tools.wavefield.autocorrelation_profile
 		for more details
@@ -705,12 +721,14 @@ class Fiber(object):
 												deconvolve, self.total_channels,
 												self.distances, self.channels_num,
                                                 self.sampling_frequency,
-												window_size=window_size, **imshow_kwargs)
+												window_size=window_size, vmin=vmin,
+                                                vmax=vmax, **imshow_kwargs)
 
 		if results:
 			return acf
 
-	def spatial_coherence(self, max_lag, result=False, plot=True):
+	def spatial_coherence(self, max_lag, result=False, plot_mode='pyqt', vmin=None,
+                       vmax=None):
 		'''
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
@@ -719,7 +737,8 @@ class Fiber(object):
                                            distances=self.distances,
 										   fs=self.sampling_frequency,
 										   channel_nums=self.channels_num,
-										   plot=plot, result=result)
+										   plot_mode=plot_mode, result=result,
+                                           vmin=vmin, vmax=vmax)
 		if result:
 			return coh
 

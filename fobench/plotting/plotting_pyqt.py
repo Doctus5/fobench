@@ -248,7 +248,7 @@ Matrix Plot Functions
 '''
 
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
-                       dt: float, max_value: float = None, y_label: str = '',
+                       dt: float, vmin: float = None, vmax:float = None, y_label: str = '',
                        title: str = '', cmap: str = 'seismic',
                        cbar_label: str = '', distances: np.ndarray = None) -> None:
     '''
@@ -265,8 +265,8 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         y-axis tick labels.
     dt : float
         sampling period of data
-    max_value : float, optional
-        value that sets limits of colorbar. The default is None.
+    vmin, vmax : float, optional
+        minimum and maximum limits of colorbar. The default is None.
     y_label : str, optional
         y-axis label. The default is ''.
     title : str, optional
@@ -312,6 +312,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                                 yMin=min(y_ticks), yMax=max(y_ticks))
 
     text_label, h_layout, container = get_bottom_layout()
+    h_layout.addWidget(scale_button:=get_colorscale_button())
     label_text = 'Time: {x} | '+y_axis.labelText+': {y}'
     mouse_moved = tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
                                   label_text=label_text)
@@ -350,13 +351,14 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                                   label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
-    values = (-max_value, max_value) if max_value is not None else None
     data_range = np.nanmax(data) - np.nanmin(data)
-
     cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=values,
-                          label=cbar_label, interactive=True, rounding=0.001*data_range)
+    bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax),
+                          label=cbar_label, interactive=True, rounding=0.0001*data_range)
     bar.setImageItem(image, insert_in=plot)
+    def reset_scale():
+        bar.setLevels(values=(vmin, vmax))
+    scale_button.clicked.connect(reset_scale)
 
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
@@ -366,7 +368,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 
 def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
                      data: np.ndarray, y_ticks: list,
-                     max_value: float = None, y_label: str = '',
+                     vmin: float = None, vmax: float = None, y_label: str = '',
                      x_label: str = 'Channel',
                      title: str = '', cmap: str = 'seismic',
                      cbar_label: str = '', invert_y=False) -> None:
@@ -383,8 +385,8 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         array containing data to plot.
     y_ticks : list
         y-axis tick labels.
-    max_value : float, optional
-        value that sets limits of colorbar. The default is None.
+    vmin, vmax : float, optional
+        minimum and maximum limits of colorbar. The default is None.
     y_label : str, optional
         y-axis label. The default is ''.
     x_label : str, optional
@@ -434,19 +436,23 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     text_label, h_layout, container = get_bottom_layout()
     # button for axis switching
     h_layout.addWidget(button:=get_axis_button())
+    h_layout.addWidget(scale_button:=get_colorscale_button())
 
     label_text = x_axis.labelText+': {x} | '+y_label+': {y}'
     mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, dy=dy,
                                           label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
-    values = (-max_value, max_value) if max_value is not None else None
     data_range = np.nanmax(data) - np.nanmin(data)
 
     cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=values, label=cbar_label,
-                          interactive=True, rounding=0.001*data_range)
+    bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax), label=cbar_label,
+                          interactive=True, rounding=0.0001*data_range)
     bar.setImageItem(image, insert_in=plot)
+
+    def reset_scale():
+        bar.setLevels(values=(vmin, vmax))
+    scale_button.clicked.connect(reset_scale)
 
     def switch_axis():
         nonlocal dx, mouse_moved, proxy
@@ -471,7 +477,6 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
         plot.enableAutoRange()
-
     button.clicked.connect(switch_axis)
 
     # add container
@@ -552,6 +557,15 @@ def get_axis_button() -> QtWidgets.QPushButton:
     button = QtWidgets.QPushButton('Distance')
     button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
     button.setFixedWidth(70)
+    return button
+
+def get_colorscale_button() -> QtWidgets.QPushButton:
+    '''
+    returns a button that can be used for resetting colorscale
+    '''
+    button = QtWidgets.QPushButton('Reset colorscale')
+    button.setToolTip('Resets the colorscale to initial values')
+    button.setFixedWidth(110)
     return button
 
 def get_bottom_layout():
