@@ -465,12 +465,12 @@ class Fiber(object):
 		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
 		if plot_mode == 'pyqt':
 			plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
-                                       data=snr, y_label='SNR [-]', title='SNR Profile')
+									   data=snr, y_label='SNR [-]', title='SNR Profile')
 		if results:
 			return snr
 
 	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False,
-          vmin=None, vmax=None):
+		  vmin=None, vmax=None):
 		'''
 		computes root mean square amplitude for record
 		see fobench.tools.wavefield.rmsa for more details
@@ -483,20 +483,26 @@ class Fiber(object):
 		times = np.array([time[int(len(time)/2)] for time in times])
 		if window == None or window == self.time_length:
 			if plot_mode == 'pyqt':
-				plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:],
-                            y_label='RMS Amplitude', channels_num=self.channels_num,
-										title='RMS Amplitude Profile')
+				if dim == 't':
+						plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:],
+									y_label='RMS Amplitude', channels_num=self.channels_num,
+												title='RMS Amplitude Profile')
+				else:
+					times = self.times('unix')
+					plot_pyqt.plot_timeseries(timestamps=times, data=rmsa[0,:],
+											   dt=times[1]-times[0], y_label='RMS Amplitude',
+											   title='RMS Amplitude over Time')
 		elif window:
 			if plot_mode == 'pyqt':
-				p10, p95 = np.percentile(rmsa, [10, 95])
-				if vmin is None: vmin = p95
+				p95 = np.percentile(rmsa, 95)
+				if vmin is None: vmin = -p95
 				if vmax is None: vmax = p95
-				plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
-											 y_label='Optical Distance [m]', dt=self.dt,
-											 title=f'RMS Amplitude, {window}s window',
-											 cmap='inferno', cbar_label='RMS Amplitude',
-											 vmin=vmin, vmax=vmax)
-
+				if dim == 't':
+						plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
+													 y_label='Optical Distance [m]', dt=self.dt,
+													 title=f'RMS Amplitude, {window}s window',
+													 cmap='inferno', cbar_label='RMS Amplitude',
+													 vmin=vmin, vmax=vmax)
 			elif plot_mode == 'mpl':
 				times = np.array_split(self.times('matplotlib'), int(self.time_length/window))
 				times = np.array([time[int(len(time)/2)] for time in times])
@@ -516,7 +522,7 @@ class Fiber(object):
 											 self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
 				plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
-                            data=p2p_amplitude, y_label='P2P Amplitude', x_label='Channel',
+							data=p2p_amplitude, y_label='P2P Amplitude', x_label='Channel',
 							  title='Peak-to-Peak Amplitude Profile')
 
 		if plot_mode=='pyqt' and dim=='d':
@@ -548,13 +554,13 @@ class Fiber(object):
 
 
 		if plot_mode == 'pyqt':
-			p10, p95 = np.percentile(fx, [10, 95])
-			if vmin is None: vmin = p10
+			p95 = np.percentile(fx, 95)
+			if vmin is None: vmin = -p95
 			if vmax is None: vmax = p95
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
-                              y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
-                              cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
-                              title='Frequency content')
+							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
+							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
+							  title='Frequency content')
 
 		elif plot_mode == 'mpl':
 			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
@@ -625,13 +631,13 @@ class Fiber(object):
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
-			p10, p95 = np.percentile(self.data, [10, 95])
-			vmin = p10 if vmin is None else vmin
+			p95 = np.percentile(self.data, 95)
+			vmin = -p95 if vmin is None else vmin
 			vmax = p95 if vmax is None else vmax
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels_num),
 						data=self.data, y_label='Channel', dt=self.dt,
 						title='', vmin=vmin, vmax=vmax, cbar_label=self.units,
-                        distances=self.distances)
+						distances=self.distances)
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
@@ -699,7 +705,7 @@ class Fiber(object):
 		if plot_mode=='pyqt':
 			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
 								 title='Record Section', numbers=das_channels, dt=self.dt,
-                                 y_label='Channel')
+								 y_label='Channel')
 		elif plot_mode=='mpl':
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
 							channels=das_channels, date=self.times()[0].isoformat()[:10])
@@ -720,25 +726,25 @@ class Fiber(object):
 		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
 												deconvolve, self.total_channels,
 												self.distances, self.channels_num,
-                                                self.sampling_frequency,
+												self.sampling_frequency,
 												window_size=window_size, vmin=vmin,
-                                                vmax=vmax, **imshow_kwargs)
+												vmax=vmax, **imshow_kwargs)
 
 		if results:
 			return acf
 
 	def spatial_coherence(self, max_lag, result=False, plot_mode='pyqt', vmin=None,
-                       vmax=None):
+					   vmax=None):
 		'''
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
 		'''
 		coh = wavefield.spatial_coherence_matrix(data=self.data.T, max_lag=max_lag,
-                                           distances=self.distances,
+										   distances=self.distances,
 										   fs=self.sampling_frequency,
 										   channel_nums=self.channels_num,
 										   plot_mode=plot_mode, result=result,
-                                           vmin=vmin, vmax=vmax)
+										   vmin=vmin, vmax=vmax)
 		if result:
 			return coh
 

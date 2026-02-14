@@ -28,7 +28,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
     data : np.ndarray
         array containing data to plot.
     dt : float
-        sampling period of data
+        sampling period of data.
     y_label : str, optional
         y-axis label. The default is ''.
     title : str, optional
@@ -59,7 +59,6 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     pg.exec()
-    QtWidgets.QApplication.processEvents()
 
 def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
                         numbers: np.ndarray, y_label: str = '', title: str = '') -> None:
@@ -73,9 +72,9 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     data : np.ndarray
         array containing data to plot.
     dt : float
-        sampling period of data
+        sampling period of data.
     numbers : np.ndarray
-        array containing channel numbers for plotting
+        array containing channel numbers for plotting.
     y_label : str, optional
         y-axis label. The default is ''.
     title : str, optional
@@ -88,10 +87,8 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     '''
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
                                                 x_is_time=True)
-    data = data[:, ::-1]
-    numbers = numbers[::-1]
-
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
+    data, numbers = data[:, ::-1], numbers[::-1]
 
     offset = data[:].max()
     ticks = []
@@ -129,7 +126,7 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     Parameters
     ----------
     distances : np.ndarray
-        array containing optical distances values
+        array containing optical distances values.
     channels_num : np.ndarray
         array containing channel numbers.
     data : np.ndarray
@@ -137,7 +134,7 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     y_label : str, optional
         y-axis label. The default is ''.
     x_label : str, optional
-        x-axis label. The default is 'Optical Distance [m]'.
+        x-axis label. The default is 'Channel'.
     title : str, optional
         title of plot. The default is ''.
 
@@ -147,11 +144,10 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         -
     '''
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
-
-    dx = channels_num[1] - channels_num[0]
-
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.plot(channels_num, data, pen=pg.mkPen('k', width=1))
+
+    dx = channels_num[1] - channels_num[0]
 
     x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(channels_num), max(channels_num), padding=0)
@@ -202,7 +198,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
     Parameters
     ----------
     frequencies : np.ndarray
-        array containing frequency values
+        array containing frequency values.
     amplitudes : np.ndarray
         array containing amplitudes to plot.
     y_label : str, optional
@@ -286,14 +282,12 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title,
                                                 x_is_time=True)
-
-    dy = y_ticks[1] - y_ticks[0]
-
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
     plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)  # One-button
+    dy = y_ticks[1] - y_ticks[0]
 
     x_min, x_max = timestamps[0], timestamps[-1]
     y_min, y_max = y_ticks[0], y_ticks[-1]
@@ -356,6 +350,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax),
                           label=cbar_label, interactive=True, rounding=0.0001*data_range)
     bar.setImageItem(image, insert_in=plot)
+
     def reset_scale():
         bar.setLevels(values=(vmin, vmax))
     scale_button.clicked.connect(reset_scale)
@@ -367,11 +362,9 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     pg.exec()
 
 def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
-                     data: np.ndarray, y_ticks: list,
-                     vmin: float = None, vmax: float = None, y_label: str = '',
-                     x_label: str = 'Channel',
-                     title: str = '', cmap: str = 'seismic',
-                     cbar_label: str = '', invert_y=False) -> None:
+                     data: np.ndarray, y_ticks: list, vmin: float = None, vmax: float = None,
+                     y_label: str = '',x_label: str = 'Channel', title: str = '',
+                     cmap: str = 'seismic', cbar_label: str = '', invert_y=False) -> None:
     '''
     generate generic matrix plot where x-axis represents distance
 
@@ -444,7 +437,6 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     data_range = np.nanmax(data) - np.nanmin(data)
-
     cmap = pg.colormap.get(cmap, source='matplotlib')
     bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax), label=cbar_label,
                           interactive=True, rounding=0.0001*data_range)
@@ -479,7 +471,6 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         plot.enableAutoRange()
     button.clicked.connect(switch_axis)
 
-    # add container
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
