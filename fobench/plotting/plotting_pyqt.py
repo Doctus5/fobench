@@ -4,8 +4,8 @@ whenever plot_mode is set to 'pyqt'
 '''
 import sys
 import datetime
-import numpy as np
 from pathlib import Path
+import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtGui
@@ -39,56 +39,27 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
     None
         -
     '''
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
 
-    win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')  # white bg
-    win.resize(1200, 500)
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
+                                                x_is_time=True)
 
-    plot = win.addPlot(title=title)
-    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.plot(timestamps, data, pen=pg.mkPen('k', width=1))
 
-    # y axis
-    y_axis = plot.getAxis('left')
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
-
-    # x-axis
-    plot.setAxisItems({'bottom': pg.DateAxisItem()})
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setPen(pg.mkPen('k', width=2))
-    x_axis.setTextPen(pg.mkPen('k'))
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
     x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
                                 yMin=min(data), yMax=max(data))
 
-    label = pg.LabelItem(justify='left')
+    label = pg.LabelItem(justify='left', size='10pt', color='black')
     win.addItem(label, row=2, col=0)
 
-    def mouse_moved(evt, dt=dt):
-        pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            x_val = round(x_val / dt) * dt
-            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
-            label.setText(f'Time: {x_datetime}', color='k')
+    mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text='Time: {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     pg.exec()
     QtWidgets.QApplication.processEvents()
-
 
 def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
                         numbers: np.ndarray, y_label: str = '', title: str = '') -> None:
@@ -115,23 +86,11 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     None
         -
     '''
-
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
-
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
+                                                x_is_time=True)
     data = data[:, ::-1]
     numbers = numbers[::-1]
 
-    win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')  # white bg
-    win.resize(1200, 500)
-
-    plot = win.addPlot(title=title)
-    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
 
     offset = data[:].max()
@@ -141,21 +100,10 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
         plot.plot(timestamps, data[:, i] + y, pen=pg.mkPen('k', width=1))
         ticks.append((y, str(numbers[i])))
 
-    # y axis
-    y_axis = plot.getAxis('left')
     y_axis.setTicks([ticks])
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
     y_axis.enableAutoSIPrefix(False)
     y_axis.setStyle(showValues=True)
 
-    # x-axis
-    plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setPen(pg.mkPen('k', width=2))
-    x_axis.setTextPen(pg.mkPen('k'))
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
     x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
@@ -163,17 +111,10 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
                                 yMax=max(data[:, 0]),
                                 yMin=min(data[:, i] - i*data[:].max()))
 
-    label = pg.LabelItem(justify='left')
+    label = pg.LabelItem(justify='left', size='10pt', color='black')
     win.addItem(label, row=2, col=0)
 
-    def mouse_moved(evt, dt=dt):
-        pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            x_val = round(x_val / dt) * dt
-            x_datetime = datetime.datetime.utcfromtimestamp(x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
-            label.setText(f'Time: {x_datetime}', color='k')
+    mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text='Time: {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     pg.exec()
@@ -205,69 +146,26 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     None
         -
     '''
-
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
-
-    win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')  # white bg
-    win.resize(1200, 500)
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
 
     dx = channels_num[1] - channels_num[0]
 
-    plot = win.addPlot(title=title)
-    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.plot(channels_num, data, pen=pg.mkPen('k', width=1))
 
-    # y axis
-    y_axis = plot.getAxis('left')
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
-
-    # x-axis
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setPen(pg.mkPen('k', width=2))
-    x_axis.setTextPen(pg.mkPen('k'))
     x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(channels_num), max(channels_num), padding=0)
     plot.getViewBox().setLimits(xMin=min(channels_num), xMax=max(channels_num),
                                 yMin=min(data), yMax=max(data))
 
-    # horizontal container
-    container = QtWidgets.QWidget()
-    h_layout = QtWidgets.QHBoxLayout(container)
-    h_layout.setContentsMargins(5, 5, 5, 5)
+    text_label, h_layout, container = get_bottom_layout()
+    h_layout.addWidget(button:=get_axis_button())
 
-    # label f cursor tracking
-    text_label = QtWidgets.QLabel()
-    text_label.setStyleSheet('color: black; font-size: 10pt;')
-    h_layout.addWidget(text_label)
-
-    # button for axis switching
-    button = QtWidgets.QPushButton('Distance')
-    button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
-    button.setFixedWidth(70)
-    h_layout.addWidget(button)
-
-    # cursor tracking in data units
-    def mouse_moved(evt):
-        pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            x_val = round(x_val / dx) * dx
-            text_label.setText(f'{x_axis.labelText}: {x_val:.2f}')
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text= x_axis.labelText+': {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     def switch_axis():
-        nonlocal dx
+        nonlocal dx, mouse_moved, proxy
         if button.text() == 'Distance':
             button.setText('Channel')
             plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
@@ -278,6 +176,8 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
             plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
             x_vals = channels_num
             dx = channels_num[1] - channels_num[0]
+        mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text= x_axis.labelText+': {x}')
+        proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
@@ -318,58 +218,21 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
         -
     '''
 
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
-
-    win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle(f'Fobench: {title}')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')  # white bg
-    win.resize(1200, 500)
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
 
     dx = frequencies[1] - frequencies[0]
 
-    plot = win.addPlot(title=title)
-    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.plot(frequencies, amplitudes, pen=pg.mkPen('k', width=1))
 
-    # y axis
-    y_axis = plot.getAxis('left')
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
-
-    # x-axis
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setPen(pg.mkPen('k', width=2))
-    x_axis.setTextPen(pg.mkPen('k'))
     x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(frequencies), max(frequencies), padding=0)
     plot.getViewBox().setLimits(xMin=min(frequencies), xMax=max(frequencies),
                                 yMin=min(amplitudes), yMax=max(amplitudes))
 
-    # horizontal container
-    container = QtWidgets.QWidget()
-    h_layout = QtWidgets.QHBoxLayout(container)
-    h_layout.setContentsMargins(5, 5, 5, 5)
+    text_label, h_layout, container = get_bottom_layout()
 
-    # label f cursor tracking
-    text_label = QtWidgets.QLabel()
-    text_label.setStyleSheet('color: black; font-size: 10pt;')
-    h_layout.addWidget(text_label)
-
-    # cursor tracking in data units
-    def mouse_moved(evt):
-        pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            x_val = round(x_val / dx) * dx
-            text_label.setText(f'{x_axis.labelText}: {x_val:.2f}')
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=x_axis.labelText+': {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     proxy_container = QtWidgets.QGraphicsProxyWidget()
@@ -377,7 +240,6 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
     win.addItem(proxy_container, row=2, col=0)
 
     pg.exec()
-
 
 '''
 -----------------------------------------------------------------
@@ -422,21 +284,11 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         -.
     '''
 
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
-
-    win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle(f'Fobench {title}')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')
-    win.resize(1200, 800)
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title,
+                                                x_is_time=True)
 
     dy = y_ticks[1] - y_ticks[0]
 
-    plot = win.addPlot(title=title)
-    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
@@ -451,19 +303,6 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     image.setImage(data)
     image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
 
-    # y axis
-    y_axis = plot.getAxis('left')
-    # y_axis.setTicks([[(y, str(y)) for y in y_ticks]])
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
-
-    # x axis
-    plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setTextPen(pg.mkPen('k'))
-    x_axis.setPen(pg.mkPen('k', width=2))
     # date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
     # x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
 
@@ -472,25 +311,17 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
                                 yMin=min(y_ticks), yMax=max(y_ticks))
 
-    # horizontal container
-    container = QtWidgets.QWidget()
-    h_layout = QtWidgets.QHBoxLayout(container)
-    h_layout.setContentsMargins(5, 5, 5, 5)
+    text_label, h_layout, container = get_bottom_layout()
+    label_text = 'Time: {x} | '+y_axis.labelText+': {y}'
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
+                                  label_text=label_text)
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
-    # label f cursor tracking
-    text_label = QtWidgets.QLabel()
-    text_label.setStyleSheet('color: black; font-size: 10pt;')
-    h_layout.addWidget(text_label)
-
-    # button for axis switching if y axis is distance
-    if distances:
-        button = QtWidgets.QPushButton('Distance')
-        button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
-        button.setFixedWidth(70)
-        h_layout.addWidget(button)
+    if distances:     # button for axis switching if y axis is distance
+        h_layout.addWidget(button:=get_axis_button())
 
         def switch_axis():
-            nonlocal dy
+            nonlocal dy, mouse_moved, proxy
             if button.text() == 'Distance':
                 button.setText('Channel')
                 plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
@@ -501,6 +332,11 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                 plot.setLabel('left', 'Channel', **{'color': 'k', 'font-size': '14pt'})
                 y_vals = y_ticks
                 dy = y_ticks[1] - y_ticks[0]
+
+            label_text = 'Time: {x} | '+y_axis.labelText+': {y}'
+            mouse_moved = tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
+                                          label_text=label_text)
+            proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
             y_min, y_max = y_vals[0], y_vals[-1]
             image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
             plot.setYRange(min(y_vals), max(y_vals), padding=0)
@@ -509,18 +345,9 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 
         button.clicked.connect(switch_axis)
 
-    def mouse_moved(evt):
-        pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            x_val = round(x_val / dt) * dt
-            y_val = mouse_point.y()
-            y_val = round(y_val / dy) * dy
-
-            x_datetime = datetime.datetime.utcfromtimestamp(
-                x_val).strftime('%Y-%m-%d %H:%M:%S.%f')
-            text_label.setText(f'Time: {x_datetime} | {y_axis.labelText}: {y_val:.2f}')
+    label_text = 'Time: {x} | '+y_axis.labelText+': {y}'
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
+                                  label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     values = (-max_value, max_value) if max_value is not None else None
@@ -577,22 +404,11 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         -.
     '''
 
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
-
-    win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle('Fobench')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')
-    win.resize(1200, 800)
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title)
 
     dx = channels_num[1] - channels_num[0]
     dy = y_ticks[1] - y_ticks[0]
 
-    plot = win.addPlot(title=title)
-    plot.setTitle(title, size='20pt', color='k')
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.setLabel('bottom', x_label, **{'color': 'k', 'font-size': '14pt'})
 
@@ -610,51 +426,18 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     image.setImage(data)
     image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
 
-    # y axis
-    y_axis = plot.getAxis('left')
-    # y_axis.setTicks([[(y, str(y)) for y in y_ticks]])
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
-
-    # x axis
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setTextPen(pg.mkPen('k'))
-    x_axis.setPen(pg.mkPen('k', width=2))
-
     plot.setXRange(min(channels_num), max(channels_num), padding=0)
     plot.setYRange(min(y_ticks), max(y_ticks), padding=0)
     plot.getViewBox().setLimits(xMin=min(channels_num), xMax=max(channels_num),
                                 yMin=min(y_ticks), yMax=max(y_ticks))
 
-    # horizontal container
-    container = QtWidgets.QWidget()
-    h_layout = QtWidgets.QHBoxLayout(container)
-    h_layout.setContentsMargins(5, 5, 5, 5)
-
-    # label f cursor tracking
-    text_label = QtWidgets.QLabel()
-    text_label.setStyleSheet('color: black; font-size: 10pt;')
-    h_layout.addWidget(text_label)
-
+    text_label, h_layout, container = get_bottom_layout()
     # button for axis switching
-    button = QtWidgets.QPushButton('Distance')
-    button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
-    button.setFixedWidth(70)
-    h_layout.addWidget(button)
+    h_layout.addWidget(button:=get_axis_button())
 
-    # cursor tracking in data units
-    def mouse_moved(evt):
-        pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            x_val = round(x_val / dx) * dx
-            y_val = mouse_point.y()
-            y_val = round(y_val / dy) * dy
-            text_label.setText(f'{x_axis.labelText}: {x_val:.2f} | {y_label}: {y_val:.3f}')
-
+    label_text = x_axis.labelText+': {x} | '+y_label+': {y}'
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, dy=dy,
+                                          label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
     values = (-max_value, max_value) if max_value is not None else None
@@ -666,7 +449,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     bar.setImageItem(image, insert_in=plot)
 
     def switch_axis():
-        nonlocal dx
+        nonlocal dx, mouse_moved, proxy
         if button.text() == 'Distance':
             button.setText('Channel')
             plot.setLabel(
@@ -678,6 +461,11 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
             plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
             x_vals = channels_num
             dx = channels_num[1] - channels_num[0]
+
+        label_text = x_axis.labelText+': {x} | '+y_label+': {y}'
+        mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, dy=dy,
+                                              label_text=label_text)
+        proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
         x_min, x_max = x_vals[0], x_vals[-1]
         image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
@@ -692,3 +480,90 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     win.addItem(proxy_container, row=2, col=0)
 
     pg.exec()
+
+'''
+-----------------------------------------------------------------
+Helper Functions
+-----------------------------------------------------------------
+'''
+
+def get_layout(size: tuple = (1200, 600), win_title: str = None,
+               x_is_time: bool = False):
+    '''
+    returns common basic layout of plots
+    '''
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
+    win = pg.GraphicsLayoutWidget(show=True)
+    win.setWindowTitle(f'Fobench: {win_title}')
+    win.setWindowIcon(QtGui.QIcon(
+        str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w')  # white bg
+    win.resize(size[0], size[1])
+    plot = win.addPlot(title=win_title)
+    plot.setTitle(win_title, size='20pt', color='k')
+
+    y_axis = plot.getAxis('left')
+    y_axis.setPen(pg.mkPen('k', width=2))
+    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
+    y_axis.setTextPen(pg.mkPen('k'))
+
+    if x_is_time: plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
+    x_axis = plot.getAxis('bottom')
+    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
+    x_axis.setPen(pg.mkPen('k', width=2))
+    x_axis.setTextPen(pg.mkPen('k'))
+
+    return win, app, plot, y_axis, x_axis
+
+
+def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
+                    dt:float = None, dx:float = None, dy: float = None):
+    '''
+    factory that returns a function tracking the mouse position and
+    displays it in data units
+    '''
+    x_step = dt if dt is not None else dx
+    is_time = dt is not None
+
+    def mouse_moved(evt):
+        pos = evt[0]
+        if plot.sceneBoundingRect().contains(pos):
+            mouse_point = plot.vb.mapSceneToView(pos)
+            x_val = mouse_point.x()
+            y_val = mouse_point.y()
+            x_val = round(x_val / x_step) * x_step
+            if dy is not None:
+                y_val = round(y_val / dy) * dy
+
+            if is_time:
+                x_val = datetime.datetime.utcfromtimestamp(x_val).strftime(
+                    '%Y-%m-%d %H:%M:%S.%f')
+            label.setText(label_text.format(x=x_val, y=y_val))
+    return mouse_moved
+
+def get_axis_button() -> QtWidgets.QPushButton:
+    '''
+    returns a button that can be used for switching axis between optical distance
+    and channel number
+    '''
+    button = QtWidgets.QPushButton('Distance')
+    button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
+    button.setFixedWidth(70)
+    return button
+
+def get_bottom_layout():
+    '''
+    returns bottom layout that holds label for tracking mouse
+    '''
+    container = QtWidgets.QWidget()
+    h_layout = QtWidgets.QHBoxLayout(container)
+    h_layout.setContentsMargins(5, 5, 5, 5)
+
+    text_label = QtWidgets.QLabel()
+    text_label.setStyleSheet('color: black; font-size: 10pt;')
+    h_layout.addWidget(text_label)
+
+    return text_label, h_layout, container
