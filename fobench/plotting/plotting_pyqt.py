@@ -312,7 +312,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                                   label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
 
-    if distances:     # button for axis switching if y axis is distance
+    if distances is not None:     # button for axis switching if y axis is distance
         h_layout.addWidget(button:=get_axis_button())
 
         def switch_axis():

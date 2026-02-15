@@ -1,8 +1,8 @@
 import numpy as np
 from obspy.signal.cross_correlation import correlate
-from tqdm import tqdm, trange
+from tqdm import trange
 from fobench.tools import signals
-from fobench.plotting.plotting_pyqt import plot_2d_distance
+from fobench.plotting import plotting_pyqt as plot_pyqt
 from fobench.plotting.plotting_mpl import plot_acfs
 from warnings import warn
 
@@ -60,7 +60,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         if not channel_nums: channel_nums = np.arange(0, n_ch)
         if vmin is None: vmin = coherence_matrix.min()
         if vmax is None: vmax = coherence_matrix.max()
-        plot_2d_distance(distances=distances, data=np.rot90(coherence_matrix),
+        plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(coherence_matrix),
                          y_ticks=channel_nums, channels_num=channel_nums,
                          y_label = 'Channel #', x_label = 'Channel #',
                          title = 'Spatial Coherence Matrix',
@@ -138,7 +138,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     if plot_mode == 'pyqt':
         if vmin is None: vmin = result.min()
         if vmax is None: vmax = result.max()
-        plot_2d_distance(distances=distances, data=np.rot90(result),
+        plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(result),
                          y_ticks=np.arange(0, max_shift)/fs, y_label = 'Lag/TWT [s]',
                          title = 'Autocorrelation Profile', cmap = 'viridis',
                          channels_num=channels_num, cbar_label = 'Correlation Coefficient',
@@ -150,7 +150,9 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
 
     return result
 
-def rmsa(data: np.ndarray, axis: int, data_length: int, window: int) -> np.ndarray:
+def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
+         channels_num: list, distances: np.ndarray, plot_mode: str, vmin: float = None,
+         vmax: float = None) -> np.ndarray:
     '''
     computes the root mean square amplitude of data, data is split into windows
     before, pass window equal to data_length to compute one RMSA vector for full record
@@ -172,9 +174,50 @@ def rmsa(data: np.ndarray, axis: int, data_length: int, window: int) -> np.ndarr
         array containing RMSA values.
 
     '''
+    def compute_rmsa(data, data_length, window, axis):
+        data = np.array_split(data, int(data_length / window), axis=axis)
+        return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
 
-    data = np.array_split(data, int(data_length / window), axis=axis)
-    return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
+    if window is None:
+        data_length = len(times) if dim == 't' else len(channels_num)
+        result = compute_rmsa(data, data_length, data_length, axis)
+    elif window:
+        data_length = len(times) if dim == 't' else len(channels_num)
+        result = compute_rmsa(data, data_length, window, axis)
+
+    if plot_mode == 'pyqt':
+        if window is None:
+            if dim == 't':
+                plot_pyqt.plot_distance(distances=distances, data=result[0,:], channels_num=channels_num,
+                              title='RMS Amplitude Profile')
+            elif dim == 'd':
+                plot_pyqt.plot_timeseries(timestamps=times, data=result[0,:], dt=times[1]-times[0],
+                                             y_label='RMS Amplitude', title='RMS Amplitude over Time')
+        elif window:
+            p95 = np.percentile(result, 95)
+            if vmin is None: vmin = -p95
+            if vmax is None: vmax = p95
+            if dim == 't':
+                timestamps = np.array_split(times, int(len(times)/window))
+                timestamps = np.array([timestamp[int(len(timestamp)/2)] for timestamp in timestamps])
+                plot_pyqt.plot_2d_timeseries(timestamps=timestamps, data=result, y_ticks=channels_num, y_label='Channel',
+                                   dt=timestamps[1]-timestamps[0], title='RMS Amplitude', distances=distances,
+                                   cmap='inferno', cbar_label='RMS Amplitude', vmin=vmin, vmax=vmax)
+            elif dim == 'd':
+                chans = np.array_split(channels_num, int(len(channels_num)/window))
+                chans = np.array([chan[int(len(chan)/2)] for chan in chans])
+                dists = np.array_split(distances, int(len(distances)/window))
+                dists = np.array([dist[int(len(dist)/2)] for dist in dists])
+                plot_pyqt.plot_2d_timeseries(timestamps=times, data=result.T, y_ticks=chans, y_label='Channel',
+                                   dt=times[1]-times[0], title='RMS Amplitude', distances=dists,
+                                   cmap='inferno', cbar_label='RMS Amplitude', vmin=vmin, vmax=vmax)
+
+    elif plot_mode == 'mpl':
+        warn('matplotlib plotting not implemented for this method!')
+
+    return result
+
+
 
 
 def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, np.ndarray, np.ndarray]:

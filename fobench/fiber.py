@@ -469,48 +469,21 @@ class Fiber(object):
 		if results:
 			return snr
 
-	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False,
+	def rmsa(self, window=None, dim='t', plot_mode='pyqt', results=False,
 		  vmin=None, vmax=None):
 		'''
-		computes root mean square amplitude for record
+		computes root mean square amplitude for record, dependign on dimension,
+		window is either seconds ('t') or number of channels ('d')
 		see fobench.tools.wavefield.rmsa for more details
 		'''
 		axis = self.__axis__(dim)
-		window = self.time_length if window == None else window
-		rmsa = wavefield.rmsa(data=self.data, axis=axis, data_length=self.time_length,
-							  window=window)
-		times = np.array_split(self.times('unix'), int(self.time_length/window))
-		times = np.array([time[int(len(time)/2)] for time in times])
-		if window == None or window == self.time_length:
-			if plot_mode == 'pyqt':
-				if dim == 't':
-						plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:],
-									y_label='RMS Amplitude', channels_num=self.channels_num,
-												title='RMS Amplitude Profile')
-				else:
-					times = self.times('unix')
-					plot_pyqt.plot_timeseries(timestamps=times, data=rmsa[0,:],
-											   dt=times[1]-times[0], y_label='RMS Amplitude',
-											   title='RMS Amplitude over Time')
-		elif window:
-			if plot_mode == 'pyqt':
-				p95 = np.percentile(rmsa, 95)
-				if vmin is None: vmin = -p95
-				if vmax is None: vmax = p95
-				if dim == 't':
-						plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
-													 y_label='Optical Distance [m]', dt=self.dt,
-													 title=f'RMS Amplitude, {window}s window',
-													 cmap='inferno', cbar_label='RMS Amplitude',
-													 vmin=vmin, vmax=vmax)
-			elif plot_mode == 'mpl':
-				times = np.array_split(self.times('matplotlib'), int(self.time_length/window))
-				times = np.array([time[int(len(time)/2)] for time in times])
-				plot.gen_DAS_plot(data=np.array(rmsa), t=times, channels=self.channels,
-					  cmap='inferno', title = f'RMSA for {window}s window')
-
+		if window is not None and dim == 't': window =  window*self.sampling_frequency
+		rmsa = wavefield.rmsa(data=self.data, axis=axis, window=window, dim=dim,
+							times=self.times('unix'), distances = self.distances,
+							channels_num=self.channels_num, vmin=vmin, vmax=vmax,
+							plot_mode=plot_mode)
 		if results:
-			return times, rmsa
+			return rmsa
 
 	def p2p_amp(self, dim='t', results=False, plot_mode='pyqt'):
 		'''
