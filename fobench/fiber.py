@@ -1454,3 +1454,4 @@ recording parameters:
 		app.exec()
 		print(f'{"-"*65}')
 		app.quit()
+
