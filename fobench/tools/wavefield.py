@@ -64,11 +64,11 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
                          y_ticks=channel_nums, channels_num=channel_nums,
                          y_label = 'Channel #', x_label = 'Channel #',
                          title = 'Spatial Coherence Matrix',
-                         cmap = 'viridis', cbar_label = 'Cross Correlation Coefficient',
+                         cmap = 'viridis', cbar_label = 'Correlation Coefficient',
                          vmin=vmin, vmax=vmax)
 
     elif plot_mode == 'mpl':
-        warn('Matplotlib plotting not implemented for this function')
+        warn('matplotlib plotting not implemented for this method!')
 
     if result:
         return coherence_matrix
@@ -163,10 +163,20 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         input data.
     axis : int
         axis along which to compute RMSA.
-    data_length : int
-        length of data in seconds.
     window : int
-        window lengths.
+        window lengths in time or space samples.
+    dim : str
+        dimension along which to compute
+    times : np.ndarray
+        array containing time stamps of data
+    channels_num: list
+        list of channel numbers
+    distances : np.ndarray
+        array containing optical distances
+    plot_mode : str
+        whether and hwo to plot
+    vmin, vmax : float, float
+        minimum and maximum of colorbar
 
     Returns
     -------
@@ -216,9 +226,6 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         warn('matplotlib plotting not implemented for this method!')
 
     return result
-
-
-
 
 def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
     '''

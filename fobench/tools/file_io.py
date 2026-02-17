@@ -254,7 +254,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         file_file = h5.File(filepath, 'r')
         properties = file_file['Acquisition'].attrs
         dataset = file_file['Acquisition/Raw[0]/RawData']
-        chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
+        chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         fiber = properties['FiberID']
@@ -270,6 +270,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         gauge_length = float(properties['GaugeLength'])
         units = 'units' # unit is not coded in metadata for Sintela .h5
         conv_factor = None
+        # file_file.close()
 
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.

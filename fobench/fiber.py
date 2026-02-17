@@ -531,9 +531,9 @@ class Fiber(object):
 			if vmin is None: vmin = -p95
 			if vmax is None: vmax = p95
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
-							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
+							  y_ticks=np.round(freqs,2), data=np.flip(np.rot90(fx, k=1), axis=0),
 							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
-							  title='Frequency content')
+							  title='Frequency content', cbar_label=self.units)
 
 		elif plot_mode == 'mpl':
 			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
@@ -554,7 +554,6 @@ class Fiber(object):
 		"""
 
 		axis = self.__axis__('t')
-
 		ch_idx = self.channels_num.index(channel)
 		o_signal = np.take(self.data, indices=ch_idx, axis=axis)
 
@@ -562,12 +561,11 @@ class Fiber(object):
 				norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg)
 
 		if plot_mode=='pyqt':
-			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}^2/Hz"
-			plot_pyqt.plot_spectral(frequencies=f, amplitudes=spec, y_label =f'{units}',
+			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}^2/Hz'
+			plot_pyqt.plot_spectral(frequencies=np.round(f, 2), amplitudes=spec, y_label =f'{units}',
 								title= f'{mode} channel {channel}')
-
 		elif plot_mode=='mpl':
-			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
+			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}$^{{2}}$/Hz'
 			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
 						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
@@ -641,10 +639,11 @@ class Fiber(object):
 			t = self.times(time_type='unix')
 			if vmin is None: vmin = 0
 			if vmax is None: vmax = np.percentile(Sxx, 95)
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
+			freqs = np.round(f, 2)
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=freqs, dt=self.dt,
 						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
 						title=f'Spectrogram channel {channel}', cmap='viridis',
-						vmin=vmin, vmax=vmax)
+						vmin=vmin, vmax=vmax, cbar_label=self.units)
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
