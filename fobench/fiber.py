@@ -55,14 +55,14 @@ class Fiber(object):
 				' -"terra15"\n -"sintela"'
 			)
 
-		self.__filepath__ = filepath
+		self.__filepath__ = [filepath]
 
 		self.company = company
 		self.format = filepath.split('.')[-1]
 
-		self.attributes = file_io.read_data(self.__filepath__, self.company, range_ch, self.format, load_data=load_data)
+		self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch, self.format, load_data=load_data)
 
-		self.basefiles = [self.attributes['basefile']] # path(s) of input file(s)
+		self.basefile = self.attributes['basefile'] # changed to the structure of the file
 		self.fiber = self.attributes['fiber']
 		self.properties = self.attributes['properties'] # all metadata of input file
 		self.channels = self.attributes['chans']
@@ -253,7 +253,7 @@ class Fiber(object):
 		self.start_time, self.end_time = first.start_time, second.end_time
 		self.time_length = self.end_time - self.start_time
 		self.num_points = self.data.shape[axis]
-		self.basefiles.extend(input_das.basefiles)
+		self.__filepath__.extend(input_das.__filepath__)
 
 		return self
 
