@@ -62,7 +62,7 @@ class Fiber(object):
 
 		self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch, self.format, load_data=load_data)
 
-		self.basefile = self.attributes['basefile'] # changed to the structure of the file
+		self.__basefile__ = self.attributes['basefile'] # changed to the structure of the file
 		self.fiber = self.attributes['fiber']
 		self.properties = self.attributes['properties'] # all metadata of input file
 		self.channels = self.attributes['chans']
@@ -263,6 +263,18 @@ class Fiber(object):
 		fobench.tools.utils.to_traces for more details
 		'''
 		return utils.to_traces(self, t_type)
+
+	def write(self, save_path=None):
+		"""
+		Save the data of fiber in a new file with the original format from where it was read.
+
+		Parameters
+		----------
+		save_path : str, optional
+			Path to where to save the file including name of the file and the format.
+		"""
+
+		file_io.write_data(self, filepath=save_path, company=self.company, format=self.format)
 
 	'''
 	-----------------------------------------------------------------
