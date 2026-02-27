@@ -23,6 +23,8 @@ from tqdm import tqdm
 
 from obspy.core import UTCDateTime as UTC
 
+
+
 def read_data(filepath=None, company=None, range_ch=None, format=None, load_data=True):
     '''
     Co-authors: --
@@ -50,17 +52,21 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif isinstance(range_ch, np.ndarray): # check if is array
         range_ch = list(range_ch)
+    
+    template = None
 
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa TDMS file')
         file_file = tdms.TdmsFile.read(filepath)
+        template = __scan_template__(core_file=file_file, company=company, format=format)
         properties = file_file.properties
         dataset = None
-        chans = file_file['Measurement'].channels() if range_ch == None else [file_file['Measurement'].channels()[i] for i in range_ch]
+        measurement = file_file['Measurement']
+        chans = measurement.channels() if range_ch == None else [measurement.channels()[i] for i in range_ch]
         chans_nums = [int(chan.name) for chan in chans]
         # loading of the data conditioned.
-        data = __data__(file_file['Measurement'], format, company, chans_nums) if load_data else None
+        data = __data__(measurement, format, company, chans_nums) if load_data else None
         fiber = properties['name'].split('_')[0]
         sampling_frequency = properties['SamplingFrequency[Hz]']
         o_sampling_frequency = sampling_frequency
@@ -78,198 +84,212 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa HDF5 file')
-        file_file = h5.File(filepath,'r')
-        properties = {}
-        instrument = file_file.keys()
-        dataset = file_file['Acquisition']['Raw[0]']['RawData']
+        
+        with h5.File(filepath,'r') as file_file:
+            
+            properties = {}
+            instrument = file_file.keys()
+            dataset = file_file['Acquisition']['Raw[0]']['RawData']
 
-        # load of all hidden properties
-        for vv in list(file_file['Acquisition'].attrs): properties[vv] = file_file['Acquisition'].attrs[vv]  #mandatory!!
-        for vv in list(file_file['Acquisition']['Custom'].attrs): properties[vv] = file_file['Acquisition']['Custom'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Custom']['AdvancedUserSettings'].attrs): properties[vv] = file_file['Acquisition']['Custom']['AdvancedUserSettings'].attrs[vv]  #mandatory!!
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Chassis'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Chassis'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Devices0'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Devices0'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Devices1'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Devices1'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Devices2'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Devices2'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['GPS'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['GPS'].attrs[vv]  #mandatory
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['OSVersion'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['OSVersion'].attrs[vv]  #optional/mandatory
-        for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['ProcessingUnit'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['ProcessingUnit'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Custom']['SystemSettings'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemSettings'].attrs[vv]  #mandatory!!
-        for vv in list(file_file['Acquisition']['Custom']['UserSettings'].attrs): properties[vv] = file_file['Acquisition']['Custom']['UserSettings'].attrs[vv]  #mandatory!!
-        for vv in list(file_file['Acquisition']['Raw[0]'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]'].attrs[vv]  #mandatory!!
-        for vv in list(file_file['Acquisition']['Raw[0]']['RawData'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]']['RawData'].attrs[vv]  #optional
-        for vv in list(file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs[vv]  #optional
+            # load of all hidden properties
+            for vv in list(file_file['Acquisition'].attrs): properties[vv] = file_file['Acquisition'].attrs[vv]  #mandatory!!
+            for vv in list(file_file['Acquisition']['Custom'].attrs): properties[vv] = file_file['Acquisition']['Custom'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Custom']['AdvancedUserSettings'].attrs): properties[vv] = file_file['Acquisition']['Custom']['AdvancedUserSettings'].attrs[vv]  #mandatory!!
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Chassis'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Chassis'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Devices0'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Devices0'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Devices1'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Devices1'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['Devices2'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['Devices2'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['GPS'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['GPS'].attrs[vv]  #mandatory
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['OSVersion'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['OSVersion'].attrs[vv]  #optional/mandatory
+            for vv in list(file_file['Acquisition']['Custom']['SystemInformation']['ProcessingUnit'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemInformation']['ProcessingUnit'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Custom']['SystemSettings'].attrs): properties[vv] = file_file['Acquisition']['Custom']['SystemSettings'].attrs[vv]  #mandatory!!
+            for vv in list(file_file['Acquisition']['Custom']['UserSettings'].attrs): properties[vv] = file_file['Acquisition']['Custom']['UserSettings'].attrs[vv]  #mandatory!!
+            for vv in list(file_file['Acquisition']['Raw[0]'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]'].attrs[vv]  #mandatory!!
+            for vv in list(file_file['Acquisition']['Raw[0]']['RawData'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]']['RawData'].attrs[vv]  #optional
+            for vv in list(file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs[vv]  #optional
 
-        chans = [i for i in range(properties['NumberOfLoci'])] if not range_ch else range_ch
-        chans_nums = np.array(chans)
-        # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
-        fiber = properties['FibreType']
-        sampling_frequency = properties['OutputDataRate']
-        o_sampling_frequency = sampling_frequency
-        dt = 1/sampling_frequency
-        start_time = UTC(properties['PartStartTime'])
-        end_time = UTC(start_time + (properties['Count']-1)*dt)
-        spatial_interval = properties['SpatialResolution']
-        time_length = end_time - start_time
-        num_points = properties['Count']
-        gauge_length = properties['GaugeLength']
-        channel_offset = abs(properties['PreTriggerSamples'])
-        units = 'counts'
-        conv_factor = None # conversion factor if given explicitly
+            chans = [i for i in range(properties['NumberOfLoci'])] if not range_ch else range_ch
+            chans_nums = np.array(chans)
+            # loading the data conditioned
+            data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
+            fiber = properties['FibreType']
+            sampling_frequency = properties['OutputDataRate']
+            o_sampling_frequency = sampling_frequency
+            dt = 1/sampling_frequency
+            start_time = UTC(properties['PartStartTime'])
+            end_time = UTC(start_time + (properties['Count']-1)*dt)
+            spatial_interval = properties['SpatialResolution']
+            time_length = end_time - start_time
+            num_points = properties['Count']
+            gauge_length = properties['GaugeLength']
+            channel_offset = abs(properties['PreTriggerSamples'])
+            units = 'counts'
+            conv_factor = None # conversion factor if given explicitly
 
     # Required checking! Contact providers! TEST!
     elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Febus HDF5 file')
-        file_file = h5.File(filepath,'r')
-        instrument = list(file_file.keys())[0]
-        properties = file_file[instrument]['Source1']['Zone1'].attrs
-        fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
-        measure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
-        dataset = file_file[instrument]['Source1']['Zone1'][measure_type]
-        chans_nums = [i for i in range(dataset.shape[2])] if not range_ch else range_ch
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        #LAG = properties['BlockOverlap'][0] # 201 is standard. How much the data is repeated in batches.
-        sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
-        o_sampling_frequency = sampling_frequency
-        dt = 1/sampling_frequency
-        SEMILAG = properties['BlockRate'][0]*1e-3 if getattr(properties['BlockRate'], "size", 0) == 1 else properties['BlockRate']*1e-3 # unpacking value sif is inside list.
-        SEMILAG = int(np.round((1/SEMILAG) / dt))
-        data = __data__(dataset, format, company, list(chans_nums), SEMILAG) if load_data else None
-        start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
-        end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * SEMILAG)
-        spatial_interval = properties['Spacing'][0]
-        time_length = end_time - start_time
-        num_points = int(time_length/dt) # check!
-        gauge_length = properties['GaugeLength'][0] # CHECK THIS!!
-        channel_offset = 0 # FIX THIS!!
-        units = 'counts'
-        conv_factor = None # conversion factor if given explicitly
+        
+        with h5.File(filepath,'r') as file_file:
+            
+            instrument = list(file_file.keys())[0]
+            properties = dict(file_file[instrument]['Source1']['Zone1'].attrs)
+            fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
+            measure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
+            dataset = file_file[instrument]['Source1']['Zone1'][measure_type]
+            chans_nums = [i for i in range(dataset.shape[2])] if not range_ch else range_ch
+            chans = np.array(chans_nums)
+            # loading the data conditioned
+            #LAG = properties['BlockOverlap'][0] # 201 is standard. How much the data is repeated in batches.
+            sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
+            o_sampling_frequency = sampling_frequency
+            dt = 1/sampling_frequency
+            SEMILAG = properties['BlockRate'][0]*1e-3 if getattr(properties['BlockRate'], "size", 0) == 1 else properties['BlockRate']*1e-3 # unpacking value sif is inside list.
+            SEMILAG = int(np.round((1/SEMILAG) / dt))
+            data = __data__(dataset, format, company, list(chans_nums), SEMILAG) if load_data else None
+            start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
+            end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * SEMILAG)
+            spatial_interval = properties['Spacing'][0]
+            time_length = end_time - start_time
+            num_points = int(time_length/dt) # check!
+            gauge_length = properties['GaugeLength'][0] # CHECK THIS!!
+            channel_offset = 0 # FIX THIS!!
+            units = 'counts'
+            conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Terra15 HDF5 file')
-        file_file = h5.File(filepath,'r')
-        properties = file_file.attrs
-        dataset = file_file['data_product']
-        chans_nums = [i for i in range(properties['nx'])] if range_ch == None else range_ch
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        data = __data__(dataset['data'], format, company, list(chans_nums)) if load_data else None
-        fiber = 'standard'
-        dt = float(properties['dt_computer'])
-        sampling_frequency = 1 / dt
-        o_sampling_frequency = sampling_frequency
-        num_points = int(properties['nt'])
-        print(properties['nt'])
-        start_time = UTC(properties['file_start_gps_time']) if properties['file_start_gps_time'] else UTC(properties['file_start_computer_time'])
-        end_time = UTC(start_time + num_points * dt)
-        spatial_interval = float(properties['dx'])
-        time_length = end_time - start_time
-        gauge_length = float(properties['gauge_length'])
-        channel_offset = int(properties['sensing_range_start'] / spatial_interval)
-        units = properties['data_product_units']
-        conv_factor = None # conversion factor if given explicitly
+        
+        with h5.File(filepath,'r') as file_file:
+            
+            properties = dict(file_file.attrs)
+            dataset = file_file['data_product']
+            chans_nums = [i for i in range(properties['nx'])] if range_ch == None else range_ch
+            chans = np.array(chans_nums)
+            # loading the data conditioned
+            data = __data__(dataset['data'], format, company, list(chans_nums)) if load_data else None
+            fiber = 'standard'
+            dt = float(properties['dt_computer'])
+            sampling_frequency = 1 / dt
+            o_sampling_frequency = sampling_frequency
+            num_points = int(properties['nt'])
+            print(properties['nt'])
+            start_time = UTC(properties['file_start_gps_time']) if properties['file_start_gps_time'] else UTC(properties['file_start_computer_time'])
+            end_time = UTC(start_time + num_points * dt)
+            spatial_interval = float(properties['dx'])
+            time_length = end_time - start_time
+            gauge_length = float(properties['gauge_length'])
+            channel_offset = int(properties['sensing_range_start'] / spatial_interval)
+            units = properties['data_product_units']
+            conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
 
         pbar = tqdm(total=1, leave=True, desc='Reading ASN HDF5 file')
-        file_file = h5.File(filepath,'r')
-        properties = file_file['acqSpec']
-        dataset = file_file['data']
-        chans_nums = [i for i in range(int(file_file['header']['dimensionRanges']['dimension1']['size'][()]))] if range_ch == None else range_ch
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
-        fiber = 'standard'
-        dt = float(file_file['header']['dt'][()])
-        sampling_frequency = 1 / dt
-        o_sampling_frequency = sampling_frequency
-        num_points = int(file_file['header']['dimensionRanges']['dimension0']['size'][()])
-        start_time = UTC(float(file_file['header']['time'][()]))
-        end_time = UTC(start_time + num_points * dt)
-        original_channels = np.array(file_file['header']['channels'])
-        spatial_interval = float(file_file['header']['dx'][()]) * (original_channels[1] - original_channels[0])
-        time_length = end_time - start_time
-        gauge_length = float(file_file['header']['gaugeLength'][()])
-        channel_offset = int(original_channels[0])
-        units = str(file_file['header']['sensitivityUnits'][()])[3:-2]
-        conv_factor = file_file['header']['sensitivities'][0,0]
+        
+        with h5.File(filepath,'r') as file_file:
+            
+            properties = h5_to_dict(file_file['acqSpec'])
+            dataset = file_file['data']
+            chans_nums = [i for i in range(int(file_file['header']['dimensionRanges']['dimension1']['size'][()]))] if range_ch == None else range_ch
+            chans = np.array(chans_nums)
+            # loading the data conditioned
+            data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
+            fiber = 'standard'
+            dt = float(file_file['header']['dt'][()])
+            sampling_frequency = 1 / dt
+            o_sampling_frequency = sampling_frequency
+            num_points = int(file_file['header']['dimensionRanges']['dimension0']['size'][()])
+            start_time = UTC(float(file_file['header']['time'][()]))
+            end_time = UTC(start_time + num_points * dt)
+            original_channels = np.array(file_file['header']['channels'])
+            spatial_interval = float(file_file['header']['dx'][()]) * (original_channels[1] - original_channels[0])
+            time_length = end_time - start_time
+            gauge_length = float(file_file['header']['gaugeLength'][()])
+            channel_offset = int(original_channels[0])
+            units = str(file_file['header']['sensitivityUnits'][()])[3:-2]
+            conv_factor = file_file['header']['sensitivities'][0,0]
 
     elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptaSense HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading QuantX HDF5 file')
-        file_file = h5.File(filepath,'r')
-        properties = file_file['Acquisition'].attrs
-        dataset = file_file['Acquisition']['Raw[0]']
-        chans_nums = [i for i in range(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']))] if range_ch == None else range_ch
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        data = __data__(dataset['RawData'], format, company, list(chans_nums)) if load_data else None
-        fiber = 'standard'
-        sampling_frequency = float(dataset.attrs['OutputDataRate'])
-        o_sampling_frequency = sampling_frequency
-        dt = 1 / sampling_frequency
-        num_points = int(file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs['Count'])
-        start_time = UTC(str(properties['MeasurementStartTime'])[2:-1])
-        end_time = UTC(start_time + num_points * dt)
-        spatial_interval = float(properties['SpatialSamplingInterval'])
-        time_length = end_time - start_time
-        gauge_length = float(properties['GaugeLength'])
-        channel_offset = int(properties['StartLocusIndex'])
-        units = str(dataset.attrs['RawDataUnit'])[2:-1]
-        conv_factor = None # conversion factor if given explicitly
+        
+        with h5.File(filepath,'r') as file_file:
+            
+            properties = dict(file_file['Acquisition'].attrs)
+            dataset = file_file['Acquisition']['Raw[0]']
+            chans_nums = [i for i in range(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']))] if range_ch == None else range_ch
+            chans = np.array(chans_nums)
+            # loading the data conditioned
+            data = __data__(dataset['RawData'], format, company, list(chans_nums)) if load_data else None
+            fiber = 'standard'
+            sampling_frequency = float(dataset.attrs['OutputDataRate'])
+            o_sampling_frequency = sampling_frequency
+            dt = 1 / sampling_frequency
+            num_points = int(file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs['Count'])
+            start_time = UTC(str(properties['MeasurementStartTime'])[2:-1])
+            end_time = UTC(start_time + num_points * dt)
+            spatial_interval = float(properties['SpatialSamplingInterval'])
+            time_length = end_time - start_time
+            gauge_length = float(properties['GaugeLength'])
+            channel_offset = int(properties['StartLocusIndex'])
+            units = str(dataset.attrs['RawDataUnit'])[2:-1]
+            conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Aragon Photonics HDF5 file')
-        file_file = h5.File(filepath,'r')
-        properties = file_file.attrs
-        dataset = file_file['strain']
-        chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
-        chans = np.array(chans_nums)
-        # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
-        pbar.set_description('Extracting Attributes')
-        fiber = 'standard'
-        sampling_frequency = float(properties['trigger_frequency'][0])
-        o_sampling_frequency = sampling_frequency
-        dt = 1 / sampling_frequency
-        num_points = int(file_file['time'].size)
-        start_time = UTC(properties['Global_FileSaveIO_TimeStamp_s'][0])
-        end_time = UTC(start_time + num_points * dt)
-        spatial_interval = float(properties['spatial_sampling'][0])
-        time_length = end_time - start_time
-        gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
-        channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
-        units = [key for key in file_file.keys()][2]
-        conv_factor = None # conversion factor if given explicitly
+        
+        with h5.File(filepath,'r') as file_file:
+            
+            properties = dict(file_file.attrs)
+            dataset = file_file['strain']
+            chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
+            chans = np.array(chans_nums)
+            # loading the data conditioned
+            data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
+            pbar.set_description('Extracting Attributes')
+            fiber = 'standard'
+            sampling_frequency = float(properties['trigger_frequency'][0])
+            o_sampling_frequency = sampling_frequency
+            dt = 1 / sampling_frequency
+            num_points = int(file_file['time'].size)
+            start_time = UTC(properties['Global_FileSaveIO_TimeStamp_s'][0])
+            end_time = UTC(start_time + num_points * dt)
+            spatial_interval = float(properties['spatial_sampling'][0])
+            time_length = end_time - start_time
+            gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
+            channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
+            units = [key for key in file_file.keys()][2]
+            conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF%
         print('Data units (strain, strain-rate...) can not be extracted from Sintela files\n'
              'you can set it manually by editing Fiber.units')
         pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file')
-        file_file = h5.File(filepath, 'r')
-        properties = file_file['Acquisition'].attrs
-        dataset = file_file['Acquisition/Raw[0]/RawData']
-        chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
-        chans = np.array(chans_nums)
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
-        fiber = properties['FiberID']
-        sampling_frequency = properties['PulseRate']
-        o_sampling_frequency = sampling_frequency
-        num_points = dataset.shape[0]
-        start_time = UTC(properties['MeasurementStartTime'].decode('utf-8'))
-        dt = 1 / sampling_frequency
-        end_time = UTC(start_time + num_points * dt)
-        time_length = end_time - start_time
-        spatial_interval = float(properties['SpatialSamplingInterval'])
-        channel_offset = properties['StartLocusIndex']*spatial_interval
-        gauge_length = float(properties['GaugeLength'])
-        units = 'units' # unit is not coded in metadata for Sintela .h5
-        conv_factor = None
+        
+        with h5.File(filepath, 'r') as file_file:
+            
+            properties = dict(file_file['Acquisition'].attrs)
+            dataset = file_file['Acquisition/Raw[0]/RawData']
+            chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
+            chans = np.array(chans_nums)
+            data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
+            fiber = properties['FiberID']
+            sampling_frequency = properties['PulseRate']
+            o_sampling_frequency = sampling_frequency
+            num_points = dataset.shape[0]
+            start_time = UTC(properties['MeasurementStartTime'].decode('utf-8'))
+            dt = 1 / sampling_frequency
+            end_time = UTC(start_time + num_points * dt)
+            time_length = end_time - start_time
+            spatial_interval = float(properties['SpatialSamplingInterval'])
+            channel_offset = properties['StartLocusIndex']*spatial_interval
+            gauge_length = float(properties['GaugeLength'])
+            units = 'units' # unit is not coded in metadata for Sintela .h5
+            conv_factor = None
 
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
@@ -378,7 +398,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'conv_factor'
         ]
 
-    attributes = [filepath,
+    attributes = [template if template is not None else filepath,
                 format,
                 company,
                 fiber,
@@ -458,8 +478,48 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     return values.astype('float')
 
 
+
+def __scan_template__(core_file, company=None, format=None):
+    '''
+    Co-authors: --
+    Description:
+        Scans the structure of the file and saves it as a lightweight version dictionary.
+    :Params:
+        - attributes(type:Dict): dictionary containing all attributes of the data to save in file.
+        - filepath(type:String): compelte path including name to be saved and the format after the dot.
+            "path/where/to/save/file.h5"
+        - company(type:String): manufacturer or the instrument that generates the data.
+    :Return:
+        - None.
+    '''
+    
+    if format == 'tdms' and company == 'silixa': # Silixa TDMS
+        
+        native_template = {
+            "root_properties": dict(core_file.properties),  # unchanged
+            "group_properties": {
+                "Measurement": {
+                    "properties": dict(core_file["Measurement"].properties),  # unchanged
+                    "channels": [
+                        {
+                            "name": ch.name,
+                            "properties": dict(ch.properties),  # unchanged
+                            "dtype": ch.dtype,                  # for writer
+                        }
+                        for ch in core_file["Measurement"].channels()
+                    ],
+                }
+            },
+        }
+
+        
+    return native_template
+    
+
+
+
 # Save data in original format
-def save_data(Fiber, filepath=None, company=None, format=None):
+def write_data(Fiber, filepath=None, company=None, format=None):
     '''
     Co-authors: --
     Description:
@@ -475,27 +535,54 @@ def save_data(Fiber, filepath=None, company=None, format=None):
         - None.
     '''
     
+    # warnings
+    if filepath is None:
+        raise ValueError("filepath is required")
+    
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
         pbar = tqdm(total=1, leave=True, desc='Saving in Silixa TDMS file')
-        basefile = Fiber.basefile
-        dataset = None
-        chans = basefile['Measurement'].channels() if range_ch == None else [basefile['Measurement'].channels()[i] for i in range_ch]
-        chans_nums = [int(chan.name) for chan in chans]
-        # loading of the data conditioned.
-        data = __data__(basefile['Measurement'], format, company, chans_nums) if load_data else None
-        # basefile.properties['name'].split('_')[0] = fiber_class.fiber
-        # fiber = fiber.join() # is necessary? would there be a problem? Test!
-        basefile.properties['SamplingFrequency[Hz]'] = Fiber.o_sampling_frequency
-        # o_sampling_frequency = sampling_frequency
-        # dt = 1/sampling_frequency
-        basefile.properties['ISO8601 Timestamp'] = Fiber.start_time.isoformat()
-        basefile.properties['SpatialResolution[m]'] = Fiber.spatial_interval
-        num_points = len(chans[0])
-        gauge_length = basefile.properties['GaugeLength'] = Fiber.gauge_length
-        channel_offset = basefile.properties['OffsetLength'] = Fiber.channel_offset
-        # units = 'counts' 
-        # conv_factor = None # conversion factor if given explicitly
+        template = Fiber.__basefile__
+        root_properties = dict(template["root_properties"])
+
+        # Resolve TDMS group/channels from template structure
+        groups = template.get("groups", template.get("group_properties", {}))
+        gname = template.get("group_name", "Measurement")
+        if gname not in groups and len(groups) > 0:
+            gname = next(iter(groups))
+        group_info = groups[gname]
+        group_properties = dict(group_info.get("properties", {}))
+        channels_template = group_info.get("channels", template.get("channels", []))
+
+        # map Fiber attrs back to TDMS root properties
+        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_frequency)
+        root_properties["ISO8601 Timestamp"] = Fiber.start_time.isoformat()
+        root_properties["SpatialResolution[m]"] = float(Fiber.spatial_interval)
+        root_properties["GaugeLength"] = float(Fiber.gauge_length)
+        root_properties["OffsetLength"] = float(Fiber.channel_offset)
+
+        # keep only current channels (supports crop)
+        ch_map = {str(ch["name"]): ch for ch in channels_template}
+        selected = [ch_map[str(c)] for c in Fiber.channels_num]
+
+        objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
+        
+        for i, ch in enumerate(selected):
+            objects.append(
+                tdms.ChannelObject(
+                    gname,
+                    str(ch["name"]),
+                    np.asarray(Fiber.data[:, i]),
+                    # np.rint(np.clip(Fiber.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
+                    properties=dict(ch.get("properties", {})),
+                )
+            )
+
+        with tdms.TdmsWriter(filepath, mode="w") as w:
+            w.write_segment(objects)
+
+        
+        
 
     # elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
 
