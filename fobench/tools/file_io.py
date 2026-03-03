@@ -154,10 +154,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
         dataset = file_file['data_product']
-        chans_nums = [i for i in range(file_file['data_product/data'].shape[1])] if range_ch == None else range_ch
+        chans_nums = [i for i in range(file_file['data_product/data'].shape[1])] if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset['data'], format, company, list(chans_nums)) if load_data else None
+        data = __data__(dataset['data'], format, company, chans_nums) if load_data else None
         fiber = 'standard'
         dt = float(properties['dt_computer'])
         sampling_frequency = 1 / dt
@@ -230,7 +230,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         # loading the data conditioned
-        data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
+        data = __data__(dataset, format, company, chans_nums) if load_data else None
         pbar.set_description('Extracting Attributes')
         fiber = 'standard'
         sampling_frequency = float(properties['trigger_frequency'][0])
