@@ -274,7 +274,7 @@ class Fiber(object):
 			Path to where to save the file including name of the file and the format.
 		"""
 
-		file_io.write_data(self, filepath=save_path, company=self.company, format=self.format)
+		file_io.write_data(self, filepath=save_path, company=self.company)
 
 	'''
 	-----------------------------------------------------------------
