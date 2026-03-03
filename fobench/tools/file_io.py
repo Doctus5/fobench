@@ -246,6 +246,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         
         with h5.File(filepath,'r') as file_file:
             
+            template = __scan_template__(core_file=file_file, company=company, format=format)
             properties = dict(file_file.attrs)
             dataset = file_file['strain']
             chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
@@ -483,6 +484,260 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     return values.astype('float')
 
 
+
+    
+
+
+
+# Save data in original format
+def write_data(Fiber, filepath=None, company=None):
+    """
+    Manages the saving of the data in the original format as it was written from the manufacturer.
+    Check format and company availables (format, company) from read_data() function.
+    "We can possibly try to give options to save in another format but it will require to known previosuly the formats somehow"
+
+    Parameters
+    ----------
+    Fiber : fiber class
+        _description_
+    filepath : str, optional
+        compelte path including name to be saved and the format after the dot.
+        "path/where/to/save/file.h5", by default None
+    company : str, optional
+        manufacturer or the instrument that generates the data, by default None
+
+    Raises
+    ------
+    ValueError
+        filepath is required
+    """
+    
+    # warnings
+    if filepath is None:
+        raise ValueError("filepath is required")
+    
+    format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
+    
+    if format == 'tdms' and company == 'silixa': # Silixa TDMS
+
+        pbar = tqdm(total=1, leave=True, desc='Saving in Silixa TDMS file')
+        template = __clone_template__(Fiber.__basefile__)
+        root_properties = dict(template["root_properties"])
+
+        # Resolve TDMS group/channels from template structure
+        groups = template.get("groups", template.get("group_properties", {}))
+        gname = template.get("group_name", "Measurement")
+        if gname not in groups and len(groups) > 0:
+            gname = next(iter(groups))
+        group_info = groups[gname]
+        group_properties = dict(group_info.get("properties", {}))
+        channels_template = group_info.get("channels", template.get("channels", []))
+
+        # map Fiber attrs back to TDMS root properties
+        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_frequency)
+        root_properties["ISO8601 Timestamp"] = Fiber.start_time.isoformat()
+        root_properties["SpatialResolution[m]"] = float(Fiber.spatial_interval)
+        root_properties["GaugeLength"] = float(Fiber.gauge_length)
+        root_properties["OffsetLength"] = float(Fiber.channel_offset)
+
+        # keep only current channels (supports crop)
+        ch_map = {str(ch["name"]): ch for ch in channels_template}
+        selected = [ch_map[str(c)] for c in Fiber.channels_num]
+
+        objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
+        
+        for i, ch in enumerate(selected):
+            objects.append(
+                tdms.ChannelObject(
+                    gname,
+                    str(ch["name"]),
+                    np.asarray(Fiber.data[:, i]),
+                    # np.rint(np.clip(Fiber.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
+                    properties=dict(ch.get("properties", {})),
+                )
+            )
+
+        with tdms.TdmsWriter(filepath, mode="w") as w:
+            w.write_segment(objects)
+            
+    if (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
+        
+        pbar = tqdm(total=1, leave=True, desc='Saving in Sintela HDF5 file')
+        dataset_path = "/Acquisition/Raw[0]/RawData"
+        acquisition_path = "/Acquisition"
+        raw_group_path = "/Acquisition/Raw[0]"
+        template = __clone_template__(Fiber.__basefile__)
+
+        dataset_node = __find_h5_node_by_path__(template, dataset_path)
+        acquisition_node = __find_h5_node_by_path__(template, acquisition_path)
+        raw_group_node = __find_h5_node_by_path__(template, raw_group_path)
+
+        # Preserve original type as much as possible for compatibility.
+        target_dtype = np.dtype(dataset_node["dtype"])
+        output_data = np.asarray(Fiber.data)
+        if np.issubdtype(target_dtype, np.integer):
+            info = np.iinfo(target_dtype)
+            output_data = np.rint(np.clip(output_data, info.min, info.max)).astype(target_dtype)
+        else:
+            output_data = output_data.astype(target_dtype, copy=False)
+
+        dataset_node["data"] = output_data
+        dataset_node["shape"] = output_data.shape
+
+        # Keep chunking only if dimensions still fit new shape.
+        chunks = dataset_node.get("chunks")
+        if chunks is not None:
+            if len(chunks) != len(output_data.shape) or any(ch > sh for ch, sh in zip(chunks, output_data.shape)):
+                dataset_node["chunks"] = None
+
+        # Update Sintela metadata from Fiber state.
+        acquisition_node.setdefault("attrs", {})
+        acquisition_node["attrs"].update({
+            "FiberID": Fiber.fiber,
+            "PulseRate": Fiber.sampling_frequency,
+            "MeasurementStartTime": (Fiber.start_time.isoformat()).encode("utf-8"),
+            "NumberOfLoci": int(Fiber.data.shape[1]),
+            "SpatialSamplingInterval": Fiber.spatial_interval,
+            "StartLocusIndex": int(round(Fiber.channel_offset / Fiber.spatial_interval)),
+            "GaugeLength": Fiber.gauge_length
+        })
+
+        # If Raw[0] carries channel count, keep it coherent.
+        raw_group_node.setdefault("attrs", {})
+        if "NumberOfLoci" in raw_group_node["attrs"]:
+            raw_group_node["attrs"]["NumberOfLoci"] = int(Fiber.data.shape[1])
+
+        with h5.File(filepath, "w") as f:
+            __h5_writter__(template, f)
+
+    if (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon H5 files.
+
+        pbar = tqdm(total=1, leave=True, desc='Saving in Aragon HDF5 file')
+        template = __clone_template__(Fiber.__basefile__)
+
+        strain_path = "/strain"
+        time_path = "/time"
+        position_path = "/position"
+
+        strain_node = __find_h5_node_by_path__(template, strain_path)
+        time_node = __find_h5_node_by_path__(template, time_path)
+        position_node = __find_h5_node_by_path__(template, position_path)
+
+        # Aragon reader converts nanostrain -> strain (x1e-9), so invert on write.
+        strain_out = np.asarray(Fiber.data) * 1e9
+        strain_dtype = np.dtype(strain_node["dtype"])
+        if np.issubdtype(strain_dtype, np.integer):
+            info = np.iinfo(strain_dtype)
+            strain_out = np.rint(np.clip(strain_out, info.min, info.max)).astype(strain_dtype)
+        else:
+            strain_out = strain_out.astype(strain_dtype, copy=False)
+        strain_node["data"] = strain_out
+        strain_node["shape"] = strain_out.shape
+
+        # Keep chunking only if dimensions still fit new shape.
+        chunks = strain_node.get("chunks")
+        if chunks is not None:
+            if len(chunks) != len(strain_out.shape) or any(ch > sh for ch, sh in zip(chunks, strain_out.shape)):
+                strain_node["chunks"] = None
+
+        # Rebuild time axis in file units (seconds from start).
+        t_dtype = np.dtype(time_node["dtype"])
+        t_vals = np.arange(Fiber.data.shape[0], dtype=np.float64) * (1.0 / Fiber.sampling_frequency)
+        t_vals = t_vals.astype(t_dtype, copy=False)
+        time_node["data"] = t_vals
+        time_node["shape"] = t_vals.shape
+
+        # Rebuild position axis in meters from current channel selection.
+        if Fiber.channels_num is not None and len(Fiber.channels_num) == Fiber.data.shape[1]:
+            p_vals = np.asarray(Fiber.channels_num, dtype=np.float64) * float(Fiber.spatial_interval)
+        else:
+            p_vals = np.arange(Fiber.data.shape[1], dtype=np.float64) * float(Fiber.spatial_interval)
+        p_dtype = np.dtype(position_node["dtype"])
+        p_vals = p_vals.astype(p_dtype, copy=False)
+        position_node["data"] = p_vals
+        position_node["shape"] = p_vals.shape
+
+        # Update known Aragon root attrs while preserving original dtype/shape style.
+        root_attrs = template.setdefault("attrs", {})
+        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Fiber.sampling_frequency))
+        __update_h5_attr_like__(root_attrs, "spatial_sampling", float(Fiber.spatial_interval))
+        __update_h5_attr_like__(root_attrs, "Global_RAM_User_SET_Pulse_Width_(meter)", float(Fiber.gauge_length))
+        __update_h5_attr_like__(root_attrs, "fiber_position_offset", float(Fiber.channel_offset) * float(Fiber.spatial_interval))
+        __update_h5_attr_like__(root_attrs, "Global_FileSaveIO_TimeStamp_s", float(Fiber.start_time))
+
+        with h5.File(filepath, "w") as f:
+            __h5_writter__(template, f)
+
+    pbar.update(1)
+    pbar.set_description('File Saved ✓')
+    
+#########################################################
+### H5/HDF5 explorers, templates, internals and writters
+#########################################################
+
+def __h5_writter__(template, file):
+    """Handles the writting of the H5/HDF5 files.
+
+    Parameters
+    ----------
+    template : dict
+        lightweight template of the h5 structure file.
+    file : h5 obj
+        opened H5 file to where to save the data.
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
+
+    node_type = template.get("type") or template.get("kind")  # support both keys if needed
+
+    # Determine name in parent
+    if template["path"] == "/":  # root
+        current_obj = file
+    else:
+        name = template["path"].split("/")[-1]
+        if node_type == "group":
+            current_obj = file.create_group(name)
+        elif node_type == "dataset":
+            data = template.get("data")
+            kwargs = {
+                "dtype": template["dtype"],
+                "chunks": template.get("chunks"),
+                "compression": template.get("compression"),
+                "maxshape": template.get("maxshape"),
+            }
+            kwargs = {k: v for k, v in kwargs.items() if v is not None}
+
+            if data is None:
+                current_obj = file.create_dataset(
+                    name,
+                    shape=template["shape"],
+                    **kwargs,
+                )
+            else:
+                current_obj = file.create_dataset(
+                    name,
+                    data=data,
+                    **kwargs,
+                )
+        else:
+            raise ValueError(f"Unknown node type at {template['path']}")
+
+    # Set attributes
+    for k, v in template.get("attrs", {}).items():
+        try:
+            current_obj.attrs[k] = v
+        except (TypeError, ValueError):
+            # Some attrs like cross-file references are not transferable to a new file.
+            continue
+
+    # Recurse into children
+    for child_name, child_node in template.get("children", {}).items():
+        __h5_writter__(child_node, current_obj)
+        
+        
 # scanning the files as saving them as lightweight versions for later file writting.
 def __scan_template__(core_file, company=None, format=None):
     """
@@ -490,11 +745,11 @@ def __scan_template__(core_file, company=None, format=None):
 
     Parameters
     ----------
-    core_file : _type_
+    core_file : file object
         file object once it is opened.
     company : str,
         manufacturer or the instrument that generates the data, by default None
-    format : _type_, optional
+    format : str, optional
         format of the file where the data is coming from, by default None
 
     Returns
@@ -571,185 +826,29 @@ def __scan_hdf5__(obj):
         }
 
     return node
-    
-
-
-
-# Save data in original format
-def write_data(Fiber, filepath=None, company=None):
-    """
-    Manages the saving of the data in the original format as it was written from the manufacturer.
-    Check format and company availables (format, company) from read_data() function.
-    "We can possibly try to give options to save in another format but it will require to known previosuly the formats somehow"
-
-    Parameters
-    ----------
-    Fiber : fiber class
-        _description_
-    filepath : str, optional
-        compelte path including name to be saved and the format after the dot.
-        "path/where/to/save/file.h5", by default None
-    company : str, optional
-        manufacturer or the instrument that generates the data, by default None
-
-    Raises
-    ------
-    ValueError
-        filepath is required
-    """
-    
-    # warnings
-    if filepath is None:
-        raise ValueError("filepath is required")
-    
-    format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
-    
-    if format == 'tdms' and company == 'silixa': # Silixa TDMS
-
-        pbar = tqdm(total=1, leave=True, desc='Saving in Silixa TDMS file')
-        template = copy.deepcopy(Fiber.__basefile__)
-        root_properties = dict(template["root_properties"])
-
-        # Resolve TDMS group/channels from template structure
-        groups = template.get("groups", template.get("group_properties", {}))
-        gname = template.get("group_name", "Measurement")
-        if gname not in groups and len(groups) > 0:
-            gname = next(iter(groups))
-        group_info = groups[gname]
-        group_properties = dict(group_info.get("properties", {}))
-        channels_template = group_info.get("channels", template.get("channels", []))
-
-        # map Fiber attrs back to TDMS root properties
-        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_frequency)
-        root_properties["ISO8601 Timestamp"] = Fiber.start_time.isoformat()
-        root_properties["SpatialResolution[m]"] = float(Fiber.spatial_interval)
-        root_properties["GaugeLength"] = float(Fiber.gauge_length)
-        root_properties["OffsetLength"] = float(Fiber.channel_offset)
-
-        # keep only current channels (supports crop)
-        ch_map = {str(ch["name"]): ch for ch in channels_template}
-        selected = [ch_map[str(c)] for c in Fiber.channels_num]
-
-        objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
-        
-        for i, ch in enumerate(selected):
-            objects.append(
-                tdms.ChannelObject(
-                    gname,
-                    str(ch["name"]),
-                    np.asarray(Fiber.data[:, i]),
-                    # np.rint(np.clip(Fiber.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
-                    properties=dict(ch.get("properties", {})),
-                )
-            )
-
-        with tdms.TdmsWriter(filepath, mode="w") as w:
-            w.write_segment(objects)
-            
-    if (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
-        
-        pbar = tqdm(total=1, leave=True, desc='Saving in Sintela HDF5 file')
-        dataset_path = "/Acquisition/Raw[0]/RawData"
-        acquisition_path = "/Acquisition"
-        raw_group_path = "/Acquisition/Raw[0]"
-        template = copy.deepcopy(Fiber.__basefile__)
-
-        dataset_node = __find_h5_node_by_path__(template, dataset_path)
-        acquisition_node = __find_h5_node_by_path__(template, acquisition_path)
-        raw_group_node = __find_h5_node_by_path__(template, raw_group_path)
-
-        # Preserve original type as much as possible for compatibility.
-        target_dtype = np.dtype(dataset_node["dtype"])
-        output_data = np.asarray(Fiber.data)
-        if np.issubdtype(target_dtype, np.integer):
-            info = np.iinfo(target_dtype)
-            output_data = np.rint(np.clip(output_data, info.min, info.max)).astype(target_dtype)
-        else:
-            output_data = output_data.astype(target_dtype, copy=False)
-
-        dataset_node["data"] = output_data
-        dataset_node["shape"] = output_data.shape
-
-        # Keep chunking only if dimensions still fit new shape.
-        chunks = dataset_node.get("chunks")
-        if chunks is not None:
-            if len(chunks) != len(output_data.shape) or any(ch > sh for ch, sh in zip(chunks, output_data.shape)):
-                dataset_node["chunks"] = None
-
-        # Update Sintela metadata from Fiber state.
-        acquisition_node.setdefault("attrs", {})
-        acquisition_node["attrs"].update({
-            "FiberID": Fiber.fiber,
-            "PulseRate": Fiber.sampling_frequency,
-            "MeasurementStartTime": (Fiber.start_time.isoformat()).encode("utf-8"),
-            "NumberOfLoci": int(Fiber.data.shape[1]),
-            "SpatialSamplingInterval": Fiber.spatial_interval,
-            "StartLocusIndex": int(round(Fiber.channel_offset / Fiber.spatial_interval)),
-            "GaugeLength": Fiber.gauge_length
-        })
-
-        # If Raw[0] carries channel count, keep it coherent.
-        raw_group_node.setdefault("attrs", {})
-        if "NumberOfLoci" in raw_group_node["attrs"]:
-            raw_group_node["attrs"]["NumberOfLoci"] = int(Fiber.data.shape[1])
-
-        with h5.File(filepath, "w") as f:
-            __save_sintela__(template, f)
-
-    pbar.update(1)
-    pbar.set_description('File Saved ✓')
-    
-#####################
-### H5/HDF5 writters
-#####################
-
-def __save_sintela__(template, file):
-
-    node_type = template.get("type") or template.get("kind")  # support both keys if needed
-
-    # Determine name in parent
-    if template["path"] == "/":  # root
-        current_obj = file
-    else:
-        name = template["path"].split("/")[-1]
-        if node_type == "group":
-            current_obj = file.create_group(name)
-        elif node_type == "dataset":
-            data = template.get("data")
-            kwargs = {
-                "dtype": template["dtype"],
-                "chunks": template.get("chunks"),
-                "compression": template.get("compression"),
-                "maxshape": template.get("maxshape"),
-            }
-            kwargs = {k: v for k, v in kwargs.items() if v is not None}
-
-            if data is None:
-                current_obj = file.create_dataset(
-                    name,
-                    shape=template["shape"],
-                    **kwargs,
-                )
-            else:
-                current_obj = file.create_dataset(
-                    name,
-                    data=data,
-                    **kwargs,
-                )
-        else:
-            raise ValueError(f"Unknown node type at {template['path']}")
-
-    # Set attributes
-    for k, v in template.get("attrs", {}).items():
-        current_obj.attrs[k] = v
-
-    # Recurse into children
-    for child_name, child_node in template.get("children", {}).items():
-        __save_sintela__(child_node, current_obj)
 
 
 def __find_h5_node_by_path__(template, target_path):
-    """Navigate a scanned HDF5 template tree and return the node at absolute path."""
+    """
+    Return a node from a scanned HDF5 template tree by absolute path.
+
+    Parameters
+    ----------
+    template : dict
+        Root node of the lightweight HDF5 template created by __scan_hdf5__.
+    target_path : str
+        Absolute HDF5-style path to retrieve (for example: /Acquisition/Raw[0]/RawData).
+
+    Returns
+    -------
+    dict
+        Template node corresponding to ``target_path``.
+
+    Raises
+    ------
+    KeyError
+        If any path component is missing in the template tree.
+    """
     if target_path == "/":
         return template
 
@@ -763,3 +862,70 @@ def __find_h5_node_by_path__(template, target_path):
         node = children[part]
 
     return node
+
+
+def __update_h5_attr_like__(attrs, key, value):
+    """
+    Update an HDF5 attribute while preserving the original storage style.
+
+    Parameters
+    ----------
+    attrs : dict
+        Attribute dictionary of a template node.
+    key : str
+        Attribute name to update.
+    value : object
+        New value for the attribute.
+
+    """
+    if key not in attrs:
+        attrs[key] = value
+        return
+
+    current = attrs[key]
+    if isinstance(current, np.ndarray):
+        out = np.array(current, copy=True)
+        if out.size == 0:
+            attrs[key] = np.array([value], dtype=out.dtype)
+        else:
+            out.flat[0] = value
+            attrs[key] = out
+    elif isinstance(current, np.generic):
+        attrs[key] = np.array(value, dtype=current.dtype).item()
+    else:
+        attrs[key] = value
+
+
+def __clone_template__(obj):
+    """
+    Clone a template object recursively with safe fallbacks for HDF5 objects.
+
+    Parameters
+    ----------
+    obj : object
+        Template object to clone.
+
+    Returns
+    -------
+    object
+        Cloned object. Non-copyable objects (for example some HDF5 references)
+        are returned as-is.
+
+    """
+    
+    if isinstance(obj, dict):
+        return {k: __clone_template__(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [__clone_template__(v) for v in obj]
+    if isinstance(obj, tuple):
+        return tuple(__clone_template__(v) for v in obj)
+    if isinstance(obj, np.ndarray):
+        return np.array(obj, copy=True)
+    if isinstance(obj, (str, bytes, int, float, bool, type(None), np.generic)):
+        return obj
+
+    try:
+        return copy.deepcopy(obj)
+    except Exception:
+        # Keep object as-is if it cannot be deep-copied (happens often with h5py references). These H5 are waaay more complex and more diverse than what I thought.
+        return obj
