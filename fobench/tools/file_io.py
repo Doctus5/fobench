@@ -193,6 +193,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         
         with h5.File(filepath,'r') as file_file:
             
+            template = __scan_template__(core_file=file_file, company=company, format=format)
             properties = h5_to_dict(file_file['acqSpec'])
             dataset = file_file['data']
             chans_nums = [i for i in range(int(file_file['header']['dimensionRanges']['dimension1']['size'][()]))] if range_ch == None else range_ch
@@ -441,6 +442,7 @@ def h5_to_dict(h5_obj):
 
     return result
 
+
 def __data__(extract_point, format, company, range_ch, LAG=None):
     '''
     Co-authors: --
@@ -668,6 +670,95 @@ def write_data(Fiber, filepath=None, company=None):
         with h5.File(filepath, "w") as f:
             __h5_writter__(template, f)
 
+    if (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN H5 files.
+
+        pbar = tqdm(total=1, leave=True, desc='Saving in ASN HDF5 file')
+        template = __clone_template__(Fiber.__basefile__)
+
+        # Core data and mandatory header paths.
+        data_node = __find_h5_node_by_path__(template, "/data")
+        dt_node = __find_h5_node_by_path__(template, "/header/dt")
+        t0_node = __find_h5_node_by_path__(template, "/header/time")
+        n0_node = __find_h5_node_by_path__(template, "/header/dimensionRanges/dimension0/size")
+        n1_node = __find_h5_node_by_path__(template, "/header/dimensionRanges/dimension1/size")
+        ch_node = __find_h5_node_by_path__(template, "/header/channels")
+        dx_node = __find_h5_node_by_path__(template, "/header/dx")
+        gl_node = __find_h5_node_by_path__(template, "/header/gaugeLength")
+
+        # Preserve on-disk dtype as much as possible for compatibility/size.
+        out = np.asarray(Fiber.data)
+        out_dtype = np.dtype(data_node["dtype"])
+        if np.issubdtype(out_dtype, np.integer):
+            info = np.iinfo(out_dtype)
+            out = np.rint(np.clip(out, info.min, info.max)).astype(out_dtype)
+        else:
+            out = out.astype(out_dtype, copy=False)
+        data_node["data"] = out
+        data_node["shape"] = out.shape
+        chunks = data_node.get("chunks")
+        if chunks is not None:
+            if len(chunks) != len(out.shape) or any(ch > sh for ch, sh in zip(chunks, out.shape)):
+                data_node["chunks"] = None
+
+        # Scalar datasets in header.
+        dt_val = np.array(1.0 / float(Fiber.sampling_frequency), dtype=np.dtype(dt_node["dtype"]))
+        dt_node["data"] = dt_val
+        dt_node["shape"] = dt_val.shape
+
+        t0_val = np.array(float(Fiber.start_time), dtype=np.dtype(t0_node["dtype"]))
+        t0_node["data"] = t0_val
+        t0_node["shape"] = t0_val.shape
+
+        n0_val = np.array(int(Fiber.data.shape[0]), dtype=np.dtype(n0_node["dtype"]))
+        n1_val = np.array(int(Fiber.data.shape[1]), dtype=np.dtype(n1_node["dtype"]))
+        n0_node["data"], n0_node["shape"] = n0_val, n0_val.shape
+        n1_node["data"], n1_node["shape"] = n1_val, n1_val.shape
+
+        # Channels and spacing.
+        if Fiber.channels_num is not None and len(Fiber.channels_num) == Fiber.data.shape[1]:
+            channels = np.asarray(Fiber.channels_num, dtype=np.float64)
+        else:
+            channels = np.arange(Fiber.data.shape[1], dtype=np.float64) + float(Fiber.channel_offset)
+        ch_dtype = np.dtype(ch_node["dtype"])
+        if np.issubdtype(ch_dtype, np.integer):
+            info = np.iinfo(ch_dtype)
+            channels = np.rint(np.clip(channels, info.min, info.max)).astype(ch_dtype)
+        else:
+            channels = channels.astype(ch_dtype, copy=False)
+        ch_node["data"] = channels
+        ch_node["shape"] = channels.shape
+
+        chan_step = 1.0
+        if channels.size > 1:
+            step = float(channels[1]) - float(channels[0])
+            if step != 0:
+                chan_step = step
+        dx_val = np.array(float(Fiber.spatial_interval) / chan_step, dtype=np.dtype(dx_node["dtype"]))
+        dx_node["data"] = dx_val
+        dx_node["shape"] = dx_val.shape
+
+        gl_val = np.array(float(Fiber.gauge_length), dtype=np.dtype(gl_node["dtype"]))
+        gl_node["data"] = gl_val
+        gl_node["shape"] = gl_val.shape
+
+        # Optional unit update if present in file structure.
+        try:
+            u_node = __find_h5_node_by_path__(template, "/header/sensitivityUnits")
+            u_dtype = np.dtype(u_node["dtype"])
+            if u_dtype.kind in ("S", "a"):
+                u_val = np.array(str(Fiber.units).encode("utf-8"), dtype=u_dtype)
+            elif u_dtype.kind == "U":
+                u_val = np.array(str(Fiber.units), dtype=u_dtype)
+            else:
+                u_val = np.array(str(Fiber.units))
+            u_node["data"] = u_val
+            u_node["shape"] = u_val.shape
+        except KeyError:
+            pass
+
+        with h5.File(filepath, "w") as f:
+            __h5_writter__(template, f)
+
     pbar.update(1)
     pbar.set_description('File Saved ✓')
     
@@ -676,7 +767,8 @@ def write_data(Fiber, filepath=None, company=None):
 #########################################################
 
 def __h5_writter__(template, file):
-    """Handles the writting of the H5/HDF5 files.
+    """
+    Handles the writting of the H5/HDF5 files.
 
     Parameters
     ----------
@@ -702,18 +794,26 @@ def __h5_writter__(template, file):
             current_obj = file.create_group(name)
         elif node_type == "dataset":
             data = template.get("data")
+            dtype_out, data = __coerce_h5_dtype_and_data__(template.get("dtype"), data)
+            shape_out = template["shape"] if data is None else np.asarray(data).shape
             kwargs = {
-                "dtype": template["dtype"],
+                "dtype": dtype_out,
                 "chunks": template.get("chunks"),
                 "compression": template.get("compression"),
                 "maxshape": template.get("maxshape"),
             }
             kwargs = {k: v for k, v in kwargs.items() if v is not None}
 
+            # h5 scalar datasets (shape=() or with empty shapes) cannot be extendable/chunked/compressed.
+            if shape_out == ():
+                kwargs.pop("maxshape", None)
+                kwargs.pop("chunks", None)
+                kwargs.pop("compression", None)
+
             if data is None:
                 current_obj = file.create_dataset(
                     name,
-                    shape=template["shape"],
+                    shape=shape_out,
                     **kwargs,
                 )
             else:
@@ -736,6 +836,80 @@ def __h5_writter__(template, file):
     # Recurse into children
     for child_name, child_node in template.get("children", {}).items():
         __h5_writter__(child_node, current_obj)
+
+
+def __coerce_h5_dtype_and_data__(dtype_in, data):
+    """
+    Convert template dtype/data to a HDF5-compatible representation.
+
+    Parameters
+    ----------
+    dtype_in : str or numpy.dtype or None
+        dtype extracted from template metadata.
+    data : object
+        Dataset payload. Can be ``None`` for placeholder datasets.
+
+    Returns
+    -------
+    tuple
+        ``(dtype_out, data_out)``.
+    """
+
+    try:
+        np_dtype = np.dtype(dtype_in) if dtype_in is not None else None
+    except Exception:
+        np_dtype = None
+
+    # Most dtypes are already valid. Unicode/object need normalization below.
+    if np_dtype is not None and np_dtype.kind not in ("O", "U", "S"):
+        return np_dtype, data
+
+    # Object dtypes are not directly writable by h5py. Map to safe alternatives.
+    if data is None:
+        return h5.string_dtype(encoding="utf-8"), None
+
+    arr = np.asarray(data)
+    if arr.dtype.kind in ("U", "S"):
+        def _to_text(x):
+            if isinstance(x, (bytes, np.bytes_)):
+                return x.decode("utf-8", errors="replace")
+            return str(x)
+        if arr.shape == ():
+            return h5.string_dtype(encoding="utf-8"), _to_text(arr.item())
+        out = np.vectorize(_to_text, otypes=[object])(arr)
+        return h5.string_dtype(encoding="utf-8"), out
+
+    if arr.dtype.kind != "O":
+        return arr.dtype, arr
+
+    # Object payload: infer from first non-None value.
+    sample = None
+    for vv in arr.ravel():
+        if vv is not None:
+            sample = vv
+            break
+
+    if isinstance(sample, (str, bytes, np.str_, np.bytes_)) or sample is None:
+        def _to_text(x):
+            if x is None:
+                return ""
+            if isinstance(x, (bytes, np.bytes_)):
+                return x.decode("utf-8", errors="replace")
+            return str(x)
+        if arr.shape == ():
+            return h5.string_dtype(encoding="utf-8"), _to_text(arr.item())
+        out = np.vectorize(_to_text, otypes=[object])(arr)
+        return h5.string_dtype(encoding="utf-8"), out
+
+    # Fallback: try numeric cast, else stringify.
+    try:
+        out = arr.astype(np.float64)
+        return out.dtype, out
+    except Exception:
+        if arr.shape == ():
+            return h5.string_dtype(encoding="utf-8"), "" if arr.item() is None else str(arr.item())
+        out = np.vectorize(lambda x: "" if x is None else str(x), otypes=[object])(arr)
+        return h5.string_dtype(encoding="utf-8"), out
         
         
 # scanning the files as saving them as lightweight versions for later file writting.
