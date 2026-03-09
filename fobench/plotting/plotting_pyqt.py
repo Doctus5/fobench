@@ -295,15 +295,15 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     image = pg.ImageItem()
     plot.addItem(image)
     image.setImage(data)
-    image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
+    image.setRect(x_min, y_min - dy/2, x_max - x_min, y_max - y_min + dy)
 
     # date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
     # x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
 
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
-    plot.setYRange(min(y_ticks), max(y_ticks), padding=0)
+    plot.setYRange(min(y_ticks) - dy/2, max(y_ticks) + dy/2, padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
-                                yMin=min(y_ticks), yMax=max(y_ticks))
+                            yMin=min(y_ticks) - dy/2, yMax=max(y_ticks) + dy/2)
 
     text_label, h_layout, container = get_bottom_layout()
     h_layout.addWidget(scale_button:=get_colorscale_button())
@@ -333,9 +333,9 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                                           label_text=label_text)
             proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
             y_min, y_max = y_vals[0], y_vals[-1]
-            image.setRect(x_min, y_min, x_max - x_min, y_max - y_min)
-            plot.setYRange(min(y_vals), max(y_vals), padding=0)
-            plot.getViewBox().setLimits(yMin=min(y_vals), yMax=max(y_vals))
+            image.setRect(x_min, y_min - dy/2, x_max - x_min, y_max - y_min + dy)
+            plot.setYRange(min(y_vals) - dy/2, max(y_vals) + dy/2, padding=0)
+            plot.getViewBox().setLimits(yMin=min(y_vals) - dy/2, yMax=max(y_vals) + dy/2)
             plot.enableAutoRange()
 
         button.clicked.connect(switch_axis)
