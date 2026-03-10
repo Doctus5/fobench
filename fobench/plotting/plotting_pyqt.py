@@ -1,5 +1,5 @@
 '''
-contains all functionality related to plotting using PyQtGraph, i.e.
+Contains all functionality related to plotting using PyQtGraph, i.e.
 whenever plot_mode is set to 'pyqt'
 '''
 import sys
@@ -10,29 +10,26 @@ from PyQt5 import QtCore
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtGui
 
-'''
------------------------------------------------------------------
-Line Plot Functions
------------------------------------------------------------------
-'''
+
+'''Line Plot Functions'''
 
 def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
                     y_label: str = '', title: str = '') -> None:
     '''
-    generate generic time series plot using PyQtGraph, ideal for channel plots
+    Generate generic time series plot using PyQtGraph, ideal for channel plots
 
     Parameters
     ----------
     timestamps : np.ndarray
-        array containing Unix timestamps of data.
+        Array containing Unix timestamps of data.
     data : np.ndarray
-        array containing data to plot.
+        Array containing data to plot.
     dt : float
-        sampling period of data.
+        Sampling period of data.
     y_label : str, optional
-        y-axis label. The default is ''.
+        y-axis label.
     title : str, optional
-        title of plot. The default is ''.
+        Title of plot..
 
     Returns
     -------
@@ -42,43 +39,38 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
                                                 x_is_time=True)
-
-    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.setLabel('left', y_label, color='k', font_size='14pt')
     plot.plot(timestamps, data, pen=pg.mkPen('k', width=1))
-
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
-    x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
+    x_axis.setLabel(date, color='k', font_size='14pt')
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
                                 yMin=min(data), yMax=max(data))
-
     label = pg.LabelItem(justify='left', size='10pt', color='black')
     win.addItem(label, row=2, col=0)
-
     mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text='Time: {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-
     pg.exec()
 
 def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
                         numbers: np.ndarray, y_label: str = '', title: str = '') -> None:
     '''
-    extended version of timeseries plot for multi-channel data
+    Extended version of timeseries plot for multi-channel data
 
     Parameters
     ----------
     timestamps : np.ndarray
-        array containing Unix timestamps of data.
+        Array containing Unix timestamps of data.
     data : np.ndarray
-        array containing data to plot.
+        Array containing data to plot.
     dt : float
-        sampling period of data.
+        Sampling period of data.
     numbers : np.ndarray
-        array containing channel numbers for plotting.
+        Array containing channel numbers for plotting.
     y_label : str, optional
-        y-axis label. The default is ''.
+        y-axis label.
     title : str, optional
-        title of plot. The default is ''.
+        Title of plot.
 
     Returns
     -------
@@ -87,33 +79,26 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     '''
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
                                                 x_is_time=True)
-    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.setLabel('left', y_label, color='k', font_size='14pt')
     data, numbers = data[:, ::-1], numbers[::-1]
-
-    offset = data[:].max()
+    offset = data.max()
     ticks = []
     for i in range(data.shape[1]):
         y = -i * offset
         plot.plot(timestamps, data[:, i] + y, pen=pg.mkPen('k', width=1))
         ticks.append((y, str(numbers[i])))
-
     y_axis.setTicks([ticks])
     y_axis.enableAutoSIPrefix(False)
-    y_axis.setStyle(showValues=True)
-
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
-    x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
+    x_axis.setLabel(date, color='k', font_size='14pt')
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
-                                yMax=max(data[:, 0]),
-                                yMin=min(data[:, i] - i*data[:].max()))
-
+                                yMax=data[:, 0].max(),
+                                yMin=data[:, -1].min() - (data.shape[1] - 1) * offset)
     label = pg.LabelItem(justify='left', size='10pt', color='black')
     win.addItem(label, row=2, col=0)
-
     mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text='Time: {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-
     pg.exec()
 
 
@@ -121,22 +106,22 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
                   y_label: str = '', x_label: str = 'Channel',
                   title: str = '') -> None:
     '''
-    generate generic distances series plot
+    Generate generic distances series plot
 
     Parameters
     ----------
     distances : np.ndarray
-        array containing optical distances values.
+        Array containing optical distances values.
     channels_num : np.ndarray
-        array containing channel numbers.
+        Array containing channel numbers.
     data : np.ndarray
-        array containing data to plot.
+        Array containing data to plot.
     y_label : str, optional
-        y-axis label. The default is ''.
+        y-axis label.
     x_label : str, optional
-        x-axis label. The default is 'Channel'.
+        x-axis label.
     title : str, optional
-        title of plot. The default is ''.
+        Title of plot.
 
     Returns
     -------
@@ -144,69 +129,56 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         -
     '''
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
-    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.plot(channels_num, data, pen=pg.mkPen('k', width=1))
-
-    dx = channels_num[1] - channels_num[0]
-
-    x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.setXRange(min(channels_num), max(channels_num), padding=0)
-    plot.getViewBox().setLimits(xMin=min(channels_num), xMax=max(channels_num),
-                                yMin=min(data), yMax=max(data))
-
+    plot.setLabel('left', y_label, color='k', font_size='14pt')
+    plot.setLabel('bottom', x_label, color='k', font_size='14pt')
     text_label, h_layout, container = get_bottom_layout()
-    h_layout.addWidget(button:=get_axis_button())
+    h_layout.addWidget(button := get_axis_button())
+    state = {'x_vals': channels_num, 'dx': channels_num[1] - channels_num[0]}
 
-    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text= x_axis.labelText+': {x}')
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-
-    def switch_axis():
-        nonlocal dx, mouse_moved, proxy
-        if button.text() == 'Distance':
-            button.setText('Channel')
-            plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
-            x_vals = distances
-            dx = distances[1]-distances[0]
-        else:
-            button.setText('Distance')
-            plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
-            x_vals = channels_num
-            dx = channels_num[1] - channels_num[0]
-        mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text= x_axis.labelText+': {x}')
-        proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-
-        plot.setXRange(min(x_vals), max(x_vals), padding=0)
-        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
+    def refresh(x_vals):
+        state['x_vals'], state['dx'] = x_vals, x_vals[1] - x_vals[0]
         plot.clear()
         plot.plot(x_vals, data, pen=pg.mkPen('k', width=1))
-        plot.enableAutoRange()
+        plot.setXRange(min(x_vals), max(x_vals), padding=0)
+        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals), yMin=min(data), yMax=max(data))
+        state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
+                                        slot=tracker_factory(plot=plot, label=text_label, dx=state['dx'],
+                                                             label_text=x_axis.labelText + ': {x}'))
+    def switch_axis():
+        if button.text() == 'Distance':
+            button.setText('Channel')
+            plot.setLabel('bottom', 'Optical Distance [m]', color='k', font_size='14pt')
+            refresh(distances)
+        else:
+            button.setText('Distance')
+            plot.setLabel('bottom', 'Channel', color='k', font_size='14pt')
+            refresh(channels_num)
 
     button.clicked.connect(switch_axis)
-
+    refresh(channels_num)
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
-
     pg.exec()
 
 def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
                   y_label: str = 'Amplitude', x_label: str = 'Frequency [Hz]',
                   title: str = '') -> None:
     '''
-    generate generic amplitude over frequency plot
+    Generate generic amplitude over frequency plot
 
     Parameters
     ----------
     frequencies : np.ndarray
-        array containing frequency values.
+        Array containing frequency values.
     amplitudes : np.ndarray
-        array containing amplitudes to plot.
+        Array containing amplitudes to plot.
     y_label : str, optional
-        y-axis label. The default is 'Amplitude'.
+        y-axis label.
     x_label : str, optional
-        x-axis label. The default is 'Frequency [Hz]'.
+        x-axis label.
     title : str, optional
-        title of plot. The default is ''.
+        Title of plot.
 
     Returns
     -------
@@ -215,64 +187,53 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
     '''
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
-
+    plot.setLabel('left', y_label, color='k', font_size='14pt')
+    plot.setLabel('bottom', x_label, color='k', font_size='14pt')
     dx = frequencies[1] - frequencies[0]
-
-    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.plot(frequencies, amplitudes, pen=pg.mkPen('k', width=1))
-
-    x_axis.setLabel(x_label, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(frequencies), max(frequencies), padding=0)
     plot.getViewBox().setLimits(xMin=min(frequencies), xMax=max(frequencies),
                                 yMin=min(amplitudes), yMax=max(amplitudes))
-
     text_label, h_layout, container = get_bottom_layout()
-
     mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=x_axis.labelText+': {x}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
-
     pg.exec()
 
-'''
------------------------------------------------------------------
-Matrix Plot Functions
------------------------------------------------------------------
-'''
+'''Matrix Plot Functions'''
 
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                        dt: float, vmin: float = None, vmax:float = None, y_label: str = '',
                        title: str = '', cmap: str = 'seismic',
                        cbar_label: str = '', distances: np.ndarray = None) -> None:
     '''
-    generate generic matrix plot where x-axis represents time, e.g.
+    Generate generic matrix plot where x-axis represents time, e.g.
     waterfall visualisation of data or spectrograms,PSDs, RMSA ...
 
     Parameters
     ----------
     timestamps : np.ndarray
-        array containing Unix timestamps of data.
+        Array containing Unix timestamps of data.
     data : np.ndarray
-        array containing data to plot.
+        Array containing data to plot.
     y_ticks : list
         y-axis tick labels.
     dt : float
-        sampling period of data
+        Sampling period of data
     vmin, vmax : float, optional
-        minimum and maximum limits of colorbar. The default is None.
+        Minimum and maximum limits of colorbar.
     y_label : str, optional
-        y-axis label. The default is ''.
+        y-axis label.
     title : str, optional
-        plot title. The default is ''.
+        Plot title.
     cmap : str, optional
-        colormap to use. The default is 'seismic'.
+        Colormap to use. The default is 'seismic'.
     cbar_label : str, optional
-        label of colorbar. The default is ''.
+        Label of colorbar.
     distances : np.ndarray, optional
-        optional distances to use for y-axis
+        Optional distances to use for y-axis
 
     Returns
     -------
@@ -282,7 +243,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title,
                                                 x_is_time=True)
-    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.setLabel('left', y_label, color='k', font_size='14pt')
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
@@ -296,9 +257,6 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     plot.addItem(image)
     image.setImage(data)
     image.setRect(x_min, y_min - dy/2, x_max - x_min, y_max - y_min + dy)
-
-    # date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
-    # x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
 
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.setYRange(min(y_ticks) - dy/2, max(y_ticks) + dy/2, padding=0)
@@ -319,12 +277,12 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
             nonlocal dy, mouse_moved, proxy
             if button.text() == 'Distance':
                 button.setText('Channel')
-                plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
+                plot.setLabel('left', 'Optical Distance [m]', color='k', font_size='14pt')
                 y_vals = distances
                 dy = distances[1] - distances[0]
             else:
                 button.setText('Distance')
-                plot.setLabel('left', 'Channel', **{'color': 'k', 'font-size': '14pt'})
+                plot.setLabel('left', 'Channel', color='k', font_size='14pt')
                 y_vals = y_ticks
                 dy = y_ticks[1] - y_ticks[0]
 
@@ -404,8 +362,8 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     dx = channels_num[1] - channels_num[0]
     dy = y_ticks[1] - y_ticks[0]
 
-    plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.setLabel('bottom', x_label, **{'color': 'k', 'font-size': '14pt'})
+    plot.setLabel('left', y_label, color='k', font_size='14pt')
+    plot.setLabel('bottom', x_label, color='k', font_size='14pt')
 
     plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
     plot.setMouseEnabled(x=True, y=True)
@@ -451,12 +409,12 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         if button.text() == 'Distance':
             button.setText('Channel')
             plot.setLabel(
-                'bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
+                'bottom', 'Optical Distance [m]', color='k', font_size='14pt')
             x_vals = distances
             dx = distances[1] - distances[0]
         else:
             button.setText('Distance')
-            plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
+            plot.setLabel('bottom', 'Channel', color='k', font_size='14pt')
             x_vals = channels_num
             dx = channels_num[1] - channels_num[0]
 
@@ -477,17 +435,11 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
 
     pg.exec()
 
-'''
------------------------------------------------------------------
-Helper Functions
------------------------------------------------------------------
-'''
+'''Helper Functions'''
 
 def get_layout(size: tuple = (1200, 600), win_title: str = None,
                x_is_time: bool = False):
-    '''
-    returns common basic layout of plots
-    '''
+    '''Returns common basic layout of plots'''
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
@@ -496,79 +448,55 @@ def get_layout(size: tuple = (1200, 600), win_title: str = None,
     win.setWindowTitle(f'Fobench: {win_title}')
     win.setWindowIcon(QtGui.QIcon(
         str(Path(__file__).resolve().parent / 'logo.png')))
-    win.setBackground('w')  # white bg
-    win.resize(size[0], size[1])
+    win.setBackground('w')
+    win.resize(*size)
     plot = win.addPlot(title=win_title)
-    plot.setTitle(win_title, size='20pt', color='k')
+    plot.setTitle(win_title, size='18pt', color='k')
 
-    y_axis = plot.getAxis('left')
-    y_axis.setPen(pg.mkPen('k', width=2))
-    y_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    y_axis.setTextPen(pg.mkPen('k'))
-
-    if x_is_time: plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
-    x_axis = plot.getAxis('bottom')
-    x_axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
-    x_axis.setPen(pg.mkPen('k', width=2))
-    x_axis.setTextPen(pg.mkPen('k'))
-
+    if x_is_time:
+        plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
+    for axis in (y_axis := plot.getAxis('left'), x_axis := plot.getAxis('bottom')):
+        axis.setPen(pg.mkPen('k', width=2))
+        axis.setTextPen(pg.mkPen('k'))
+        axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 14))
     return win, app, plot, y_axis, x_axis
-
 
 def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
                     dt:float = None, dx:float = None, dy: float = None):
-    '''
-    factory that returns a function tracking the mouse position and
-    displays it in data units
-    '''
-    x_step = dt if dt is not None else dx
-    is_time = dt is not None
-
+    '''Factory that returns a function tracking the mouse position and displays it in data units'''
+    x_step = dt or dx
     def mouse_moved(evt):
         pos = evt[0]
         if plot.sceneBoundingRect().contains(pos):
-            mouse_point = plot.vb.mapSceneToView(pos)
-            x_val = mouse_point.x()
-            y_val = mouse_point.y()
-            x_val = round(x_val / x_step) * x_step
-            if dy is not None:
-                y_val = round(y_val / dy) * dy
-
-            if is_time:
-                x_val = datetime.datetime.utcfromtimestamp(x_val).strftime(
+            mp = plot.vb.mapSceneToView(pos)
+            x = round(mp.x() / x_step) * x_step
+            y = round(mp.y() / dy) * dy if dy is not None else mp.y()
+            if dt is not None:
+                x = datetime.datetime.utcfromtimestamp(x).strftime(
                     '%Y-%m-%d %H:%M:%S.%f')
-            label.setText(label_text.format(x=x_val, y=y_val))
+            label.setText(label_text.format(x=x, y=y))
     return mouse_moved
 
 def get_axis_button() -> QtWidgets.QPushButton:
-    '''
-    returns a button that can be used for switching axis between optical distance
-    and channel number
-    '''
+    '''Returns a button that can be used for switching axis between optical distance and channel number'''
     button = QtWidgets.QPushButton('Distance')
     button.setToolTip('Switch x Axis between Channel Number and Optical Distance')
     button.setFixedWidth(70)
     return button
 
 def get_colorscale_button() -> QtWidgets.QPushButton:
-    '''
-    returns a button that can be used for resetting colorscale
-    '''
+    '''Returns a button that can be used for resetting colorscale'''
     button = QtWidgets.QPushButton('Reset colorscale')
     button.setToolTip('Resets the colorscale to initial values')
     button.setFixedWidth(110)
     return button
 
 def get_bottom_layout():
-    '''
-    returns bottom layout that holds label for tracking mouse
-    '''
+    '''Returns bottom layout that holds label for tracking mouse'''
     container = QtWidgets.QWidget()
     h_layout = QtWidgets.QHBoxLayout(container)
     h_layout.setContentsMargins(5, 5, 5, 5)
-
     text_label = QtWidgets.QLabel()
     text_label.setStyleSheet('color: black; font-size: 10pt;')
     h_layout.addWidget(text_label)
-
     return text_label, h_layout, container
