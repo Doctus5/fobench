@@ -328,6 +328,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # .h5 format for Michelle INGV's decimated files from Silixa.
 
+        pbar = tqdm(total=1, leave=True, desc='Reading Michelle Decimated H5 file')
         print('Reading HDF5 file (Michelle INGV decimated Format)...')
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
@@ -438,7 +439,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
         elif company == 'terra15':
             values = np.array(extract_point[:, range_ch[0]:range_ch[1]])
-        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela'):
+        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'michelle'):
             values = np.array(extract_point[:, range_ch])
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
@@ -452,8 +453,5 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
     elif format == 'npz' and company == 'bam':
         values = np.load(extract_point)['ph'][:, range_ch]
-
-    elif (format == 'h5' or format == 'hdf5') and company == 'michelle':
-        values = np.array(extract_point[:, range_ch])
 
     return values.astype('float')
