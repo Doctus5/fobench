@@ -172,6 +172,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = '
 			gl = attributes['gauge_length'] if terra15_gl is None else terra15_gl
 			gauge_samples = int(round(gl / attributes['spatial_interval']))
 			gl = gauge_samples * attributes['spatial_interval']
+			print(f'⚠️ Applying the nearest possible gauge length: {gl}m')
 			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl
 			n_decim = int(gauge_samples/2)
 			attributes['channels'] = attributes['channels'][n_decim:-n_decim]
