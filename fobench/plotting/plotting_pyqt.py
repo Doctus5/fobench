@@ -136,21 +136,23 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
 
     def refresh(x_vals):
         state['x_vals'], state['dx'] = x_vals, x_vals[1]-x_vals[0]
+        dx = state['dx']
         plot.clear()
         plot.plot(x_vals, data, pen=pg.mkPen('k', width=1))
+        plot.getViewBox().setLimits(xMin=-np.inf, xMax=np.inf)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
-        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals), yMin=min(data), yMax=max(data))
+        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
-                                        slot=tracker_factory(plot=plot, label=text_label, dx=state['dx'],
+                                        slot=tracker_factory(plot=plot, label=text_label, dx=dx,
                                                              label_text=x_axis.labelText+': {x}'))
     def switch_axis():
         if button.text() == 'Distance':
             button.setText('Channel')
-            plot.setLabel('bottom', 'Optical Distance [m]', color='k', font_size='14pt')
+            plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
             refresh(distances)
         else:
             button.setText('Distance')
-            plot.setLabel('bottom', 'Channel', color='k', font_size='14pt')
+            plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
             refresh(channels_num)
 
     button.clicked.connect(switch_axis)
@@ -194,7 +196,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
     plot.getViewBox().setLimits(xMin=min(frequencies), xMax=max(frequencies),
                                 yMin=min(amplitudes), yMax=max(amplitudes))
     text_label, h_layout, container = get_bottom_layout()
-    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=x_axis.labelText+': {x}')
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=x_axis.labelText+': {x:.2f}')
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
@@ -259,10 +261,10 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         y_min, y_max = y_vals[0], y_vals[-1]
         image.setRect(x_min, y_min-dy/2, x_max-x_min, y_max-y_min+dy)
         plot.setXRange(x_min, x_max, padding=0)
-        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,          # reset y limits
-                                    yMin=-np.inf, yMax=np.inf)        # to infinite first
+        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
+                                    yMin=-np.inf, yMax=np.inf)
         plot.setYRange(min(y_vals)-dy/2, max(y_vals)+dy/2, padding=0)
-        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,          # now apply correct ones
+        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                     yMin=min(y_vals)-dy/2, yMax=max(y_vals)+dy/2)
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
@@ -273,11 +275,11 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
         def switch_axis():
             if button.text() == 'Distance':
                 button.setText('Channel')
-                plot.setLabel('left', 'Optical Distance [m]', color='k', font_size='14pt')
+                plot.setLabel('left', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
                 refresh(distances)
             else:
                 button.setText('Distance')
-                plot.setLabel('left', 'Channel', color='k', font_size='14pt')
+                plot.setLabel('left', 'Channel', **{'color': 'k', 'font-size': '14pt'})
                 refresh(y_ticks)
 
         button.clicked.connect(switch_axis)
@@ -363,16 +365,16 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
                                     yMin=min(y_ticks)-dy/2, yMax=max(y_ticks)+dy/2)
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dx=dx, dy=dy,
-                                                             label_text=x_axis.labelText+': {x} | '+y_label+': {y}'))
+                                                             label_text=x_axis.labelText+': {x} | '+y_label+': {y:.2f}'))
 
     def switch_axis():
         if button.text() == 'Distance':
             button.setText('Channel')
-            plot.setLabel('bottom', 'Optical Distance [m]', color='k', font_size='14pt')
+            plot.setLabel('bottom', 'Optical Distance [m]', **{'color': 'k', 'font-size': '14pt'})
             refresh(distances)
         else:
             button.setText('Distance')
-            plot.setLabel('bottom', 'Channel', color='k', font_size='14pt')
+            plot.setLabel('bottom', 'Channel', **{'color': 'k', 'font-size': '14pt'})
             refresh(channels_num)
 
     button.clicked.connect(switch_axis)
@@ -424,8 +426,8 @@ def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
         pos = evt[0]
         if plot.sceneBoundingRect().contains(pos):
             mp = plot.vb.mapSceneToView(pos)
-            x = round(mp.x() / x_step)*x_step
-            y = round(mp.y() / dy)*dy if dy is not None else mp.y()
+            x = round(mp.x()/x_step)*x_step
+            y = round(mp.y()/dy)*dy if dy is not None else mp.y()
             if dt is not None:
                 x = datetime.datetime.utcfromtimestamp(x).strftime(
                     '%Y-%m-%d %H:%M:%S.%f')

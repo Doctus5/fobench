@@ -1,16 +1,17 @@
+'''Functions to analyze wavefield characteristics'''
+
 import numpy as np
-from obspy.signal.cross_correlation import correlate
+from warnings import warn
 from tqdm import trange
+from obspy.signal.cross_correlation import correlate
 from fobench.tools import signals
 from fobench.plotting import plotting_pyqt as plot_pyqt
 from fobench.plotting.plotting_mpl import plot_acfs
-from warnings import warn
-
 
 
 def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
                              channel_nums: np.ndarray = None, plot_mode:str = 'pyqt',
-                             result: bool = False, vmin: float = None, vmax: float = None) ->  np.ndarray:
+                             results: bool = False, vmin: float = None, vmax: float = None) ->  np.ndarray:
     '''
 
     Parameters
@@ -27,7 +28,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         channel numbering. The default is None.
     plot : bool, optional
         shows plot if True. The default is True.
-    result : bool, optional
+    results : bool, optional
         whether to return the resulting values. The default is False.
     vmin, vmax : float, optional
         minimum and maximum limits of colorbar. The default is None.
@@ -39,28 +40,21 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
 
     '''
 
-    n_ch, n_samp = data.shape
+    n_ch, _ = data.shape
+    data = (data - data.mean(axis=1, keepdims=True)) / data.std(axis=1, keepdims=True)
     coherence_matrix = np.zeros((n_ch, n_ch))
-
     for i in trange(n_ch, desc='Computing Coherence Matrix', leave=False):
-        for j in range(i, n_ch):
-            ch_i = data[i]
-            ch_j = data[j]
-
-            # normalize signals
-            ch_i = (ch_i - np.mean(ch_i)) / np.std(ch_i)
-            ch_j = (ch_j - np.mean(ch_j)) / np.std(ch_j)
-            ccf = correlate(ch_i, ch_j, shift=int(max_lag*fs))
+        for j in range(i+1, n_ch):
+            ccf = correlate(data[i], data[j], shift=int(max_lag*fs))
             max_corr = np.max(np.abs(ccf))
-
             coherence_matrix[i, j] = max_corr
             coherence_matrix[j, i] = max_corr
-
+    np.fill_diagonal(coherence_matrix, 1.0)
     if plot_mode == 'pyqt':
         if not channel_nums: channel_nums = np.arange(0, n_ch)
         if vmin is None: vmin = coherence_matrix.min()
         if vmax is None: vmax = coherence_matrix.max()
-        plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(coherence_matrix),
+        plot_pyqt.plot_2d_distance(distances=distances, data=coherence_matrix,
                          y_ticks=channel_nums, channels_num=channel_nums,
                          y_label = 'Channel #', x_label = 'Channel #',
                          title = 'Spatial Coherence Matrix',
@@ -70,7 +64,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
     elif plot_mode == 'mpl':
         warn('matplotlib plotting not implemented for this method!')
 
-    if result:
+    if results:
         return coherence_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,

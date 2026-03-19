@@ -525,13 +525,12 @@ class Fiber(object):
 		fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
 										   order=order, nfft=nfft, norm=norm, axis=axis)
 
-
 		if plot_mode == 'pyqt':
 			p95 = np.percentile(fx, 95)
 			if vmin is None: vmin = -p95
 			if vmax is None: vmax = p95
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
-							  y_ticks=np.round(freqs,2), data=np.flip(np.rot90(fx, k=1), axis=0),
+							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
 							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
 							  title='Frequency content', cbar_label=self.units)
 
@@ -562,7 +561,7 @@ class Fiber(object):
 
 		if plot_mode=='pyqt':
 			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}^2/Hz'
-			plot_pyqt.plot_spectral(frequencies=np.round(f, 2), amplitudes=spec, y_label =f'{units}',
+			plot_pyqt.plot_spectral(frequencies=f, amplitudes=spec, y_label =f'{units}',
 								title= f'{mode} channel {channel}')
 		elif plot_mode=='mpl':
 			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}$^{{2}}$/Hz'
@@ -639,8 +638,7 @@ class Fiber(object):
 			t = self.times(time_type='unix')
 			if vmin is None: vmin = 0
 			if vmax is None: vmax = np.percentile(Sxx, 95)
-			freqs = np.round(f, 2)
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=freqs, dt=self.dt,
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
 						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
 						title=f'Spectrogram channel {channel}', cmap='viridis',
 						vmin=vmin, vmax=vmax, cbar_label=self.units)
@@ -705,7 +703,7 @@ class Fiber(object):
 		if results:
 			return acf
 
-	def spatial_coherence(self, max_lag, result=False, plot_mode='pyqt', vmin=None,
+	def spatial_coherence(self, max_lag, results=False, plot_mode='pyqt', vmin=None,
 					   vmax=None):
 		'''
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
@@ -715,9 +713,9 @@ class Fiber(object):
 										   distances=self.distances,
 										   fs=self.sampling_frequency,
 										   channel_nums=self.channels_num,
-										   plot_mode=plot_mode, result=result,
+										   plot_mode=plot_mode, results=results,
 										   vmin=vmin, vmax=vmax)
-		if result:
+		if results:
 			return coh
 
 	def explore(self):
@@ -728,7 +726,6 @@ class Fiber(object):
 		app = QtWidgets.QApplication.instance()
 		if app is None:
 			app = QtWidgets.QApplication(sys.argv)
-
 		self._explorer = Explorer(self)
 		self._explorer.show()
 		pg.exec()

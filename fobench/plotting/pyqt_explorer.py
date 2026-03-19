@@ -1,12 +1,10 @@
-'''
-Contains the Explorer class
-'''
+'''Contains the Explorer class'''
 
 import datetime
 import functools
+from pathlib import Path
 import numpy as np
 import pyqtgraph as pg
-from pathlib import Path
 from pyqtgraph.Qt import QtWidgets, QtGui
 from pyqtgraph.dockarea import Dock, DockArea
 
@@ -20,10 +18,8 @@ def _busy_cursor(func):
 
 
 class Explorer(QtWidgets.QMainWindow):
-    '''
-    Interactive GUI for exploring Fiber Optic Sensing data
-    '''
-    def __init__(self, Fiber):
+    '''Interactive GUI for exploring Fiber Optic Sensing data'''
+    def __init__(self, Fiber: object) -> None:
         super().__init__()
         pg.setConfigOptions(background='w', foreground='k') # set background color to white
 
@@ -188,7 +184,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.matrix_plot.setXRange(self.times[0], self.times[-1], padding=0)
         self.line_plot.setXRange(self.times[0], self.times[-1], padding=0)
 
-    def refresh_y_axis(self, y_vals):
+    def refresh_y_axis(self, y_vals: np.ndarray) -> None:
         '''Handles the yaxis and repositions of matrix plot when changing between Distance and Channels'''
         x_min, x_max = self.times[0], self.times[-1]
         dy = y_vals[1]-y_vals[0]
@@ -203,7 +199,7 @@ class Explorer(QtWidgets.QMainWindow):
                                                 yMin=y_min-dy/2, yMax=y_max+dy/2)
         self.y_picker.setBounds([y_min, y_max])
 
-    def on_y_axis_button_clicked(self):
+    def on_y_axis_button_clicked(self) -> None:
         '''Switches the main plot y-axis between optical distance and channel number'''
         if self.y_axis_button.text() == 'Channel':
             self.y_axis_button.setText('Distance')
@@ -216,7 +212,7 @@ class Explorer(QtWidgets.QMainWindow):
             self.refresh_y_axis(np.array(self.Fiber.distances, dtype=float))
             self.y_picker.setValue(self.selected_distance)
 
-    def on_picker_moved(self):
+    def on_picker_moved(self) -> None:
         '''Detects selection of channel via horizontal line'''
         if self.y_axis_button.text() == 'Distance':
             idx = np.abs(np.array(self.Fiber.channels, dtype=float)-self.y_picker.getYPos()).argmin()
@@ -225,21 +221,21 @@ class Explorer(QtWidgets.QMainWindow):
         self.selected_channel = self.Fiber.channels[idx]
         self.update_plots()
 
-    def on_spin_box_changed(self, value):
+    def on_spin_box_changed(self, value: float) -> None:
         '''Detects selection of channel selection via spin box'''
         self.selected_channel = int(value)
         self.update_plots()
 
-    def on_dropdown_ch_changed(self, index):
+    def on_dropdown_ch_changed(self, index: int) -> None:
         '''Detects selection of method in dropdown channel menu'''
         actions = {'Spectrogram': self.plot_spectrogram,
-                   'PSD': self.plot_psd,
-                   'Spectrum': self.plot_spectrum,}
+                   'PSD': lambda: self.plot_spectrum(mode='psd'),
+                   'Spectrum': lambda: self.plot_spectrum(mode='spectrum')}
         action = actions.get(self.dropdown_ch.currentText())
         if action: action()
         self.dropdown_ch.setCurrentIndex(0)
 
-    def on_dropdown_data_changed(self, index):
+    def on_dropdown_data_changed(self, index:int) -> None:
         '''Detects selection of method in dropdown data menu'''
         actions = {'RMSA': self.plot_rmsa,
                    'P2PA': self.plot_p2pa,
@@ -248,7 +244,7 @@ class Explorer(QtWidgets.QMainWindow):
         if action: action()
         self.dropdown_data.setCurrentIndex(0)
 
-    def update_plots(self):
+    def update_plots(self) -> None:
         '''Updates all plots'''
         ind = self.selected_channel-self.ch0
         self.selected_distance = self.Fiber.distances[ind]
@@ -268,7 +264,7 @@ class Explorer(QtWidgets.QMainWindow):
             yMin=row_data.min(), yMax=row_data.max())
 
     @_busy_cursor
-    def plot_spectrogram(self):
+    def plot_spectrogram(self) -> None:
         '''Simple spectrogram plot'''
         spectrogram_data, freqs, _ = self.Fiber.channel_spectrogram(self.selected_channel,
                                                                     results=True, plot_mode=None)
@@ -292,7 +288,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.dock_spec.addWidget(spectrogram_plot_widget)
 
     @_busy_cursor
-    def plot_fx(self):
+    def plot_fx(self) -> None:
         '''Frequency-Distance plot'''
         fx, freqs = self.Fiber.fx_plot(plot_mode=None, results=True)
         x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
@@ -318,7 +314,9 @@ class Explorer(QtWidgets.QMainWindow):
         self.area.addDock(self.dock_fx, 'above', self.dock_1)
         self.dock_fx.addWidget(fx_plot_widget)
 
-    def _make_plot_dock(self, title, x_label, y_label, dock_ref=None):
+    def make_plot_dock(self, title: str, x_label: str, y_label: str,
+                       dock_ref: Dock = None) -> tuple[pg.PlotItem, Dock]:
+        '''Returns Dock with Plot widget'''
         widget = pg.GraphicsLayoutWidget()
         plot = widget.addPlot()
         plot.setLabel('bottom', x_label, color='k', font_size='10pt')
@@ -329,58 +327,51 @@ class Explorer(QtWidgets.QMainWindow):
         return plot, dock
 
     @_busy_cursor
-    def plot_rmsa(self):
+    def plot_rmsa(self) -> None:
         '''RMS amplitude plot'''
         rmsa_data = self.Fiber.rmsa(results=True, plot_mode=None)[0, :]
         x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
-        plot, self.dock_rmsa = self._make_plot_dock(
-            'RMS Amplitude', 'Optical Distance [m]', 'RMS Amplitude')
+        plot, self.dock_rmsa = self.make_plot_dock('RMS Amplitude', 'Optical Distance [m]',
+                                                   'RMS Amplitude')
         plot.plot(self.Fiber.distances, rmsa_data, pen='k')
         plot.setXRange(x_min, x_max, padding=0)
         plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                     yMin=rmsa_data.min(), yMax=rmsa_data.max())
 
     @_busy_cursor
-    def plot_p2pa(self):
+    def plot_p2pa(self) -> None:
         '''Peak-to-Peak amplitude plot'''
         p2pa_data, _, _ = self.Fiber.p2p_amp(plot_mode=None, results=True)
         x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
-        plot, self.dock_p2p = self._make_plot_dock('P2P Amplitude', 'Optical Distance [m]',
+        plot, self.dock_p2p = self.make_plot_dock('P2P Amplitude', 'Optical Distance [m]',
                                                    'P2P Amplitude')
         plot.plot(self.Fiber.distances, p2pa_data, pen='k')
         plot.setXRange(x_min, x_max, padding=0)
         plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                     yMin=min(p2pa_data), yMax=max(p2pa_data))
 
-    def plot_psd(self):
-        '''Power spectral density plot'''
-        freqs, amps = self.Fiber.spectrum(self.selected_channel, mode='psd',
+    def plot_spectrum(self, mode: str = None) -> None:
+        '''Amplitude spectrum or PSD plot'''
+        freqs, amps = self.Fiber.spectrum(self.selected_channel, mode=mode,
                                           plot_mode=None, results=True)
-        plot, self.dock_psd = self._make_plot_dock(f'PSD Ch {self.selected_channel}',
-                                                   'Frequency [Hz]', 'PSD Amplitude')
+        if mode == 'spectrum':
+            plot, self.dock_fft = self.make_plot_dock(f'FFT Ch {self.selected_channel}',
+                                                       'Frequency [Hz]', 'FFT Amplitude')
+        elif mode == 'psd':
+            plot, self.dock_psd = self.make_plot_dock(f'PSD Ch {self.selected_channel}',
+                                                       'Frequency [Hz]', 'PSD Amplitude')
         plot.plot(freqs, amps, pen='k')
         plot.setXRange(freqs[0], freqs[-1], padding=0)
         plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
                                     yMin=min(amps), yMax=max(amps))
 
-    def plot_spectrum(self):
-        '''Amplitude spectrum plot'''
-        freqs, amps = self.Fiber.spectrum(self.selected_channel, mode='spectrum',
-                                          plot_mode=None, results=True)
-        plot, self.dock_fft = self._make_plot_dock(f'FFT Ch {self.selected_channel}',
-                                                   'Frequency [Hz]', 'FFT Amplitude')
-        plot.plot(freqs, amps, pen='k')
-        plot.setXRange(freqs[0], freqs[-1], padding=0)
-        plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
-                                    yMin=min(amps), yMax=max(amps))
-
-    def update_colorbar_levels(self):
+    def update_colorbar_levels(self) -> None:
         '''Updates the colorbar levels after change by user'''
         percentile = self.cbar_spinbox.value()
         abs_percentile = np.percentile(np.abs(self.Fiber.data), percentile)
         self.hist.setLevels(-abs_percentile, abs_percentile)
 
-    def on_link_button_clicked(self):
+    def on_link_button_clicked(self) -> None:
         '''Handles (un)linking of x-axis'''
         if self.link_button.isChecked():
             self.line_plot.setXLink(None)
