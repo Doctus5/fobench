@@ -1,4 +1,4 @@
-'''Contains the Explorer class'''
+'''Contains the Viewer class'''
 
 import datetime
 import functools
@@ -17,7 +17,7 @@ def _busy_cursor(func):
     return wrapper
 
 
-class Explorer(QtWidgets.QMainWindow):
+class Viewer(QtWidgets.QMainWindow):
     '''Interactive GUI for exploring Fiber Optic Sensing data'''
     def __init__(self, Fiber: object) -> None:
         super().__init__()
@@ -31,7 +31,7 @@ class Explorer(QtWidgets.QMainWindow):
         self.selected_distance = Fiber.distances[0]
 
         # set up window
-        self.setWindowTitle('Fobench Data Explorer')
+        self.setWindowTitle('Fobench Data Viewer')
         self.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent/'logo.png')))
 
         # set up the docks

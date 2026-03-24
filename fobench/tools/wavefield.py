@@ -193,7 +193,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         if window is None:
             if dim == 't':
                 plot_pyqt.plot_distance(distances=distances, data=result[0,:], channels_num=channels_num,
-                              title='RMS Amplitude Profile')
+                              title='RMS Amplitude Profile', y_label='RMS Amplitude')
             elif dim == 'd':
                 plot_pyqt.plot_timeseries(timestamps=times, data=result[0,:], dt=times[1]-times[0],
                                              y_label='RMS Amplitude', title='RMS Amplitude over Time')

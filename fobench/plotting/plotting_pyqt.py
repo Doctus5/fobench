@@ -9,11 +9,12 @@ import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets, QtGui
+import matplotlib.pyplot as plt
 
 '''Line Plot Functions'''
 
-def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
-                    y_label: str = '', title: str = '') -> None:
+def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
+                    y_label: str = '', title: str = '', labels: list[str] | None = None) -> None:
     '''
     Generate generic time series plot using PyQtGraph, ideal for channel plots
 
@@ -21,33 +22,46 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray, dt: float,
     ----------
     timestamps : np.ndarray
         Array containing Unix timestamps of data.
-    data : np.ndarray
+    data : np.ndarray | list
         Array containing data to plot.
     dt : float
         Sampling period of data.
     y_label : str, optional
         y-axis label.
     title : str, optional
-        Title of plot..
+        Title of plot.
+    labels : list[str] | None
+        Legend labels for each amplitude array. If None, no legend is shown.
 
     Returns
     -------
     None
         -
     '''
-
+    y_label = y_label.title()
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
                                                 x_is_time=True)
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
-    plot.plot(timestamps, data, pen=pg.mkPen('k', width=1))
+    if isinstance(data, np.ndarray) and data.ndim == 1:
+        data = [data]
+    elif isinstance(data, np.ndarray) and data.ndim == 2:
+        data = [data[:, i] for i in range(data.shape[1])]
+    if labels is not None:
+        plot.addLegend(pen='k', labelTextColor='k')
+    colors = ['k'] if len(data) == 1 else get_colors(len(data), colormap='tab10')
+    for i, channel in enumerate(data):
+        label = labels[i] if labels is not None else None
+        plot.plot(timestamps, channel, pen=pg.mkPen(colors[i], width=1), name=label)
+    all_data = np.concatenate(data)
     date = datetime.datetime.fromtimestamp(timestamps[0]).strftime('%d.%m.%Y')
     x_axis.setLabel(date, **{'color': 'k', 'font-size': '14pt'})
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
-                                yMin=min(data), yMax=max(data))
-    label = pg.LabelItem(justify='left', size='10pt', color='black')
-    win.addItem(label, row=2, col=0)
-    mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text='Time: {x}')
+                                yMin=min(all_data), yMax=max(all_data))
+    label_item = pg.LabelItem(justify='left', size='10pt', color='black')
+    win.addItem(label_item, row=2, col=0)
+    label_text = 'Time: {x} | '+y_label+': {y:1e}'
+    mouse_moved = tracker_factory(plot=plot, label=label_item, dt=dt, label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     pg.exec()
 
@@ -142,9 +156,10 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         plot.getViewBox().setLimits(xMin=-np.inf, xMax=np.inf)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
+        label_text = x_axis.labelText+': {x} | '+y_label+': {y:1e}'
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dx=dx,
-                                                             label_text=x_axis.labelText+': {x}'))
+                                                             label_text=label_text))
     def switch_axis():
         if button.text() == 'Distance':
             button.setText('Channel')
@@ -162,9 +177,9 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     win.addItem(proxy_container, row=2, col=0)
     pg.exec()
 
-def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
+def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.ndarray,
                   y_label: str = 'Amplitude', x_label: str = 'Frequency [Hz]',
-                  title: str = '') -> None:
+                  title: str = '', labels: list[str] | None = None) -> None:
     '''
     Generate generic amplitude over frequency plot
 
@@ -172,36 +187,47 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
     ----------
     frequencies : np.ndarray
         Array containing frequency values.
-    amplitudes : np.ndarray
-        Array containing amplitudes to plot.
+    amplitudes : list[np.ndarray] | np.ndarray
+        Single array or list of arrays containing amplitudes to plot.
     y_label : str, optional
         y-axis label.
     x_label : str, optional
         x-axis label.
     title : str, optional
         Title of plot.
-
+    labels : list[str] | None, optional
+        Legend labels for each amplitude array. If None, no legend is shown.
     Returns
     -------
     None
         -
     '''
-
+    if isinstance(amplitudes, np.ndarray) and amplitudes.ndim == 1:
+        amplitudes = [amplitudes]
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
     plot.setLabel('bottom', x_label, **{'color': 'k', 'font-size': '14pt'})
-    dx = frequencies[1]-frequencies[0]
-    plot.plot(frequencies, amplitudes, pen=pg.mkPen('k', width=1))
+    dx = frequencies[1] - frequencies[0]
+    if labels is not None:
+        plot.addLegend(pen='k', labelTextColor='k')
+    all_amplitudes = np.concatenate(amplitudes)
+    n = amplitudes.shape[1] if isinstance(amplitudes, np.ndarray) else len(amplitudes)
+    colors = get_colors(n, colormap='tab10')
+    for i, amp in enumerate(amplitudes.T):
+        label = labels[i] if labels is not None else None
+        plot.plot(frequencies, amp, pen=pg.mkPen(colors[i], width=1), name=label)
     plot.setXRange(min(frequencies), max(frequencies), padding=0)
     plot.getViewBox().setLimits(xMin=min(frequencies), xMax=max(frequencies),
-                                yMin=min(amplitudes), yMax=max(amplitudes))
+                                yMin=min(all_amplitudes), yMax=max(all_amplitudes))
     text_label, h_layout, container = get_bottom_layout()
-    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=x_axis.labelText+': {x:.2f}')
+    label_text = x_axis.labelText + ': {x:.2f} | '+y_label+': {y:e}'
+    mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
     pg.exec()
+
 
 '''Matrix Plot Functions'''
 
@@ -268,7 +294,8 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                                     yMin=min(y_vals)-dy/2, yMax=max(y_vals)+dy/2)
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
-                                                             label_text='Time: {x} | '+y_axis.labelText+': {y}'))
+                                                             label_text='Time: {x} | '+y_axis.labelText+': {y} | '+cbar_label+' : {z:2e}',
+                                                             item=image))
     if distances is not None:
         h_layout.addWidget(button := get_axis_button())
 
@@ -333,6 +360,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     None
         -.
     '''
+    cbar_label=cbar_label.title()
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title)
     dy = y_ticks[1]-y_ticks[0]
     y_min, y_max = y_ticks[0], y_ticks[-1]
@@ -363,9 +391,10 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         plot.setXRange(min(x_vals)-dx/2, max(x_vals)+dx/2, padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals)-dx/2, xMax=max(x_vals)+dx/2,
                                     yMin=min(y_ticks)-dy/2, yMax=max(y_ticks)+dy/2)
+        label_text = x_axis.labelText+': {x} | '+y_label+': {y:.2f} | '+cbar_label+': {z:e}'
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dx=dx, dy=dy,
-                                                             label_text=x_axis.labelText+': {x} | '+y_label+': {y:.2f}'))
+                                                             label_text=label_text, item=image))
 
     def switch_axis():
         if button.text() == 'Distance':
@@ -419,19 +448,33 @@ def get_layout(size: tuple = (1200, 600), win_title: str = None,
     return win, app, plot, y_axis, x_axis
 
 def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
-                    dt:float = None, dx:float = None, dy: float = None):
+                    dt: float = None, dx: float = None, dy: float = None,
+                    item: pg.ImageItem = None):
     '''Factory that returns a function tracking the mouse position and displays it in data units'''
     x_step = dt or dx
+
     def mouse_moved(evt):
         pos = evt[0]
-        if plot.sceneBoundingRect().contains(pos):
-            mp = plot.vb.mapSceneToView(pos)
-            x = round(mp.x()/x_step)*x_step
-            y = round(mp.y()/dy)*dy if dy is not None else mp.y()
-            if dt is not None:
-                x = datetime.datetime.utcfromtimestamp(x).strftime(
-                    '%Y-%m-%d %H:%M:%S.%f')
+        if not plot.sceneBoundingRect().contains(pos):
+            label.setText('')
+            return
+        mp = plot.vb.mapSceneToView(pos)
+        x = round(mp.x() / x_step) * x_step
+        y = round(mp.y() / dy) * dy if dy is not None else mp.y()
+        if dt is not None:
+            x = datetime.datetime.utcfromtimestamp(x).strftime('%Y-%m-%d %H:%M:%S.%f')
+        if item is not None and item.image is not None:
+            mp2 = plot.vb.mapFromViewToItem(item, mp)
+            col = round(mp2.x())
+            row = round(mp2.y())
+            if 0 <= col < item.image.shape[0] and 0 <= row < item.image.shape[1]:
+                z = item.image[col, row]
+                label.setText(label_text.format(x=x, y=y, z=z))
+            else:
+                label.setText(label_text.rsplit(' | ', 1)[0].format(x=x, y=y))
+        else:
             label.setText(label_text.format(x=x, y=y))
+
     return mouse_moved
 
 def get_axis_button() -> QtWidgets.QPushButton:
@@ -461,3 +504,8 @@ def get_bottom_layout():
     text_label.setStyleSheet('color: black; font-size: 10pt;')
     h_layout.addWidget(text_label)
     return text_label, h_layout, container
+
+def get_colors(n, colormap='tab10'):
+    '''Returns a set of n unique colors from a colormap'''
+    cmap = plt.get_cmap(colormap, n)
+    return [tuple(int(x * 255) for x in cmap(i)[:3]) for i in range(n)]
