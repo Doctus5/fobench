@@ -147,7 +147,6 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     text_label, h_layout, container = get_bottom_layout()
     h_layout.addWidget(button := get_axis_button())
     state = {'x_vals': channels_num, 'dx': channels_num[1]-channels_num[0]}
-
     def refresh(x_vals):
         state['x_vals'], state['dx'] = x_vals, x_vals[1]-x_vals[0]
         dx = state['dx']
@@ -155,7 +154,8 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         plot.plot(x_vals, data, pen=pg.mkPen('k', width=1))
         plot.getViewBox().setLimits(xMin=-np.inf, xMax=np.inf)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
-        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals))
+        plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals),
+                                    yMin=0, yMax=max(data))
         label_text = x_axis.labelText+': {x} | '+y_label+': {y:1e}'
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dx=dx,
@@ -432,8 +432,7 @@ def get_layout(size: tuple = (1200, 600), win_title: str = None,
 
     win = pg.GraphicsLayoutWidget(show=True)
     win.setWindowTitle(f'Fobench: {win_title}')
-    win.setWindowIcon(QtGui.QIcon(
-        str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent/'logo.png')))
     win.setBackground('w')
     win.resize(*size)
     plot = win.addPlot(title=win_title)
@@ -459,8 +458,8 @@ def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
             label.setText('')
             return
         mp = plot.vb.mapSceneToView(pos)
-        x = round(mp.x() / x_step) * x_step
-        y = round(mp.y() / dy) * dy if dy is not None else mp.y()
+        x = round(mp.x()/x_step)*x_step
+        y = round(mp.y()/dy)*dy if dy is not None else mp.y()
         if dt is not None:
             x = datetime.datetime.utcfromtimestamp(x).strftime('%Y-%m-%d %H:%M:%S.%f')
         if item is not None and item.image is not None:
@@ -491,7 +490,7 @@ def get_colorscale_button() -> QtWidgets.QPushButton:
     button.setFixedWidth(110)
     return button
 
-def reset_scale(bar, vmin, vmax) -> None:
+def reset_scale(bar: pg.ColorBarItem, vmin: float, vmax: float) -> None:
     '''Function to resest the colorscale to original values'''
     bar.setLevels(values=(vmin, vmax))
 
@@ -505,7 +504,7 @@ def get_bottom_layout():
     h_layout.addWidget(text_label)
     return text_label, h_layout, container
 
-def get_colors(n, colormap='tab10'):
-    '''Returns a set of n unique colors from a colormap'''
+def get_colors(n: int, colormap:str = 'tab10') -> list[tuple[int, int, int]]:
+    '''Returns a set of n unique colors from a plt colormap'''
     cmap = plt.get_cmap(colormap, n)
-    return [tuple(int(x * 255) for x in cmap(i)[:3]) for i in range(n)]
+    return [tuple(int(x*255) for x in cmap(i)[:3]) for i in range(n)]

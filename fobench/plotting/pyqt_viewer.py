@@ -161,7 +161,7 @@ class Viewer(QtWidgets.QMainWindow):
 
         # dropdown data analysis menu
         self.dropdown_data = QtWidgets.QComboBox()
-        self.dropdown_data.addItems(['Data Analysis', 'RMSA', 'P2PA', 'f-x Plot'])
+        self.dropdown_data.addItems(['Data Analysis', 'RMSA', 'P2PA', 'fx Plot'])
         self.dropdown_data.setToolTip('Basic Data Analysis Methods')
         self.dropdown_data.currentIndexChanged.connect(self.on_dropdown_data_changed)
         self.dock_3.addWidget(self.dropdown_data, row=5, col=0)
@@ -245,7 +245,7 @@ class Viewer(QtWidgets.QMainWindow):
         '''Detects selection of method in dropdown data menu'''
         actions = {'RMSA': self.plot_rmsa,
                    'P2PA': self.plot_p2pa,
-                   'f-x Plot': self.plot_fx,}
+                   'fx Plot': self.plot_fx,}
         action = actions.get(self.dropdown_data.currentText())
         if action: action()
         self.dropdown_data.setCurrentIndex(0)
@@ -277,17 +277,22 @@ class Viewer(QtWidgets.QMainWindow):
         spectrogram_data = np.flip(spectrogram_data.T, axis=1)
         x_min, x_max = self.times[0], self.times[-1]
         y_min, y_max = freqs.min(), freqs.max()
-
+        cmap = pg.colormap.get('viridis', source='matplotlib')
+        spec_max = np.percentile(spectrogram_data, 95)
         spectrogram_plot_widget = pg.GraphicsLayoutWidget()
         spectrogram_plot = spectrogram_plot_widget.addPlot()
         spectrogram_plot.setAspectLocked(False)
         spectrogram_plot.setLabel('left', 'Frequency [Hz]')
         spectrogram_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
         spectrogram_image = pg.ImageItem()
-        spectrogram_image.setImage(spectrogram_data, levels=(spectrogram_data.min(), spectrogram_data.max()))
-        spectrogram_image.setLookupTable(pg.colormap.get('viridis', source='matplotlib').getLookupTable())
+        spectrogram_image.setImage(spectrogram_data, levels=(0, spec_max))
+        spectrogram_image.setLookupTable(cmap.getLookupTable())
         spectrogram_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
         spectrogram_plot.addItem(spectrogram_image)
+        bar = pg.ColorBarItem(colorMap=cmap, values=(0, spec_max),
+                              interactive=True, label=self.Fiber.units.title(),
+                              rounding=0.001*(spectrogram_data.max()-spectrogram_data.min()))
+        bar.setImageItem(spectrogram_image, insert_in=spectrogram_plot)
         spectrogram_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)
         self.dock_spec = Dock(f'Spectrogram Ch {self.selected_channel}', size=(1200, 200), closable=True)
         self.area.addDock(self.dock_spec, 'above', self.dock_2)
@@ -313,7 +318,8 @@ class Viewer(QtWidgets.QMainWindow):
         fx_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
         fx_plot.addItem(fx_image)
         bar = pg.ColorBarItem(colorMap=cmap, values=(-fx_abs_max, fx_abs_max),
-                              interactive=True, rounding=0.001*(np.nanmax(fx)-np.nanmin(fx)))
+                              interactive=True, rounding=0.001*(np.nanmax(fx)-np.nanmin(fx)),
+                              label=self.Fiber.units.title())
         bar.setImageItem(fx_image, insert_in=fx_plot)
         fx_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)
         self.dock_fx = Dock('Frequency-Distance', size=(1200, 600), closable=True)
