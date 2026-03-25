@@ -21,7 +21,7 @@ class Viewer(QtWidgets.QMainWindow):
     '''Interactive GUI for exploring Fiber Optic Sensing data'''
     def __init__(self, Fiber: object) -> None:
         super().__init__()
-        pg.setConfigOptions(background='w', foreground='k') # set background color to white
+        pg.setConfigOptions(background='w', foreground='k')
 
         # set up Fiber class information
         self.Fiber = Fiber
@@ -78,16 +78,20 @@ class Viewer(QtWidgets.QMainWindow):
         self.matrix_plot_widget.addItem(self.matrix_label, row=1, col=0)
 
         def mouse_moved(evt):
-            mouse_point = self.matrix_plot.getViewBox().mapSceneToView(evt[0])
+            mouse_point = self.matrix_plot.vb.mapSceneToView(evt[0])
             dt = Fiber.dt
             dy = self._y_state['dy']
+            y_label_text = self.matrix_plot.getAxis('left').labelText
             x_snapped = round(mouse_point.x()/dt)*dt
             x_str = datetime.datetime.utcfromtimestamp(x_snapped).strftime('%Y-%m-%d %H:%M:%S.%f')
             y_snapped = round(mouse_point.y()/dy)*dy
-            y_label_text = self.matrix_plot.getAxis('left').labelText
-            self.matrix_label.setText(
-                f'Time: {x_str} | {y_label_text}: {y_snapped:.1f}', color='k')
-
+            mouse_point2 = self.matrix_plot.vb.mapFromViewToItem(self.matrix_image, mouse_point)
+            col = round(mouse_point2.x())
+            row = round(mouse_point2.y())
+            if 0 <= col < self.matrix_image.image.shape[0] and 0 <= row < self.matrix_image.image.shape[1]:
+                z = self.matrix_image.image[col, row]
+                self.matrix_label.setText(
+                    f'Time: {x_str} | {y_label_text}: {y_snapped:.1f} | {self.Fiber.units.title()}: {z:e}', color='k')
         self.matrix_mouse_proxy = pg.SignalProxy(self.matrix_plot.scene().sigMouseMoved,
             rateLimit=60, slot=mouse_moved)
 
@@ -97,6 +101,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.line_plot.setAxisItems({'bottom': pg.DateAxisItem(utcOffset=1)})
         self.line_curve = self.line_plot.plot(pen='k')
         self.line_plot.setXLink(self.matrix_plot)
+        self.line_plot.setLabel('left', f'{self.Fiber.units.title()}')
         self.dock_2.addWidget(self.line_plot_widget)
 
         # cursor tracking for channel plot
@@ -107,8 +112,9 @@ class Viewer(QtWidgets.QMainWindow):
             mouse_point = self.line_plot.getViewBox().mapSceneToView(evt[0])
             dt = Fiber.dt
             x_snapped = round(mouse_point.x()/dt)*dt
+            y = mouse_point.y()
             x_str = datetime.datetime.utcfromtimestamp(x_snapped).strftime('%Y-%m-%d %H:%M:%S.%f')
-            self.line_label.setText(f'Time: {x_str}', color='k')
+            self.line_label.setText(f'Time: {x_str} | {self.Fiber.units.title()}: {y:e}', color='k')
 
         self.line_mouse_proxy = pg.SignalProxy(self.line_plot.scene().sigMouseMoved,
             rateLimit=60, slot=line_mouse_moved)
@@ -118,7 +124,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.hist = pg.HistogramLUTItem(image=self.matrix_image)
         self.hist.setToolTip('Right click to change colormap')
         self.hist.gradient.setColorMap(pg.colormap.get('seismic', source='matplotlib'))
-        self.hist.axis.setLabel(Fiber.units)
+        self.hist.axis.setLabel(Fiber.units.title())
         self.hist_widget = pg.GraphicsLayoutWidget()
         self.hist_widget.addItem(self.hist)
         self.dock_3.addWidget(self.hist_widget, row=0, col=0)
@@ -162,14 +168,14 @@ class Viewer(QtWidgets.QMainWindow):
 
         # link-unlink button
         self.link_button = QtWidgets.QPushButton('Unlink X-Axis')
-        self.link_button.setToolTip('Toggle x-axis linking between main and channel plot')
+        self.link_button.setToolTip('Toggle X-axis linking between main and channel plot')
         self.link_button.setCheckable(True)
         self.link_button.clicked.connect(self.on_link_button_clicked)
         self.dock_3.addWidget(self.link_button, row=6, col=0)
 
         # y-axis switch button
         self.y_axis_button = QtWidgets.QPushButton('Channel')
-        self.y_axis_button.setToolTip('Switch Y-Axis between Optical Distance and Channel Number')
+        self.y_axis_button.setToolTip('Switch Y-axis between Optical Distance and Channel Number')
         self.y_axis_button.clicked.connect(self.on_y_axis_button_clicked)
         self.dock_3.addWidget(self.y_axis_button, row=7, col=0)
 
@@ -370,6 +376,7 @@ class Viewer(QtWidgets.QMainWindow):
         percentile = self.cbar_spinbox.value()
         abs_percentile = np.percentile(np.abs(self.Fiber.data), percentile)
         self.hist.setLevels(-abs_percentile, abs_percentile)
+
 
     def on_link_button_clicked(self) -> None:
         '''Handles (un)linking of x-axis'''
