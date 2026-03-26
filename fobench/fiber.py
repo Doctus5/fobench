@@ -527,7 +527,7 @@ class Fiber(object):
 
 		if plot_mode == 'pyqt':
 			p95 = np.percentile(fx, 95)
-			if vmin is None: vmin = -p95
+			if vmin is None: vmin = 0
 			if vmax is None: vmax = p95
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
 							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
@@ -553,9 +553,13 @@ class Fiber(object):
 		"""
 
 		axis = self.__axis__('t')
+		if isinstance(channel, np.ndarray):
+			channel = sorted(channel)
 		if isinstance(channel, tuple):
-			channel = list(range(channel[0], channel[1]+1))
-		elif not isinstance(channel, list):
+			channel = list(range(min(channel), max(channel) + 1))
+		elif isinstance(channel, list):
+			channel = sorted(channel)
+		else:
 			channel = [channel]
 		ch_idx = np.array([self.channels_num.index(ch) for ch in channel])
 		o_signal = np.take(self.data, indices=ch_idx, axis=self.__axis__('d'))
@@ -582,10 +586,15 @@ class Fiber(object):
 		generates simple plot of channel data
 		for mpl mode see fobench.plotting.plotting_mpl.simple_plot for details
 		'''
+		if isinstance(channel, np.ndarray):
+			channel = sorted(channel)
 		if isinstance(channel, tuple):
-			channel = list(range(channel[0], channel[1] + 1))
-		elif not isinstance(channel, list):
+			channel = list(range(min(channel), max(channel) + 1))
+		elif isinstance(channel, list):
+			channel = sorted(channel)
+		else:
 			channel = [channel]
+
 		ch_idx = np.array([self.channels_num.index(ch) for ch in channel])
 		selected = np.take(self.data, indices=ch_idx, axis=self.__axis__('d'))
 
@@ -667,14 +676,18 @@ class Fiber(object):
 		will be plotted
 		'''
 
+		if isinstance(channels, np.ndarray):
+			channels = channels.tolist()
+
 		if isinstance(channels, tuple):
-			ch0, chf = map(int, channels)
+			ch0, chf = sorted(map(int, channels))
 			ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
 			ch_idx = slice(ch0, chf + 1)
-
 		elif isinstance(channels, list):
 			channels = list(map(int, channels))
 			ch_idx = sorted(self.channels_num.index(ch) for ch in channels)
+		else:
+			raise TypeError(f'Invalid type for channels: {type(channels).__name__}. Expected tuple, list, or np.ndarray.')
 
 		das_data = self.data[:, ch_idx]
 		das_channels = np.array(self.channels_num)[ch_idx]
@@ -694,12 +707,9 @@ class Fiber(object):
 		for more details
 		'''
 		axis = self.__axis__('t')
-
 		max_shift = int(max_lag*self.sampling_frequency)
-
 		if max_shift >= self.num_points:
-			raise ValueError('selected max_shift is too large')
-
+			raise ValueError('Selected max_shift is too large')
 		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
 												deconvolve, self.total_channels,
 												self.distances, self.channels_num,

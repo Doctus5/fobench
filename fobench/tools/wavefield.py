@@ -52,8 +52,8 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
     np.fill_diagonal(coherence_matrix, 1.0)
     if plot_mode == 'pyqt':
         if not channel_nums: channel_nums = np.arange(0, n_ch)
-        if vmin is None: vmin = coherence_matrix.min()
-        if vmax is None: vmax = coherence_matrix.max()
+        vmin = vmin if vmin is not None else -1
+        vmax = vmax if vmax is not None else 1
         plot_pyqt.plot_2d_distance(distances=distances, data=coherence_matrix,
                          y_ticks=channel_nums, channels_num=channel_nums,
                          y_label = 'Channel #', x_label = 'Channel #',

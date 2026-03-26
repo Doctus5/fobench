@@ -161,7 +161,7 @@ class Viewer(QtWidgets.QMainWindow):
 
         # dropdown data analysis menu
         self.dropdown_data = QtWidgets.QComboBox()
-        self.dropdown_data.addItems(['Data Analysis', 'RMSA', 'P2PA', 'fx Plot'])
+        self.dropdown_data.addItems(['Data Analysis', 'RMSA', 'P2PA', 'fx-Plot'])
         self.dropdown_data.setToolTip('Basic Data Analysis Methods')
         self.dropdown_data.currentIndexChanged.connect(self.on_dropdown_data_changed)
         self.dock_3.addWidget(self.dropdown_data, row=5, col=0)
@@ -245,7 +245,7 @@ class Viewer(QtWidgets.QMainWindow):
         '''Detects selection of method in dropdown data menu'''
         actions = {'RMSA': self.plot_rmsa,
                    'P2PA': self.plot_p2pa,
-                   'fx Plot': self.plot_fx,}
+                   'fx-Plot': self.plot_fx,}
         action = actions.get(self.dropdown_data.currentText())
         if action: action()
         self.dropdown_data.setCurrentIndex(0)
@@ -312,12 +312,12 @@ class Viewer(QtWidgets.QMainWindow):
         fx_plot.setLabel('bottom', 'Optical Distance [m]')
         cmap = pg.colormap.get('viridis', source='matplotlib')
         fx_image = pg.ImageItem()
-        fx_abs_max = np.percentile(np.abs(fx), 95)
-        fx_image.setImage(fx.T, levels=(-fx_abs_max, fx_abs_max))
+        fx_abs_max = np.percentile(fx, 95)
+        fx_image.setImage(fx.T)
         fx_image.setLookupTable(cmap.getLookupTable())
         fx_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
         fx_plot.addItem(fx_image)
-        bar = pg.ColorBarItem(colorMap=cmap, values=(-fx_abs_max, fx_abs_max),
+        bar = pg.ColorBarItem(colorMap=cmap, values=(0, fx_abs_max),
                               interactive=True, rounding=0.001*(np.nanmax(fx)-np.nanmin(fx)),
                               label=self.Fiber.units.title())
         bar.setImageItem(fx_image, insert_in=fx_plot)

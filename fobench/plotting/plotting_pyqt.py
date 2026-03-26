@@ -155,7 +155,7 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         plot.getViewBox().setLimits(xMin=-np.inf, xMax=np.inf)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals),
-                                    yMin=0, yMax=max(data))
+                                    yMin=min(data), yMax=max(data))
         label_text = x_axis.labelText+': {x} | '+y_label+': {y:1e}'
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dx=dx,
@@ -212,7 +212,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
         plot.addLegend(pen='k', labelTextColor='k')
     all_amplitudes = np.concatenate(amplitudes)
     n = amplitudes.shape[1] if isinstance(amplitudes, np.ndarray) else len(amplitudes)
-    colors = get_colors(n, colormap='tab10')
+    colors = ['k'] if n == 1 else get_colors(n, colormap='tab10')
     for i, amp in enumerate(amplitudes.T):
         label = labels[i] if labels is not None else None
         plot.plot(frequencies, amp, pen=pg.mkPen(colors[i], width=1), name=label)
@@ -235,38 +235,8 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                        dt: float, vmin: float = None, vmax: float = None, y_label: str = '',
                        title: str = '', cmap: str = 'seismic',
                        cbar_label: str = '', distances: np.ndarray = None) -> None:
-    '''
-    Generate generic matrix plot where x-axis represents time, e.g.
-    waterfall visualisation of data or spectrograms, PSDs, RMSA ...
+    cbar_label = cbar_label.title()
 
-    Parameters
-    ----------
-    timestamps : np.ndarray
-        Array containing Unix timestamps of data.
-    data : np.ndarray
-        Array containing data to plot.
-    y_ticks : list
-        y-axis tick labels.
-    dt : float
-        Sampling period of data.
-    vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
-    y_label : str, optional
-        y-axis label.
-    title : str, optional
-        Plot title.
-    cmap : str, optional
-        Colormap to use. The default is 'seismic'.
-    cbar_label : str, optional
-        Label of colorbar.
-    distances : np.ndarray, optional
-        Optional distances to use for y-axis.
-
-    Returns
-    -------
-    None
-        -.
-    '''
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title,
                                                  x_is_time=True)
     plot.setLabel('left', y_label, **{'color': 'k', 'font-size': '14pt'})
@@ -278,27 +248,25 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     plot.addItem(image)
     image.setImage(data)
     text_label, h_layout, container = get_bottom_layout()
-    h_layout.addWidget(scale_button := get_colorscale_button())
-    state = {'y_vals':y_ticks, 'dy':y_ticks[1]-y_ticks[0]}
+    state = {'y_vals': y_ticks, 'dy': y_ticks[1] - y_ticks[0]}
 
     def refresh(y_vals):
-        state['y_vals'], state['dy'] = y_vals, y_vals[1]-y_vals[0]
+        state['y_vals'], state['dy'] = y_vals, y_vals[1] - y_vals[0]
         dy = state['dy']
         y_min, y_max = y_vals[0], y_vals[-1]
-        image.setRect(x_min, y_min-dy/2, x_max-x_min, y_max-y_min+dy)
+        image.setRect(x_min, y_min - dy / 2, x_max - x_min, y_max - y_min + dy)
         plot.setXRange(x_min, x_max, padding=0)
+        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=-np.inf, yMax=np.inf)
+        plot.setYRange(min(y_vals) - dy / 2, max(y_vals) + dy / 2, padding=0)
         plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
-                                    yMin=-np.inf, yMax=np.inf)
-        plot.setYRange(min(y_vals)-dy/2, max(y_vals)+dy/2, padding=0)
-        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
-                                    yMin=min(y_vals)-dy/2, yMax=max(y_vals)+dy/2)
+                                    yMin=min(y_vals) - dy / 2, yMax=max(y_vals) + dy / 2)
         state['proxy'] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dt=dt, dy=dy,
-                                                             label_text='Time: {x} | '+y_axis.labelText+': {y} | '+cbar_label+' : {z:2e}',
+                                                             label_text='Time: {x} | ' + y_axis.labelText + ': {y} | ' + cbar_label + ' : {z:2e}',
                                                              item=image))
+
     if distances is not None:
         h_layout.addWidget(button := get_axis_button())
-
         def switch_axis():
             if button.text() == 'Distance':
                 button.setText('Channel')
@@ -308,20 +276,25 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                 button.setText('Distance')
                 plot.setLabel('left', 'Channel', **{'color': 'k', 'font-size': '14pt'})
                 refresh(y_ticks)
-
         button.clicked.connect(switch_axis)
     refresh(y_ticks)
-    data_range = np.nanmax(data)-np.nanmin(data)
-    cmap = pg.colormap.get(cmap, source='matplotlib')
-    bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax),
-                          label=cbar_label, interactive=True, rounding=0.0001*data_range)
+    data_range = np.nanmax(data) - np.nanmin(data)
+    data_min, data_max = np.nanmin(data), np.nanmax(data)
+
+    cmap_obj = pg.colormap.get(cmap, source='matplotlib')
+    _vmin = vmin if vmin is not None else data_min
+    _vmax = vmax if vmax is not None else data_max
+    bar = pg.ColorBarItem(colorMap=cmap_obj, values=(_vmin, _vmax),
+                          label=cbar_label, interactive=True, rounding=0.0001 * data_range)
     bar.setImageItem(image, insert_in=plot)
+    h_layout.addWidget(scale_button := get_colorscale_button())
     scale_button.clicked.connect(lambda: reset_scale(bar, vmin, vmax))
+    h_layout.addWidget(get_vminmax_button(bar))
+
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
     pg.exec()
-
 
 def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
                      data: np.ndarray, y_ticks: list, vmin: float = None, vmax: float = None,
@@ -378,7 +351,6 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     plot.getViewBox().setLimits(yMin=min(y_ticks)-dy/2, yMax=max(y_ticks)+dy/2)
     text_label, h_layout, container = get_bottom_layout()
     h_layout.addWidget(button := get_axis_button())
-    h_layout.addWidget(scale_button := get_colorscale_button())
     state = {'x_vals': channels_num, 'dx': channels_num[1]-channels_num[0]}
 
     def refresh(x_vals):
@@ -413,8 +385,9 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax), label=cbar_label,
                           interactive=True, rounding=0.0001*data_range)
     bar.setImageItem(image, insert_in=plot)
-
+    h_layout.addWidget(scale_button := get_colorscale_button())
     scale_button.clicked.connect(lambda: reset_scale(bar, vmin, vmax))
+    h_layout.addWidget(get_vminmax_button(bar))
 
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
@@ -488,6 +461,58 @@ def get_colorscale_button() -> QtWidgets.QPushButton:
     button = QtWidgets.QPushButton('Reset colorscale')
     button.setToolTip('Resets the colorscale to initial values')
     button.setFixedWidth(110)
+    return button
+
+def get_vminmax_button(bar: pg.ColorBarItem) -> QtWidgets.QPushButton:
+    '''Returns a button to open dialog to set vmin/vmax values'''
+    button = QtWidgets.QPushButton('Set Range')
+    button.setToolTip('Modify vmin and vmax of colorscale')
+    button.setFixedWidth(70)
+
+    def open_vminmax_dialog():
+        dialog = QtWidgets.QDialog()
+        dialog.setWindowTitle('Set Colorbar Range')
+        dialog.setFixedWidth(280)
+        layout = QtWidgets.QFormLayout(dialog)
+        layout.setSpacing(10)
+
+        o_vmin, o_vmax = bar.levels()
+        vmin_input = QtWidgets.QLineEdit(f'{o_vmin:.6g}')
+        vmax_input = QtWidgets.QLineEdit(f'{o_vmax:.6g}')
+        layout.addRow('vmin:', vmin_input)
+        layout.addRow('vmax:', vmax_input)
+
+        error_label = QtWidgets.QLabel('')
+        error_label.setStyleSheet('color: red; font-size: 11px;')
+        layout.addRow(error_label)
+
+        btn_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        layout.addRow(btn_box)
+
+        def apply():
+            try:
+                new_vmin = float(vmin_input.text())
+                new_vmax = float(vmax_input.text())
+            except ValueError:
+                error_label.setText('Please enter valid numbers.')
+                return
+            if new_vmin >= new_vmax:
+                error_label.setText('vmin must be less than vmax.')
+                return
+            error_label.setText('')
+            bar.setLevels((new_vmin, new_vmax))
+        vmin_input.textChanged.connect(apply)
+        vmax_input.textChanged.connect(apply)
+
+        def on_cancel():
+            bar.setLevels((o_vmin, o_vmax))
+            dialog.reject()
+
+        btn_box.accepted.connect(dialog.accept)
+        btn_box.rejected.connect(on_cancel)
+        dialog.exec_()
+    button.clicked.connect(open_vminmax_dialog)
     return button
 
 def reset_scale(bar: pg.ColorBarItem, vmin: float, vmax: float) -> None:
