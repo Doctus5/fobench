@@ -131,12 +131,14 @@ class Fiber(object):
 		'''
 		print out metadata, optionally return all metadata as dictionary
 		'''
-		for prop, value in self.properties.items():
-			print(f"{prop} = {value}")
 
 		if meta_dict:
 			metainfo = {key: value for key, value in vars(self).items() if not key.startswith('__')}
 			return metainfo
+
+		else:
+			for prop, value in self.properties.items():
+				print(f"{prop} = {value}")
 
 	def copy(self):
 		'''
