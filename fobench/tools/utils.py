@@ -622,6 +622,179 @@ def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: 
 	return np.moveaxis(out_arr, 0, axis)
 
 
+
+def _to_seconds(value) -> float:
+    
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        
+        return float(value)
+    
+    return float(UTC(value))
+
+
+def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
+    
+    x = np.arange(data.shape[0])
+    
+    for j in range(data.shape[1]):
+        
+        y = data[:, j]
+        valid = np.isfinite(y)
+        
+        if np.any(valid) and not np.all(valid):
+            
+            y[~valid] = np.interp(x[~valid], x[valid], y[valid])
+    
+    return data
+
+
+def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2, 
+                      dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
+                      out: np.ndarray = None) -> np.ndarray:
+	"""2D concatenaiton of matrices with time series data.
+
+	Parameters
+	----------
+	data1 : np.ndarray
+		_description_
+	data2 : np.ndarray
+		_description_
+	start1 : _type_
+		_description_
+	end1 : _type_
+		_description_
+	dt1 : float
+		_description_
+	start2 : _type_
+		_description_
+	end2 : _type_
+		_description_
+	dt2 : float
+		_description_
+	axis : int, optional
+		_description_, by default 0
+	overlap : str, optional
+		_description_, by default 'data2'
+	gap : str, optional
+		_description_, by default 'nan'
+	tolerance : float, optional
+		_description_, by default 1.0
+	out : np.ndarray, optional
+		_description_, by default None
+
+	Returns
+	-------
+	np.ndarray
+		_description_
+
+	Raises
+	------
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	"""
+
+	if data1.ndim != 2 or data2.ndim != 2:
+		raise ValueError('Both inputs must be 2D matrices.')
+	if axis not in (0, 1):
+		raise ValueError('axis must be 0 or 1.')
+	if overlap not in ('data1', 'data2', 'mean'):
+		raise ValueError('overlap must be "data1", "data2", or "mean".')
+	if gap not in ('nan', 'zero', 'linear'):
+		raise ValueError('gap must be "nan", "zero", or "linear".')
+
+	a = np.moveaxis(data1, axis, 0)
+	b = np.moveaxis(data2, axis, 0)
+	if a.shape[1] != b.shape[1]:
+		raise ValueError('Input shapes are incompatible on non-concatenation axis.')
+
+	if not np.isclose(dt1, dt2):
+		raise ValueError(f'dt mismatch: dt1={dt1}, dt2={dt2}.')
+	dt = float(dt1)
+	if dt <= 0:
+		raise ValueError('dt must be positive.')
+
+	s1, e1 = _to_seconds(start1), _to_seconds(end1)
+	s2, e2 = _to_seconds(start2), _to_seconds(end2)
+	n1_exp = int(round((e1 - s1) / dt)) + 1
+	n2_exp = int(round((e2 - s2) / dt)) + 1
+	if abs(n1_exp - a.shape[0]) > 1 or abs(n2_exp - b.shape[0]) > 1:
+		raise ValueError('Start/end/dt are not consistent with input matrix length.')
+
+	# Snap data2 to data1 grid.
+	off = (s2 - s1) / dt
+	off_r = int(round(off))
+	adjust_sec = abs(off - off_r) * dt
+	if adjust_sec > (tolerance * dt):
+		raise ValueError(f'Time adjustment too large ({adjust_sec:.6f}s > {tolerance * dt:.6f}s).')
+
+	# Scalar arithmetic only (no large index arrays).
+	n1, n2 = a.shape[0], b.shape[0]
+	i0 = min(0, off_r)
+	a0 = -i0
+	b0 = off_r - i0
+	n_out = max(a0 + n1, b0 + n2)
+	sa = slice(a0, a0 + n1)
+	sb = slice(b0, b0 + n2)
+
+	out_dtype = float if (gap in ('nan', 'linear') or overlap == 'mean') else np.result_type(a.dtype, b.dtype)
+	shape_out = (n_out, a.shape[1])
+
+	if out is not None:
+		if out.shape != shape_out:
+			raise ValueError(f'Provided out has wrong shape {out.shape}, expected {shape_out}.')
+		if not np.can_cast(out_dtype, out.dtype, casting='safe'):
+			raise ValueError(f'Provided out dtype {out.dtype} is incompatible with required {out_dtype}.')
+		out_arr = out
+		out_arr[:] = np.nan if gap in ('nan', 'linear') else 0
+	else:
+		if gap in ('nan', 'linear'):
+			out_arr = np.full(shape_out, np.nan, dtype=out_dtype)
+		else:
+			out_arr = np.zeros(shape_out, dtype=out_dtype)
+
+	if overlap == 'data2':
+		out_arr[sa, :] = a
+		out_arr[sb, :] = b
+	elif overlap == 'data1':
+		out_arr[sb, :] = b
+		out_arr[sa, :] = a
+	else:  # overlap == 'mean'
+		out_arr[sa, :] = a
+		out_arr[sb, :] = b
+		ov0 = max(a0, b0)
+		ov1 = min(a0 + n1, b0 + n2)
+		if ov1 > ov0:
+			ia = ov0 - a0
+			ib = ov0 - b0
+			n_ov = ov1 - ov0
+			out_arr[ov0:ov1, :] = 0.5 * (a[ia:ia+n_ov, :] + b[ib:ib+n_ov, :])
+
+	if gap == 'linear':
+		_interp_nan_along_axis0_inplace(out_arr)
+
+	return np.moveaxis(out_arr, 0, axis)
+
+
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 			  start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
 	"""Trims data in Fiber class in time dimension between given start and end times
