@@ -25,7 +25,7 @@ from pyqtgraph.Qt import QtWidgets
 from .tools import file_io, utils, filters, signals, wavefield
 from .plotting import plotting_mpl as plot
 from .plotting import plotting_pyqt as plot_pyqt
-from .plotting.pyqt_explorer import Explorer
+from .plotting.pyqt_viewer import Viewer
 
 
 class Fiber(object):
@@ -477,43 +477,28 @@ class Fiber(object):
 		axis = self.__axis__(dim)
 		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
 		if plot_mode == 'pyqt':
-			plot_pyqt.plot_distance(distances=self.distances, data=snr, y_label='SNR [-]',
-									title='SNR Profile')
+			plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
+									   data=snr, y_label='SNR [-]', title='SNR Profile')
 		if results:
 			return snr
 
-	def rmsa(self, window=None, overlap=None, dim='t', plot_mode='pyqt', results=False):
+	def rmsa(self, window=None, dim='t', plot_mode='pyqt', results=False,
+		  vmin=None, vmax=None):
 		'''
-		computes root mean square amplitude for record
+		computes root mean square amplitude for record, dependign on dimension,
+		window is either seconds ('t') or number of channels ('d')
 		see fobench.tools.wavefield.rmsa for more details
 		'''
 		axis = self.__axis__(dim)
-		window = self.time_length if window == None else window
-		rmsa = wavefield.rmsa(data=self.data, axis=axis, data_length=self.time_length,
-							  window=window)
-		times = np.array_split(self.times('unix'), int(self.time_length/window))
-		times = np.array([time[int(len(time)/2)] for time in times])
-		if window == None or window == self.time_length:
-			if plot_mode == 'pyqt':
-				plot_pyqt.plot_distance(distances=self.distances, data=rmsa[0,:], y_label='RMS Amplitude',
-										title='RMS Amplitude Profile')
-		elif window:
-			if plot_mode == 'pyqt':
-				plot_pyqt.plot_2d_timeseries(timestamps=times, data=rmsa, y_ticks=self.distances,
-											 y_label='Optical Distance [m]',
-											 title=f'RMS Amplitude, {window}s window',
-											 cmap='inferno', cbar_label='RMS Amplitude')
-
-			elif plot_mode == 'mpl':
-				times = np.array_split(self.times('matplotlib'), int(self.time_length/window))
-				times = np.array([time[int(len(time)/2)] for time in times])
-				plot.gen_DAS_plot(data=np.array(rmsa), t=times, channels=self.channels,
-					  cmap='inferno', title = f'RMSA for {window}s window')
-
+		if window is not None and dim == 't': window =  window*self.sampling_frequency
+		rmsa = wavefield.rmsa(data=self.data, axis=axis, window=window, dim=dim,
+							times=self.times('unix'), distances = self.distances,
+							channels_num=self.channels_num, vmin=vmin, vmax=vmax,
+							plot_mode=plot_mode)
 		if results:
-			return times, rmsa
+			return rmsa
 
-	def p2p_amp(self, dim='t', results=True, plot_mode='pyqt'):
+	def p2p_amp(self, dim='t', results=False, plot_mode='pyqt'):
 		'''
 		computes peak-to-peak amplitude of data in time or space
 		see fobench.fiber.tools.wavefield.peak_to_peak_amp for more details
@@ -522,8 +507,8 @@ class Fiber(object):
 		p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
 											 self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
-				plot_pyqt.plot_distance(distances=self.distances, data=p2p_amplitude,
-							  y_label='P2P Amplitude', x_label='Optical Distance [m]',
+				plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
+							data=p2p_amplitude, y_label='P2P Amplitude', x_label='Channel',
 							  title='Peak-to-Peak Amplitude Profile')
 
 		if plot_mode=='pyqt' and dim=='d':
@@ -540,7 +525,7 @@ class Fiber(object):
 	-----------------------------------------------------------------
 	'''
 
-	def fx_plot(self, norm=False, max_value=None, order=1, nfft=None, figsize=None,
+	def fx_plot(self, norm=False, vmin=None, vmax=None, max_value=None, order=1, nfft=None, figsize=None,
 				 show=True, cmap='viridis', results=False, file_name=None,
 				 where=None, plot_mode='pyqt', **kwargs):
 		'''
@@ -554,9 +539,13 @@ class Fiber(object):
 										   order=order, nfft=nfft, norm=norm, axis=axis)
 
 		if plot_mode == 'pyqt':
-			plot_pyqt.plot_2d_distance(distances=self.distances, y_ticks=freqs,
-						data=np.flip(np.rot90(fx, k=1), axis=0), cmap=cmap, max_value=max_value,
-						   y_label='Frequency [Hz]', title='Frequency content over optical distance')
+			p95 = np.percentile(fx, 95)
+			if vmin is None: vmin = 0
+			if vmax is None: vmax = p95
+			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
+							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
+							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
+							  title='Frequency content', cbar_label=self.units)
 
 		elif plot_mode == 'mpl':
 			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
@@ -571,25 +560,33 @@ class Fiber(object):
 				 order=1, pad=0, nfft=None, mode='spectrum', figsize=None, show=True,
 				 nperseg=None, file_name=None, where=None, legend=True, results=False, **kwargs):
 		"""
-		compute spectrum of a channel, mode can be 'spectrum' or 'psd'
+		compute spectrum of channel(s), mode can be 'spectrum' or 'psd'
 		see fobench.tools.signals.signal_spectrum for more details
 		for mpl plotting options see fobench.plotting.plotting_mpl.simple_spectrum
 		"""
 
 		axis = self.__axis__('t')
-
-		ch_idx = self.channels_num.index(channel)
-		o_signal = np.take(self.data, indices=ch_idx, axis=axis)
+		if isinstance(channel, np.ndarray):
+			channel = sorted(channel)
+		if isinstance(channel, tuple):
+			channel = list(range(min(channel), max(channel) + 1))
+		elif isinstance(channel, list):
+			channel = sorted(channel)
+		else:
+			channel = [channel]
+		ch_idx = np.array([self.channels_num.index(ch) for ch in channel])
+		o_signal = np.take(self.data, indices=ch_idx, axis=self.__axis__('d'))
 
 		f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_frequency, mode=mode,
-				norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg)
+				norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg,
+				axis=axis)
 
 		if plot_mode=='pyqt':
-			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}^2/Hz"
-			plot_pyqt.plot_distance(distances=f, data=spec, y_label =f'{units}',
-								x_label='Frequency [Hz]', title= f'{mode} for channel {channel}')
+			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}²/Hz'
+			plot_pyqt.plot_spectral(frequencies=f, amplitudes=spec, y_label =f'{units.title()}',
+								title= f'{mode.title()}' if mode=='spectrum' else f'{mode.upper()}', labels=channel)
 		elif plot_mode=='mpl':
-			units = self.units if mode == 'spectrum' else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
+			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}$^{{2}}$/Hz'
 			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
 						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
 
@@ -602,15 +599,22 @@ class Fiber(object):
 		generates simple plot of channel data
 		for mpl mode see fobench.plotting.plotting_mpl.simple_plot for details
 		'''
+		if isinstance(channel, np.ndarray):
+			channel = sorted(channel)
+		if isinstance(channel, tuple):
+			channel = list(range(min(channel), max(channel) + 1))
+		elif isinstance(channel, list):
+			channel = sorted(channel)
+		else:
+			channel = [channel]
 
-		channel = int(channel)
-		index = self.channels_num.index(channel)
-		selected = self.data[:,index]
+		ch_idx = np.array([self.channels_num.index(ch) for ch in channel])
+		selected = np.take(self.data, indices=ch_idx, axis=self.__axis__('d'))
 
 		if plot_mode=='pyqt':
 			t = self.times(time_type='unix')
 			plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units,
-							 title=f'Channel {channel}')
+							 dt=self.dt, title='Channel Plot', labels=channel)
 
 		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
@@ -618,7 +622,7 @@ class Fiber(object):
 					max_value=max_value, spectrogram=False, show=show, figsize=figsize,
 					title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
 
-	def plot(self, max_value=None, figsize=None, show=True, cmap='seismic',
+	def plot(self, vmin=None, vmax=None, max_value=None, figsize=None, show=True, cmap='seismic',
 		  file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		generates plot of data, for more details see fobench.plotting.plotting_pyqt
@@ -626,9 +630,13 @@ class Fiber(object):
 		'''
 		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=self.distances,
-						data=self.data, y_label='Optical Distance [m]',
-						title='', max_value=max_value, cbar_label=self.units)
+			p95 = np.percentile(self.data, 95)
+			vmin = -p95 if vmin is None else vmin
+			vmax = p95 if vmax is None else vmax
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels_num),
+						data=self.data, y_label='Channel', dt=self.dt,
+						title='', vmin=vmin, vmax=vmax, cbar_label=self.units,
+						distances=self.distances)
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
@@ -638,8 +646,9 @@ class Fiber(object):
 					 file_name=file_name, where=where, add_data=add_data, **kwargs)
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-						 show=True, cmap='viridis', file_name=None, where=None,
-						 freq_lim=None, results=False, make_plot=True, plot_mode='pyqt', **kwargs):
+						show=True, cmap='viridis', file_name=None, where=None,
+						freq_lim=None, results=False, plot_mode='pyqt', vmin=None,
+						vmax=None, **kwargs):
 		'''
 		computes and plots spectrogram for a 'channel', is normalized to maximum value if norm is True
 		if using 'mpl' plot mode, see fobench.plotting.plotting_mpl.simple_spectrogram
@@ -654,13 +663,16 @@ class Fiber(object):
 		f, t, Sxx = signals.signal_spectrogram(data=data, sampling_frequency=self.sampling_frequency,
 										 axis=axis, norm=norm)
 
-		if make_plot is True and plot_mode=='pyqt':
+		if plot_mode == 'pyqt':
 			t = self.times(time_type='unix')
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f,
+			if vmin is None: vmin = 0
+			if vmax is None: vmax = np.percentile(Sxx, 95)
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
 						data=np.rot90(Sxx, k=-1), y_label='Frequency [Hz]',
-						title=f'Spectrogram channel {channel}', cmap='viridis')
+						title=f'Spectrogram channel {channel}', cmap='viridis',
+						vmin=vmin, vmax=vmax, cbar_label=self.units)
 
-		elif make_plot is True and plot_mode=='mpl':
+		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
 			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
 						trace=data if trace == True else None, figsize=figsize, cmap=cmap,
@@ -677,69 +689,74 @@ class Fiber(object):
 		will be plotted
 		'''
 
+		if isinstance(channels, np.ndarray):
+			channels = channels.tolist()
+
 		if isinstance(channels, tuple):
-			ch0, chf = map(int, channels)
+			ch0, chf = sorted(map(int, channels))
 			ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
 			ch_idx = slice(ch0, chf + 1)
-
 		elif isinstance(channels, list):
 			channels = list(map(int, channels))
 			ch_idx = sorted(self.channels_num.index(ch) for ch in channels)
+		else:
+			raise TypeError(f'Invalid type for channels: {type(channels).__name__}. Expected tuple, list, or np.ndarray.')
 
 		das_data = self.data[:, ch_idx]
 		das_channels = np.array(self.channels_num)[ch_idx]
 
 		if plot_mode=='pyqt':
 			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
-								 title='Record Section')
+								 title='Record Section', numbers=das_channels, dt=self.dt,
+								 y_label='Channel')
 		elif plot_mode=='mpl':
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
 							channels=das_channels, date=self.times()[0].isoformat()[:10])
 
 	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
-					window_size=None, results=False, **imshow_kwargs):
+					window_size=None, results=False, vmin=None, vmax=None, **imshow_kwargs):
 		'''
 		computes autocorrelation profile, see fiber.tools.wavefield.autocorrelation_profile
 		for more details
 		'''
 		axis = self.__axis__('t')
-
 		max_shift = int(max_lag*self.sampling_frequency)
-
 		if max_shift >= self.num_points:
-			raise ValueError('selected max_shift is too large')
-
+			raise ValueError('Selected max_shift is too large')
 		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
 												deconvolve, self.total_channels,
-												self.distances, self.sampling_frequency,
-												window_size=window_size, **imshow_kwargs)
+												self.distances, self.channels_num,
+												self.sampling_frequency,
+												window_size=window_size, vmin=vmin,
+												vmax=vmax, **imshow_kwargs)
 
 		if results:
 			return acf
 
-	def spatial_coherence(self, max_lag, result=False, plot=True):
+	def spatial_coherence(self, max_lag, results=False, plot_mode='pyqt', vmin=None,
+					   vmax=None):
 		'''
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
 		'''
-		coh = wavefield.spatial_coherence_matrix(data=self.data.T,
-										   max_lag=max_lag,
+		coh = wavefield.spatial_coherence_matrix(data=self.data.T, max_lag=max_lag,
+										   distances=self.distances,
 										   fs=self.sampling_frequency,
 										   channel_nums=self.channels_num,
-										   plot=plot, result=result)
-		if result:
+										   plot_mode=plot_mode, results=results,
+										   vmin=vmin, vmax=vmax)
+		if results:
 			return coh
 
-	def explore(self):
+	def view(self):
 		'''
-		launches the Fobench Data Explorer
+		launches the Fobench Data Viewer
 		'''
-		print(f'{"-"*65}\nStarting Fobench Data Explorer')
+		print(f'{"-"*65}\nStarting Fobench Data Viewer')
 		app = QtWidgets.QApplication.instance()
 		if app is None:
 			app = QtWidgets.QApplication(sys.argv)
-
-		self._explorer = Explorer(self)
+		self._explorer = Viewer(self)
 		self._explorer.show()
 		pg.exec()
 		print(f'{"-"*65}')
