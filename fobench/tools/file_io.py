@@ -254,7 +254,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         file_file = h5.File(filepath, 'r')
         properties = file_file['Acquisition'].attrs
         dataset = file_file['Acquisition/Raw[0]/RawData']
-        chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
+        chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
         chans = np.array(chans_nums)
         data = __data__(dataset, format, company, list(chans_nums)) if load_data else None
         fiber = properties['FiberID']
@@ -270,6 +270,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         gauge_length = float(properties['GaugeLength'])
         units = 'units' # unit is not coded in metadata for Sintela .h5
         conv_factor = None
+        # file_file.close()
 
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
@@ -437,7 +438,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
         elif company == 'terra15':
             values = np.array(extract_point[:, range_ch[0]:range_ch[1]])
-        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela'):
+        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'michelle'):
             values = np.array(extract_point[:, range_ch])
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
@@ -451,8 +452,5 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
     elif format == 'npz' and company == 'bam':
         values = np.load(extract_point)['ph'][:, range_ch]
-
-    elif (format == 'h5' or format == 'hdf5') and company == 'michelle':
-        values = np.array(extract_point[:, range_ch])
 
     return values.astype('float')

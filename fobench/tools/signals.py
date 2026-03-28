@@ -6,7 +6,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy.integrate as integrate
 
-from tqdm import tqdm
+from tqdm import tqdm, trange
 
 def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
     '''
@@ -105,7 +105,7 @@ def differentiate_signal(data: np.ndarray, method: str, axis: int, dt: int)-> np
 
     return diff
 
-def detrend_signal(o_signal: np.ndarray, order: int, axis:int =-1)-> np.ndarray:
+def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray:
     '''
     detrends signal(s)
 
@@ -137,7 +137,7 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int =-1)-> np.ndarray:
         n = o_signal.shape[axis]
         t = np.arange(n)
 
-    for i in tqdm(range(o_signal.shape[1-axis]), desc='Detrending', leave=False):
+    for i in trange(o_signal.shape[1-axis], desc='Detrending', leave=False):
         if axis == 0:
             y = o_signal[:, i]
             trend = np.polyval(np.polyfit(t, y, order), t)
@@ -408,7 +408,7 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
 
 def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_processing: bool = True,
     norm: bool = False, order: int = 1, pad: int = 0, nfft: int | None = None,
-    nperseg: int | None = None,) -> tuple[np.ndarray, np.ndarray]:
+    nperseg: int | None = None, axis: int = None) -> tuple[np.ndarray, np.ndarray]:
     '''
     computes the spectrum for a signal, can either be through FFT or Welch's method
 
@@ -432,6 +432,8 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_p
         number of samples in for FFT. The default is None.
     nperseg : int | None, optional
         DESCRIPTION. The default is None.
+    axis : int
+        Axis along which to take the spectrum
 
     Raises
     ------
@@ -447,26 +449,24 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_p
     '''
 
     if pre_processing:
-        o_signal = filt_preprocess(io_signal=o_signal, order=order)
+        o_signal = filt_preprocess(io_signal=o_signal, order=order, axis=axis)
 
     if mode == 'spectrum':
         	o_signal = np.pad(o_signal, (pad-1, pad), mode='constant') if pad > 0 else o_signal
-        	n = len(o_signal) if nfft is None else nfft*len(o_signal)
-        	fft = np.fft.fft(o_signal, n=n)
+        	n = o_signal.shape[axis] if nfft is None else o_signal.shape[axis]
+        	fft = np.fft.fft(o_signal, n=n, axis=axis)
         	freq_axis = np.fft.fftfreq(n, 1 / fs)
         	positive_freqs = freq_axis[:n//2]
         	magnitude = 2/n * np.abs(fft)[:n//2]
 
     elif mode == 'psd':
-        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg)
+        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis)
 
     else:
         raise ValueError('Invalid mode. Choose one of:\n'
                          ' - "spectrum"\n - "psd"')
-
     if norm:
         magnitude = magnitude / magnitude.max()
-
     return positive_freqs, magnitude
 
 def signal_spectrogram(data: np.ndarray, sampling_frequency: int, axis: int,
