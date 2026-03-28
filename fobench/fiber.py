@@ -341,6 +341,13 @@ class Fiber(object):
 		'''
 		axis = self.__axis__('t')
 
+		if new_freq is None:
+			raise ValueError('new_freq must be provided as a positive number in Hz')
+		if new_freq <= 0:
+			raise ValueError(f'new_freq must be > 0 Hz, got {new_freq}')
+		if new_freq > self.sampling_frequency:
+			raise ValueError(f'new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_frequency} Hz)')
+
 		if self.sampling_frequency % new_freq != 0:
 			warn(f'Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead')
 		down_factor = int(self.sampling_frequency / new_freq)

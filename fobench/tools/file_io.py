@@ -328,8 +328,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # .h5 format for Michelle INGV's decimated files from Silixa.
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Michelle Decimated H5 file')
-        print('Reading HDF5 file (Michelle INGV decimated Format)...')
+        pbar = tqdm(total=1, leave=True, desc='Reading Michelle INGV decimated HDF5 file')
         file_file = h5.File(filepath,'r')
         properties = file_file.attrs
         dataset = file_file['Fiber']
