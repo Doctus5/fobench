@@ -15,34 +15,34 @@ from pyrocko.trace import Trace as pTrace
 
 #Function to sscan hierarchycally the HDF5 files.
 def scan_hdf5(path, recursive=True, tab_step=2):
-    def scan_node(g, tabs=0):
-        print(' ' * tabs, g.name)
-        for k, v in g.items():
-            if isinstance(v, h5.Dataset):
-                print(' ' * tabs + ' ' * tab_step + ' -', v.name)
-            elif isinstance(v, h5.Group) and recursive:
-                scan_node(v, tabs=tabs + tab_step)
-    with h5.File(path, 'r') as f:
-        scan_node(f)
+	def scan_node(g, tabs=0):
+		print(' ' * tabs, g.name)
+		for k, v in g.items():
+			if isinstance(v, h5.Dataset):
+				print(' ' * tabs + ' ' * tab_step + ' -', v.name)
+			elif isinstance(v, h5.Group) and recursive:
+				scan_node(v, tabs=tabs + tab_step)
+	with h5.File(path, 'r') as f:
+		scan_node(f)
 
 
 '''
 TOOLS USED EXCLUSIVE FOR Fiber CLASS
 '''
-STRAIN_UNIT_MAP = {      # mapping for strain(rate) data
+STRAIN_UNIT_MAP = {	  # mapping for strain(rate) data
 -1: 'integrated strain',
 0: 'strain',
 1: 'strain-rate',
 2: 'strain-acceleration',
 3: 'strain-jerk'}
 
-VEL_UNIT_MAP = {         # mapping for velocity data, e.g. Terra15 output
+VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
 -1: 'm',
 0: 'm/s',
 1: 'm/s^2',
 2: 'm/s^3'}
 
-TEMP_UNIT_MAP = {        # mapping for temperature data
+TEMP_UNIT_MAP = {		# mapping for temperature data
 -1: 'integrated temperature',
 0: 'temperature',
 1: 'temperature rate',
@@ -105,17 +105,37 @@ def _update_processing(func):
 		return result
 	return wrapper
 
-def instr_corr(data=None, attributes=None, target='strain-rate'):
+def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = 'strain-rate',
+				terra15_gl: float = None) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
 	'''
-	Co-authors: --
-	Description:
-		Applies an instrument correction to the data by converting the counts to the respective measuring unit depending on the instrument and data.
-	:Params:
-		- data(type:Numpy): original signal.
-		- attributes(type:Dict): attributes dictionary of the Fiber Class.
-	:Return:
-		- data(type:Numpy): modified signal or data according to target unit.
-	'''
+	performs instrument correction and data conversion for various instrument types
+
+	Parameters
+	----------
+	data : np.ndarray
+		data of Fiber class
+	attributes : dict
+		Fiber class attributes
+	target : str, optional
+		target unit. The default is 'strain-rate'.
+	terra15_gl : float, optional
+		gauge length for velocity to strain-rate conversion for Terra15 data.
+		If not specified, original gauge length from Fiber.gauge_length is taken
+
+	Returns
+	-------
+	data : np.ndarray
+		corrected data
+	target : str
+		(new) unit of measurement
+	attributes['channels'] : np.ndarray
+		(new) channels
+	attributes['channels_num'] : list
+		(new) channel_numbers
+	attributes['gauge_length'] : float
+		(new) gauge length
+
+		'''
 
 	format, company, units = attributes['format'], attributes['company'], attributes['units']
 
@@ -131,7 +151,7 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 			data = np.multiply(data,factor)
 
 
-    # if (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
+	# if (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
 
 	elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
 
@@ -144,16 +164,20 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
-    # if format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+	# if format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
 	elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
-		if units == 'm/s' and target == 'strain-rate':
-			gauge_samples = int(round(attributes['gauge_length'] / attributes['spatial_interval']))
-			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / (gauge_samples * attributes['spatial_interval'])
+		if units == 'velocity' and target == 'strain-rate':
+			gl = attributes['gauge_length'] if terra15_gl is None else terra15_gl
+			gauge_samples = int(round(gl / attributes['spatial_interval']))
+			gl = gauge_samples * attributes['spatial_interval']
+			print(f'⚠️ Applying the nearest possible gauge length: {gl}m')
+			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl
 			n_decim = int(gauge_samples/2)
 			attributes['channels'] = attributes['channels'][n_decim:-n_decim]
 			attributes['channels_num'] = attributes['channels_num'][n_decim:-n_decim]
 			attributes['total_channels'] = attributes['channels'].size
+			attributes['gauge_length'] = gl
 
 	elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
 
@@ -194,7 +218,7 @@ def instr_corr(data=None, attributes=None, target='strain-rate'):
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
-	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels']
+	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels'], attributes['gauge_length']
 
 
 def interpolate_channels(n_ch, x_ch, y_ch, z_ch, system='decimal', err=None, spacing=None):
@@ -347,132 +371,132 @@ def spatial_downsampling(das_class):
 	return new_data, new_channels_num
 
 def to_traces(Fiber, t_type: str)-> Stream:
-    '''
+	'''
 	Creates an obpsy/pyrocko Stream object and fill it with Traces in it. Each Trace
-    would represent each channel of the DAS Class, including the metadata which
-    are attributes of the Trace Class. This is mainly done so users can have access
-    to obspy tools with this data. However, it can be slower and memory demanding.
+	would represent each channel of the DAS Class, including the metadata which
+	are attributes of the Trace Class. This is mainly done so users can have access
+	to obspy tools with this data. However, it can be slower and memory demanding.
 
-    Parameters
-    ----------
-    Fiber : fobench.Fiber object
-        Fiber class object
-    t_type : str
-        type of stream to return, 'obspy' or 'pyrocko'
+	Parameters
+	----------
+	Fiber : fobench.Fiber object
+		Fiber class object
+	t_type : str
+		type of stream to return, 'obspy' or 'pyrocko'
 
-    Returns
-    -------
-    Stream
-        Stream object
+	Returns
+	-------
+	Stream
+		Stream object
 
-    '''
-    stream = Stream() if t_type == 'obspy' else []
+	'''
+	stream = Stream() if t_type == 'obspy' else []
 
-    for i in trange(Fiber.total_channels, desc='Creating Stream'):
+	for i in trange(Fiber.total_channels, desc='Creating Stream'):
 
-        if t_type == 'obspy':
-            trace = oTrace(data=Fiber.data[:,i])
-            trace.stats.network = Fiber.fiber
-            trace.stats.station = str(Fiber.channels_num[i]).zfill(5)
+		if t_type == 'obspy':
+			trace = oTrace(data=Fiber.data[:,i])
+			trace.stats.network = Fiber.fiber
+			trace.stats.station = str(Fiber.channels_num[i]).zfill(5)
 # 			trace.stats.npts = self.num_points #+ 1
-            trace.stats.sampling_rate = Fiber.sampling_frequency
-            trace.stats.delta = Fiber.dt
-            trace.stats.starttime = Fiber.start_time
-            trace.stats.calib = instr_corr(np.array(1), attributes=vars(Fiber))
-            trace.stats.channel = 'H'
+			trace.stats.sampling_rate = Fiber.sampling_frequency
+			trace.stats.delta = Fiber.dt
+			trace.stats.starttime = Fiber.start_time
+			trace.stats.calib = instr_corr(np.array(1), attributes=vars(Fiber))
+			trace.stats.channel = 'H'
 			#trace.stats.endtime = self.end_time
-            stream.append(trace)
+			stream.append(trace)
 # 			print(stream)
 
-        if t_type == 'pyrocko':
-            trace = pTrace(ydata=Fiber.data[:,i])
-            trace.network = Fiber.fiber
-            trace.station = str(Fiber.channels_num[i]).zfill(5)
-            trace.deltat = Fiber.dt
-            trace.tmin = str_to_time(Fiber.start_time.isoformat().replace('T',' '))
-            trace.tmax = str_to_time(Fiber.end_time.isoformat().replace('T',' '))
-            stream.append(trace)
+		if t_type == 'pyrocko':
+			trace = pTrace(ydata=Fiber.data[:,i])
+			trace.network = Fiber.fiber
+			trace.station = str(Fiber.channels_num[i]).zfill(5)
+			trace.deltat = Fiber.dt
+			trace.tmin = str_to_time(Fiber.start_time.isoformat().replace('T',' '))
+			trace.tmax = str_to_time(Fiber.end_time.isoformat().replace('T',' '))
+			stream.append(trace)
 
-    return stream
+	return stream
 
 def return_times(Fiber, time_type: str)-> np.ndarray:
-    '''
-    returns 1D array containing time-steps of data in the specified format
+	'''
+	returns 1D array containing time-steps of data in the specified format
 
-    Parameters
-    ----------
-    Fiber : fobench.Fiber object
-        Fiber class object
-    time_type : str
-        time format to return. options are 'UTCDateTime', 'isoformat', 'matplotlib'
-        or 'unix´'
+	Parameters
+	----------
+	Fiber : fobench.Fiber object
+		Fiber class object
+	time_type : str
+		time format to return. options are 'UTCDateTime', 'isoformat', 'matplotlib'
+		or 'unix´'
 
-    Raises
-    ------
-    ValueError
-        unrecognized time format.
+	Raises
+	------
+	ValueError
+		unrecognized time format.
 
-    Returns
-    -------
-    t : TYPE
-        1D array containing time-steps of data in the specified format.
+	Returns
+	-------
+	t : TYPE
+		1D array containing time-steps of data in the specified format.
 
-    '''
-    converters = {
-        'UTCDateTime': lambda t: t,
-        'isoformat': lambda t: t.isoformat(),
-        'matplotlib': lambda t: t.matplotlib_date,
-        'unix': lambda t: t.timestamp,
-    }
+	'''
+	converters = {
+		'UTCDateTime': lambda t: t,
+		'isoformat': lambda t: t.isoformat(),
+		'matplotlib': lambda t: t.matplotlib_date,
+		'unix': lambda t: t.timestamp,
+	}
 
-    if time_type not in converters:
-        raise ValueError(
-            f'Unrecognized time format "{time_type}"! Please choose one of:\n'
-              ' -"UTCDateTime"\n -"isoformat"\n -"matplotlib"\n -"unix"'
-        )
+	if time_type not in converters:
+		raise ValueError(
+			f'Unrecognized time format "{time_type}"! Please choose one of:\n'
+			  ' -"UTCDateTime"\n -"isoformat"\n -"matplotlib"\n -"unix"'
+		)
 
-    times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.data.shape[0])]
-    return np.array([converters[time_type](t) for t in times])
+	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.data.shape[0])]
+	return np.array([converters[time_type](t) for t in times])
 
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
-              start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
-    '''
-    trims data in Fiber class in time dimension between given start and end times
+			  start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
+	'''
+	trims data in Fiber class in time dimension between given start and end times
 
-    Parameters
-    ----------
-    t0, tf : UTC datetime object or str
-        new desired start and end timea of data
-    data : np.ndarray
-        original data to trim
-    times : np.ndarray
-        timestamps of Fiber class
-    start_time, end_time : UTC datetime
-        original start and end time of data
+	Parameters
+	----------
+	t0, tf : UTC datetime object or str
+		new desired start and end timea of data
+	data : np.ndarray
+		original data to trim
+	times : np.ndarray
+		timestamps of Fiber class
+	start_time, end_time : UTC datetime
+		original start and end time of data
 
-    Raises
-    ------
-    ValueError
-        t0 > tf
+	Raises
+	------
+	ValueError
+		t0 > tf
 
-    Returns
-    -------
-    data : np.ndarray
-        trimmed data
-    start_time, end_time : UTC datetime
-        new start and end time of data
-    '''
-    t0, tf = UTC(t0), UTC(tf)
+	Returns
+	-------
+	data : np.ndarray
+		trimmed data
+	start_time, end_time : UTC datetime
+		new start and end time of data
+	'''
+	t0, tf = UTC(t0), UTC(tf)
 
-    t0 = max(t0, start_time)
-    tf = min(tf, end_time)
+	t0 = max(t0, start_time)
+	tf = min(tf, end_time)
 
-    if tf < t0: raise ValueError("End time (tf) must be after start time (t0).")
-    t0_pos = max(0, np.searchsorted(times, t0, side='right') - 1)
-    tf_pos = max(0, np.searchsorted(times, tf, side='right') - 1)
+	if tf < t0: raise ValueError("End time (tf) must be after start time (t0).")
+	t0_pos = max(0, np.searchsorted(times, t0, side='right') - 1)
+	tf_pos = max(0, np.searchsorted(times, tf, side='right') - 1)
 
-    data = data[t0_pos:tf_pos, :]
-    start_time = times[t0_pos]
-    end_time = times[tf_pos]
+	data = data[t0_pos:tf_pos, :]
+	start_time = times[t0_pos]
+	end_time = times[tf_pos]
 
-    return data, start_time, end_time
+	return data, start_time, end_time
