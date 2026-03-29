@@ -533,3 +533,33 @@ def get_colors(n: int, colormap:str = 'tab10') -> list[tuple[int, int, int]]:
     '''Returns a set of n unique colors from a plt colormap'''
     cmap = plt.get_cmap(colormap, n)
     return [tuple(int(x*255) for x in cmap(i)[:3]) for i in range(n)]
+
+'''Special Plotting Functions'''
+
+def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
+            mask: np.ndarray, f: np.ndarray, k: np.ndarray) -> None:
+
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+
+    win = pg.GraphicsLayoutWidget(show=True)
+    win.setWindowTitle('Fobench: Frequency-Wavenumber Filter')
+    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent/'logo.png')))
+    win.setBackground('w')
+    win.resize(1200, 600)
+
+    titles = ['Initial Wavefield', 'Filtered Wavefield', 'fk Spectrum', 'fk Mask']
+    plots = []
+    for i, title in enumerate(titles):
+        row, col = divmod(i, 2)
+        plot = win.addPlot(row=row, col=col)
+        plots.append(plot)
+        plot.addItem(pg.ImageItem())
+        plot.setTitle(title, **{'color': 'k', 'font-size': '14pt'})
+        for axis in (plot.getAxis('left'), plot.getAxis('bottom')):
+            axis.setPen(pg.mkPen('k', width=1))
+            axis.setTextPen(pg.mkPen('k'))
+            axis.setStyle(tickFont=pg.Qt.QtGui.QFont('Arial', 10))
+
+    pg.exec()

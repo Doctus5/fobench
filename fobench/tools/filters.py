@@ -7,13 +7,14 @@ import numpy as np
 import scipy.signal as signal
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
                           remez, medfilt2d)
-from scipy.fft import fftshift, ifftshift, rfft2, fftfreq, rfftfreq, irfft2
+from scipy.fft import fftshift, ifftshift, fftfreq, irfft2, fft2
 from pyrocko.util import decimate_coeffs
 try:
     from scipy.signal import sosfilt, sosfiltfilt, zpk2sos
 except ImportError:
     from ._sosfilt import _sosfilt as sosfilt
     from ._sosfilt import _zpk2sos as zpk2sos
+from fobench.plotting import plotting_pyqt as pyqt
 
 def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
                  freq: float | tuple[float, float] = None, **options) -> np.ndarray:
@@ -215,7 +216,7 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
     if low >= 1:
         raise ValueError(f'Low corner frequency ({freqmin} Hz) is at or above Nyquist ({nyq} Hz).')
     if high >= 1:
-        high = 1
+        high = 1.0
         warnings.warn(f'High corner frequency ({freqmax} Hz) is at or above '
                       f'Nyquist ({nyq} Hz). Setting Nyquist as high corner.')
 
@@ -278,7 +279,7 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     if f <= 0:
         raise ValueError(f'Corner frequency ({freq} Hz) must be positive.')
     if f > 1:
-        f = 1
+        f = 1.0
         warnings.warn(f'Selected corner frequency ({freq} Hz) is at or above '
                       f'Nyquist ({nyq} Hz). Setting corner at Nyquist')
 
@@ -386,11 +387,10 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float)-> np.
 
     '''
 
-    # take 10% of freqmin and freqmax as """corners"""
-    flt = freqmin - 0.1 * freqmin
+    flt = freqmin - 0.1 * freqmin # take 10% of freqmin and freqmax as "corners"
     fut = freqmax + 0.1 * freqmax
     # bandpass between freqmin and freqmax
-    filt = remez(50, np.array([0, flt, freqmin, freqmax, fut, df / 2 - 1]),
+    filt = remez(50, np.array([0, flt, freqmin, freqmax, fut, df/2-1]),
                  np.array([0, 1, 0]), Hz=df)
     return convolve(filt, data)
 
@@ -425,8 +425,7 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) ->
     '''
 
     w = np.fft.fftfreq(winlen, 1/float(df))
-    # cutoff is low-pass filter
-    myfilter = np.where((abs(w) < freq), 1., 0.)
+    myfilter = np.where((abs(w) < freq), 1., 0.) # cutoff is low-pass filter
     # ideal filter
     h = np.fft.ifft(myfilter)
     beta = 11.7 # beta implies Kaiser
@@ -724,7 +723,8 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
     return medfilt2d(data, kernel_size)
 
 def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
-              propagation: str | None = None, alpha: float = 0.3):
+              propagation: str | None = None, alpha: float = 0.3,
+              plot_mode:str = 'pyqt', verbose: bool = False):
     '''
     Frequency wavenumber filter
 
@@ -742,6 +742,11 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
         . Keep only ``'positive'`` or ``'negative'`` wavenumbers.
     alpha : float, optional
         Tukey taper parameter
+    plot_mode : str
+        If set to ``'pyqt'`` plot of initial wavefield, filtered wavefield, fk
+        spectrum and the fk mask will be generated
+    verbose : bool
+        If ``True`` additionally returns the fk spectrum and fk mask
 
     See also
     --------
@@ -751,18 +756,27 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
     -------
     data_filt : np.ndarray
         Filtered data.
+    data_fk : np.ndarray
+        Initial data in fk domain
+    mask : np.ndarray
+        The fk mask
 
     '''
     nt, nx = data.shape
 
-    data_fk = fftshift(rfft2(data), axes=1)
-    f = rfftfreq(nt, d=dt)
+    data_fk = fftshift(fft2(data))
+    f = fftshift(fftfreq(nt, d=dt))
     k = fftshift(fftfreq(nx, d=dx))
 
     mask = fk_mask(bands=bands, f=f, k=k, propagation=propagation, alpha=alpha)
+    mask = mask.T
     data_filt = irfft2(ifftshift(data_fk * mask, axes=1)).real
 
-    return data_filt
+    if plot_mode == 'pyqt':
+        pyqt.plot_fk(wf_ini=data, wf_filt=data_filt, wf_fk=data_fk,
+                    mask=mask, f=f, k=k)
+
+    return (data_filt, data_fk, mask) if verbose else data_filt
 
 def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = None,
             alpha: float = 0.3) -> np.ndarray:
@@ -844,13 +858,13 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
         return mask
 
     # initialize f, k, v grids and final mask
-
     if alpha < 0 or alpha > 1:
         raise ValueError(f'Alpha must be between 0 and 1, got {alpha} instead!')
 
     f_grid = f[None, :]
     k_grid = k[:, None]
-    vel_grid = np.where(k_grid != 0, f_grid / k_grid, np.inf)
+    vel_grid = np.full_like(f_grid / np.ones_like(k_grid), 10e6, dtype=float)
+    np.divide(f_grid, k_grid, out=vel_grid, where=k_grid != 0)
     final_mask = np.zeros((len(k), len(f)), dtype=float)
 
     # loop through filter bands, create smooth masks and add to the final output

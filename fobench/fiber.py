@@ -429,17 +429,19 @@ class Fiber(object):
 		return self
 
 	@utils._update_processing
-	def fk_filter(self, bands, use_velocity=False, alpha=0.2, transition=0.1):
-		'''
-		applies frequency wavenumber filter to data
-		'''
-		self.data = filters.apply_fk_filter(data=self.data, bands=bands, num_points=self.num_points,
-									  total_channels=self.total_channels,
-									  spatial_interval=self.spatial_interval,
-									  use_velocity=use_velocity,
-									  alpha=alpha, transition=transition)
+	def fk_filter(self, bands=[{}], propagation='both', alpha=0.3, plot_mode=None,
+				  verbose=False, results=False):
+		'''Applies frequency wavenumber filter to data'''
 
+		out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
+								bands=bands, propagation=propagation, alpha=alpha,
+								plot_mode=plot_mode, verbose=verbose)
+		self.data = out[0] if len(out) == 3 else out
+		if results:
+			return (out[0], out[1], out[2]) if verbose else (out[0])
 		return self
+
+
 
 	@utils._update_processing
 	def integrate(self, dim='t', taper=True):
