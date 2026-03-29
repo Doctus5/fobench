@@ -435,11 +435,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
         if company == 'febus':
             dims = extract_point.shape
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
-<<<<<<< fobench/tools/file_io.py
-        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'terra15'):
-=======
         elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'terra15', 'michelle'):
->>>>>>> fobench/tools/file_io.py
             values = np.array(extract_point[:, range_ch])
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
