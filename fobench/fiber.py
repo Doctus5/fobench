@@ -142,6 +142,7 @@ class Fiber(object):
 		'''
 		returns a deep copy the Fiber class object in its current state
 		'''
+		self.__dict__.pop('_viewer', None)
 		return copy.deepcopy(self)
 
 	def instr_correct(self, target='strain-rate', terra15_gl=None):
@@ -756,7 +757,7 @@ class Fiber(object):
 		app = QtWidgets.QApplication.instance()
 		if app is None:
 			app = QtWidgets.QApplication(sys.argv)
-		self._explorer = Viewer(self)
-		self._explorer.show()
+		self._viewer = Viewer(self)
+		self._viewer.show()
 		pg.exec()
 		print(f'{"-"*65}')
