@@ -50,6 +50,12 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
             coherence_matrix[i, j] = max_corr
             coherence_matrix[j, i] = max_corr
     np.fill_diagonal(coherence_matrix, 1.0)
+
+    if plot_mode == 'mpl':
+        warn('⚠️ matplotlib plotting not implemented for this method, '
+             'plotting using pyqtgraph instead')
+        plot_mode = 'pyqt'
+
     if plot_mode == 'pyqt':
         if not channel_nums: channel_nums = np.arange(0, n_ch)
         vmin = vmin if vmin is not None else -1
@@ -60,9 +66,6 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
                          title = 'Spatial Coherence Matrix',
                          cmap = 'viridis', cbar_label = 'Correlation Coefficient',
                          vmin=vmin, vmax=vmax)
-
-    elif plot_mode == 'mpl':
-        warn('matplotlib plotting not implemented for this method!')
 
     if results:
         return coherence_matrix
@@ -189,6 +192,11 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         data_length = len(times) if dim == 't' else len(channels_num)
         result = compute_rmsa(data, data_length, window, axis)
 
+    if plot_mode == 'mpl':
+        warn('⚠️ matplotlib plotting not implemented for this method, '
+                      'plotting using pyqtgraph instead')
+        plot_mode = 'pyqt'
+
     if plot_mode == 'pyqt':
         if window is None:
             if dim == 't':
@@ -215,9 +223,6 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
                 plot_pyqt.plot_2d_timeseries(timestamps=times, data=result.T, y_ticks=chans, y_label='Channel',
                                    dt=times[1]-times[0], title='RMS Amplitude', distances=dists,
                                    cmap='inferno', cbar_label='RMS Amplitude', vmin=vmin, vmax=vmax)
-
-    elif plot_mode == 'mpl':
-        warn('matplotlib plotting not implemented for this method!')
 
     return result
 
