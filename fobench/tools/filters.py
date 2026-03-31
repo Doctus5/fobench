@@ -7,7 +7,8 @@ import numpy as np
 import scipy.signal as signal
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
                           remez, medfilt2d)
-from scipy.fft import fftshift, ifftshift, fftfreq, irfft2, fft2
+from scipy.fft import fftshift, ifftshift, fftfreq, irfft2, fft2, rfftfreq, rfft2, fft, rfft, irfft, ifft
+
 from pyrocko.util import decimate_coeffs
 try:
     from scipy.signal import sosfilt, sosfiltfilt, zpk2sos
@@ -763,18 +764,22 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
 
     '''
     nt, nx = data.shape
+    data_fk = fftshift(fft(rfft(data, axis=0), axis=1), axes=1) # transform and shift data
+    f = rfftfreq(nt, d=dt) # frequency axis
+    k = fftshift(fftfreq(nx, d=dx)) # wavenumber axis
+    mask = fk_mask(bands=bands, f=f, k=k, propagation=propagation, alpha=alpha) # build mask
+    data_filt = data_fk * mask # apply mask
+    data_filt = irfft(ifft(ifftshift(data_filt, axes=1), axis=1),
+                      n=nt, axis=0).real # unshift and inverse transform
 
-    data_fk = fftshift(fft2(data))
-    f = fftshift(fftfreq(nt, d=dt))
-    k = fftshift(fftfreq(nx, d=dx))
-
-    mask = fk_mask(bands=bands, f=f, k=k, propagation=propagation, alpha=alpha)
-    mask = mask.T
-    data_filt = irfft2(ifftshift(data_fk * mask, axes=1)).real
+    if plot_mode == 'mpl':
+        warnings.warn('⚠️ matplotlib plotting not implemented for this method, '
+                      'plotting using pyqtgraph instead')
+        plot_mode = 'pyqt'
 
     if plot_mode == 'pyqt':
         pyqt.plot_fk(wf_ini=data, wf_filt=data_filt, wf_fk=data_fk,
-                    mask=mask, f=f, k=k)
+                     mask=mask, f=f, k=k, dt=dt)
 
     return (data_filt, data_fk, mask) if verbose else data_filt
 
@@ -786,7 +791,8 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
     Parameters
     ----------
     bands : list of dict
-        The limits of the fk-domain regions that will be retained
+        The limits of the fk-domain regions that will be retained, i.e. the
+        passband
         Each dict can contain any of:
             fmin, fmax (frequency limits)
             kmin, kmax (wavenumber limits)
@@ -842,9 +848,8 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
         low = grid.min() if low is None else low # only one limit requested
         high = grid.max() if high is None else high
 
-
         width = high-low
-        x = (grid-low) / width  # normalize to [0,1]
+        x = (grid-low) / width  # normalize
 
         if alpha <= 0: # no tapering requested
             mask[(x >= 0) & (x <= 1)] = 1
@@ -861,13 +866,13 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
     if alpha < 0 or alpha > 1:
         raise ValueError(f'Alpha must be between 0 and 1, got {alpha} instead!')
 
-    f_grid = f[None, :]
-    k_grid = k[:, None]
+    f_grid = f[:, None]
+    k_grid = k[None, :]
     vel_grid = np.full_like(f_grid / np.ones_like(k_grid), 10e6, dtype=float)
     np.divide(f_grid, k_grid, out=vel_grid, where=k_grid != 0)
-    final_mask = np.zeros((len(k), len(f)), dtype=float)
+    final_mask = np.zeros((len(f), len(k)), dtype=float)
 
-    # loop through filter bands, create smooth masks and add to the final output
+    # loop through filter pass bands, create smooth masks and add to the final output
     for band in bands:
         fmin, fmax = band.get('fmin'), band.get('fmax')
         kmin, kmax = band.get('kmin'), band.get('kmax')
