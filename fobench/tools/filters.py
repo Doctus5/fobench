@@ -1,14 +1,13 @@
 '''Contains signal filtering and decimation functions'''
 
-import warnings
+from warnings import warn
 from pathlib import Path
-
 import numpy as np
-import scipy.signal as signal
+from scipy.signal import decimate as decimate_scipy
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
-                          remez, medfilt2d)
-from scipy.fft import fftshift, ifftshift, fftfreq, irfft2, fft2, rfftfreq, rfft2, fft, rfft, irfft, ifft
-
+                          remez, medfilt2d, dlti)
+from scipy.fft import (fftshift, ifftshift, fftfreq, rfftfreq, fft, rfft,
+                       irfft, ifft)
 from pyrocko.util import decimate_coeffs
 try:
     from scipy.signal import sosfilt, sosfiltfilt, zpk2sos
@@ -86,7 +85,8 @@ modified from `here <https://docs.obspy.org/_modules/obspy/signal/filter.html>`_
 '''
 
 def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
-             corners: int = 4, zerophase: bool = False, design: str = 'butter'):
+             corners: int = 4, zerophase: bool = False, design: str = 'butter',
+             **options):
     '''
     Butterworth-Bandpass Filter. Filters data from ``freqmin`` to ``freqmax``
     using ``corners`` corners.
@@ -113,6 +113,8 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
             - Chebyshev II  : 'cheby2'
             - Cauer/elliptic: 'ellip'
             - Bessel/Thomson: 'bessel'
+    **options :
+        Additional arguments passed to filter function.
 
     Raises
     ------
@@ -145,10 +147,10 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
     if low >= 1:
         raise ValueError(f'Low corner frequency ({freqmin}) is at or above Nyquist ({nyq}).')
     if high >= 1:
-        warnings.warn(f'High corner frequency ({freqmax}) is at or above Nyquist ({nyq}). Applying highpass instead.')
+        warn(f'High corner frequency ({freqmax}) is at or above Nyquist ({nyq}). Applying highpass instead.')
         return highpass(data, freq=freqmin, df=df, corners=corners, zerophase=zerophase)
 
-    z, p, k = iirfilter(corners, [low, high], btype='band', ftype=design, output='zpk')
+    z, p, k = iirfilter(corners, [low, high], btype='band', ftype=design, output='zpk', **options)
     sos = zpk2sos(z, p, k)
 
     if zerophase:
@@ -157,7 +159,8 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
         return sosfilt(sos, data, axis=0)
 
 def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
-             corners: int = 4, zerophase: bool = False, design: str = 'butter')-> np.ndarray:
+             corners: int = 4, zerophase: bool = False, design: str = 'butter',
+             **options)-> np.ndarray:
     '''
     Butterworth-Bandstop Filter. Filters data removing data between frequencies
     ``freqmin`` and ``freqmax`` using ``corners`` corners.
@@ -184,6 +187,8 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
             - Chebyshev II  : 'cheby2'
             - Cauer/elliptic: 'ellip'
             - Bessel/Thomson: 'bessel'
+    **options :
+        Additional arguments passed to filter function.
 
     Raises
     ------
@@ -218,11 +223,11 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
         raise ValueError(f'Low corner frequency ({freqmin} Hz) is at or above Nyquist ({nyq} Hz).')
     if high >= 1:
         high = 1.0
-        warnings.warn(f'High corner frequency ({freqmax} Hz) is at or above '
-                      f'Nyquist ({nyq} Hz). Setting Nyquist as high corner.')
+        warn(f'High corner frequency ({freqmax} Hz) is at or above '
+             f'Nyquist ({nyq} Hz). Setting Nyquist as high corner.')
 
     z, p, k = iirfilter(corners, [low, high], btype='bandstop', ftype=design,
-                        output='zpk')
+                        output='zpk', **options)
     sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
@@ -231,7 +236,7 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 
 
 def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
-            zerophase: bool = False, design: str = 'butter')-> np.ndarray:
+            zerophase: bool = False, design: str = 'butter', **options)-> np.ndarray:
     '''
     Butterworth-Lowpass Filter. Filters data removing data over certain
     frequency ``freq`` using ``corners``
@@ -256,6 +261,8 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
             - Chebyshev II  : 'cheby2'
             - Cauer/elliptic: 'ellip'
             - Bessel/Thomson: 'bessel'
+    **options :
+        Additional arguments passed to filter function.
 
     Raises
     ------
@@ -281,11 +288,11 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         raise ValueError(f'Corner frequency ({freq} Hz) must be positive.')
     if f > 1:
         f = 1.0
-        warnings.warn(f'Selected corner frequency ({freq} Hz) is at or above '
-                      f'Nyquist ({nyq} Hz). Setting corner at Nyquist')
+        warn(f'Selected corner frequency ({freq} Hz) is at or above '
+             f'Nyquist ({nyq} Hz). Setting corner at Nyquist')
 
-    z, p, k = iirfilter(corners, f, btype='lowpass', ftype='design',
-                        output='zpk')
+    z, p, k = iirfilter(corners, f, btype='lowpass', ftype=design,
+                        output='zpk', **options)
     sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
@@ -294,7 +301,7 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
 
 def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
-             zerophase: bool = False, design: str = 'butter')-> np.ndarray:
+             zerophase: bool = False, design: str = 'butter', **options)-> np.ndarray:
     '''
     Butterworth-Highpass Filter. Filters data removing data below certain
     frequency ``freq`` using ``corners`` corners.
@@ -319,6 +326,8 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
             - Chebyshev II  : 'cheby2'
             - Cauer/elliptic: 'ellip'
             - Bessel/Thomson: 'bessel'
+    **options :
+        Additional arguments passed to filter function.
 
     Raises
     ------
@@ -349,7 +358,7 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
                          f'Nyquist ({nyq} Hz).')
 
     z, p, k = iirfilter(corners, f, btype='highpass', ftype=design,
-                        output='zpk')
+                        output='zpk', **options)
     sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
@@ -392,7 +401,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float)-> np.
     fut = freqmax + 0.1 * freqmax
     # bandpass between freqmin and freqmax
     filt = remez(50, np.array([0, flt, freqmin, freqmax, fut, df/2-1]),
-                 np.array([0, 1, 0]), Hz=df)
+                 np.array([0, 1, 0]), fs=df)
     return convolve(filt, data)
 
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) -> np.ndarray:
@@ -515,8 +524,8 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     wp = ws  # pass band frequency
     if ws > 1:
         ws = 1.0
-        warnings.warn('Selected corner frequency is above Nyquist. ' + \
-                      'Setting Nyquist as high corner.')
+        warn('Selected corner frequency is above Nyquist. ' + \
+             'Setting Nyquist as high corner.')
     while True:
         if order <= maxorder:
             break
@@ -688,7 +697,7 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
     '''
 
     if f_type in ('iir', 'fir'):
-        return signal.decimate(x=data, q=factor, n=n, ftype=f_type, axis=axis, zero_phase=zero_phase)
+        return decimate_scipy(x=data, q=factor, n=n, ftype=f_type, axis=axis, zero_phase=zero_phase)
     elif f_type == 'fir-remez':
         b, a, _ = decimate_coeffs(q=factor, n=n, ftype='fir-remez')
     elif f_type == 'fir235':
@@ -696,7 +705,7 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
     else:
         raise ValueError(f'Unknown filter type "{f_type}", options are "fir", "iir", "fir-remez" and "fir235"')
 
-    return decimate(x=data, q=factor, ftype=signal.dlti(b, a), axis=axis, zero_phase=zero_phase)
+    return decimate_scipy(x=data, q=factor, ftype=dlti(b, a), axis=axis, zero_phase=zero_phase)
 
 
 def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
@@ -773,8 +782,8 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
                       n=nt, axis=0).real # unshift and inverse transform
 
     if plot_mode == 'mpl':
-        warnings.warn('⚠️ matplotlib plotting not implemented for this method, '
-                      'plotting using pyqtgraph instead')
+        warn('⚠️ matplotlib plotting not implemented for this method, '
+             'plotting using pyqtgraph instead')
         plot_mode = 'pyqt'
 
     if plot_mode == 'pyqt':
@@ -848,14 +857,13 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
         low = grid.min() if low is None else low # only one limit requested
         high = grid.max() if high is None else high
 
-        width = high-low
-        x = (grid-low) / width  # normalize
+        x = (grid-low) / (high-low)  # normalize
 
-        if alpha <= 0: # no tapering requested
+        if alpha <= 0: # no tapering requested, sharp mask
             mask[(x >= 0) & (x <= 1)] = 1
             return mask
 
-        half = alpha / 2
+        half = alpha/2
         mask[(x >= half) & (x <= 1 - half)] = 1 # region not affected by taper
         in_taper = ((x >= 0) & (x < half)) | ((x > 1 - half) & (x <= 1))
         t = np.where(x < half, x / half, (1 - x) / half)
