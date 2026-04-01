@@ -1,8 +1,8 @@
 '''Contains signal filtering and decimation functions'''
 
+import numpy as np
 from warnings import warn
 from pathlib import Path
-import numpy as np
 from scipy.signal import decimate as decimate_scipy
 from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
                           remez, medfilt2d, dlti)
@@ -14,6 +14,7 @@ try:
 except ImportError:
     from ._sosfilt import _sosfilt as sosfilt
     from ._sosfilt import _zpk2sos as zpk2sos
+
 from fobench.plotting import plotting_pyqt as pyqt
 
 def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
@@ -365,7 +366,8 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     else:
         return sosfilt(sos, data, axis=0)
 
-def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float)-> np.ndarray:
+def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
+              numtaps: int = 50)-> np.ndarray:
     '''
     Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
@@ -385,6 +387,8 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float)-> np.
         High corner frequency.
     df : float
         Sampling rate in Hz.
+    numtaps : int
+        Desired number of taps in the filter.
 
     Returns
     -------
@@ -394,15 +398,17 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float)-> np.
     See also
     --------
     For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
+    and :func:`~scipy.signal.remez`
 
     '''
 
     flt = freqmin - 0.1 * freqmin # take 10% of freqmin and freqmax as "corners"
     fut = freqmax + 0.1 * freqmax
     # bandpass between freqmin and freqmax
-    filt = remez(50, np.array([0, flt, freqmin, freqmax, fut, df/2-1]),
+    filt = remez(numtaps, np.array([0, flt, freqmin, freqmax, fut, df/2-1]),
                  np.array([0, 1, 0]), fs=df)
-    return convolve(filt, data)
+
+    return np.apply_along_axis(lambda row: convolve(filt, row), axis=0, arr=data)
 
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) -> np.ndarray:
     '''
@@ -440,8 +446,12 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) ->
     h = np.fft.ifft(myfilter)
     beta = 11.7 # beta implies Kaiser
     myh = np.fft.fftshift(h) * get_window(beta, winlen)
-    return convolve(abs(myh), data)[winlen/2:-winlen/2]
 
+    kernel = abs(myh)
+    winlen_half = winlen // 2
+
+    return np.apply_along_axis(lambda row: convolve(kernel, row)[winlen_half:-winlen_half],
+                               axis=0, arr=data)
 
 def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
     '''
