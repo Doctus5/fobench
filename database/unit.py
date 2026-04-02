@@ -61,8 +61,8 @@ class Unit(object):
 		self.sensing = sensing
 		self.format = format
 		self.company = company
-		self.total_files = len(self.datasets) # total files that the unit produced.
-		self.total_datasets = 0
+		self.total_files = 0
+		self.total_datasets = len(self.datasets) # total files that the unit produced.
 		self.earliest_usage = None # earliest start date of meassurements with the unit.
 		self.latest_usage = None # latest end date of meassurements with the unit.
 
@@ -394,6 +394,37 @@ class Unit(object):
 		else:
 
 			print(df.to_string(header=True))
+
+
+	def trim(time_range: tuple, include_overlap : bool = True):
+		"""Trim the unit and its datasets based on date ranges. See manager.fr_time_filtering for more details.
+
+		Parameters
+		----------
+		time_range : tuple
+			Start and end times in ISO format (or any datetime-parsable values).
+			Example: ("2019-12-12T00:00:00Z", "2020-12-12T00:00:00Z")
+		include_overlap : bool, optional
+			If False (default), keep rows fully contained in ``range``.
+			If True, keep rows that overlap ``range``. Deault is True.
+
+		Returns
+		-------
+		_type_
+			NA
+		"""
+
+		self.total_files = 0
+
+		for i, ds in enumerate(self.datasets):
+    
+			ds.trim(time_range, include_overlap)
+			self.total_files += ds.total_files
+   
+		self.database = [db for db in self.database if db.total_files > 0]
+		self.total_datasets = len(self.datasets)
+
+		return self
 
 
 	'''

@@ -346,5 +346,29 @@ class Dataset(object):
         self.__builded__ = True # its now builded.
 
         return self
+    
+    # Cuts the datasets in time, so you only get the files that you are supposed to have in a certain time window.
+    def trim(time_range: tuple, include_overlap : bool = True):
+        """Trim the dataset based on date ranges. See manager.fr_time_filtering for more details.
+
+        Parameters
+        ----------
+        time_range : tuple
+            Start and end times in ISO format (or any datetime-parsable values).
+            Example: ("2019-12-12T00:00:00Z", "2020-12-12T00:00:00Z")
+        include_overlap : bool, optional
+            If False (default), keep rows fully contained in ``range``.
+            If True, keep rows that overlap ``range``. Deault is True.
+
+        Returns
+        -------
+        _type_
+            NA
+        """
         
+        self.database = manager.df_time_filtering(df=self.database, range=time_range, include_overlap=include_overlap)
+        self.total_files = len(self.database)
+        self.start_time = self.database["start_time"].iloc[0]
+        self.end_time = self.database["end_time"].iloc[-1]
         
+        return self
