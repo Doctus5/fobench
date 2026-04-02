@@ -65,8 +65,8 @@ class Fiber(object):
 		self.__basefile__ = self.attributes['basefile'] # changed to the structure of the file
 		self.fiber = self.attributes['fiber']
 		self.properties = self.attributes['properties'] # all metadata of input file
-		self.channels = self.attributes['chans']
-		self.channels_num = self.attributes['chans_nums']
+		self.channels = self.attributes['chans'] # list of channels as array
+		self.channels_num = self.attributes['chans_nums'] # list of channels as list
 		self.total_channels = self.attributes['list_chans_num']
 		self.sampling_frequency = self.attributes['sampling_frequency'] # sampling rate of the data.
 		self.o_sampling_frequency = self.attributes['o_sampling_frequency'] if self.attributes['o_sampling_frequency'] != None else self.attributes['sampling_frequency'] # original sampling frequency. Important for conversion factor.
