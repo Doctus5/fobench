@@ -115,11 +115,11 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
         The filter design, options are:
-            - Butterworth   : 'butter' (default)
-            - Chebyshev I   : 'cheby1'
-            - Chebyshev II  : 'cheby2'
-            - Cauer/elliptic: 'ellip'
-            - Bessel/Thomson: 'bessel'
+            - Butterworth   : ``'butter'`` (default)
+            - Chebyshev I   : ``'cheby1'``
+            - Chebyshev II  : ``'cheby2'``
+            - Cauer/elliptic: ``'ellip'``
+            - Bessel/Thomson: ``'bessel'``
     **options :
         Additional arguments passed to filter function.
 
@@ -139,8 +139,9 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
 
     See also
     --------
-    :func:`~scipy.signal.iirfilter` for filter design and :func:`~scipy.signal.sosfilt`/
-    :func:`~scipy.signal.sosfiltfilt` for application of the filter
+    :func:`~scipy.signal.iirfilter`
+    :func:`~scipy.signal.sosfilt`
+    :func:`~scipy.signal.sosfiltfilt`
 
     '''
     if freqmin <= 0 or freqmax <= 0:
@@ -189,11 +190,11 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
         The filter design, options are:
-            - Butterworth   : 'butter' (default)
-            - Chebyshev I   : 'cheby1'
-            - Chebyshev II  : 'cheby2'
-            - Cauer/elliptic: 'ellip'
-            - Bessel/Thomson: 'bessel'
+            - Butterworth   : ``'butter'`` (default)
+            - Chebyshev I   : ``'cheby1'``
+            - Chebyshev II  : ``'cheby2'``
+            - Cauer/elliptic: ``'ellip'``
+            - Bessel/Thomson: ``'bessel'``
     **options :
         Additional arguments passed to filter function.
 
@@ -213,8 +214,9 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 
     See also
     --------
-    :func:`~scipy.signal.iirfilter` for filter design and :func:`~scipy.signal.sosfilt`/
-    :func:`~scipy.signal.sosfiltfilt` for application of the filter.
+    :func:`~scipy.signal.iirfilter`
+    :func:`~scipy.signal.sosfilt`
+    :func:`~scipy.signal.sosfiltfilt`
 
     '''
     if freqmin <= 0 or freqmax <= 0:
@@ -263,11 +265,11 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
         The filter design, options are:
-            - Butterworth   : 'butter' (default)
-            - Chebyshev I   : 'cheby1'
-            - Chebyshev II  : 'cheby2'
-            - Cauer/elliptic: 'ellip'
-            - Bessel/Thomson: 'bessel'
+            - Butterworth   : ``'butter'`` (default)
+            - Chebyshev I   : ``'cheby1'``
+            - Chebyshev II  : ``'cheby2'``
+            - Cauer/elliptic: ``'ellip'``
+            - Bessel/Thomson: ``'bessel'``
     **options :
         Additional arguments passed to filter function.
 
@@ -283,8 +285,9 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
     See also
     --------
-    :func:`~scipy.signal.iirfilter` for filter design and :func:`~scipy.signal.sosfilt`/
-    :func:`~scipy.signal.sosfiltfilt` for application of the filter.
+    :func:`~scipy.signal.iirfilter`
+    :func:`~scipy.signal.sosfilt`
+    :func:`~scipy.signal.sosfiltfilt`
 
     '''
 
@@ -328,11 +331,11 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
         The filter design, options are:
-            - Butterworth   : 'butter' (default)
-            - Chebyshev I   : 'cheby1'
-            - Chebyshev II  : 'cheby2'
-            - Cauer/elliptic: 'ellip'
-            - Bessel/Thomson: 'bessel'
+            - Butterworth   : ``'butter'`` (default)
+            - Chebyshev I   : ``'cheby1'``
+            - Chebyshev II  : ``'cheby2'``
+            - Cauer/elliptic: ``'ellip'``
+            - Bessel/Thomson: ``'bessel'``
     **options :
         Additional arguments passed to filter function.
 
@@ -351,8 +354,9 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
     See also
     --------
-    :func:`~scipy.signal.iirfilter` for filter design and :func:`~scipy.signal.sosfilt`/
-    :func:`~scipy.signal.sosfiltfilt` for application of the filter.
+    :func:`~scipy.signal.iirfilter`
+    :func:`~scipy.signal.sosfilt`
+    :func:`~scipy.signal.sosfiltfilt`
 
     '''
 
@@ -377,7 +381,8 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
     '''
     Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
-    specified bands using the Remez exchange algorithm.
+    specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
+    for more details.
 
     Warning
     -------
@@ -408,8 +413,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 
     See also
     --------
-    For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
-    and :func:`~scipy.signal.remez`
+    :func:`~scipy.signal.remez`
 
     '''
 
@@ -428,6 +432,7 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
                 zerophase: bool = False) -> np.ndarray:
     '''
     FIR-Lowpass Filter. Filter data by passing data only below a certain frequency.
+    For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`_
 
     Warning
     -------
@@ -453,10 +458,6 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
     -------
     np.ndarray
         Filetered data.
-
-    See also
-    --------
-    For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`_
 
     '''
 
@@ -502,7 +503,7 @@ def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
     Returns
     -------
     data : np.ndarray
-        Decimated data of length initial length/decimation factor.
+        Decimated data of length (initial length/decimation factor).
 
     '''
 
@@ -541,7 +542,7 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     Returns
     -------
     tuple[float, float]
-        filter coefficients (b, a)
+        Filter coefficients (b, a)
     np.ndarray, float
         Filtered data, determined pass band frequency
     np.ndarray
@@ -580,7 +581,7 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     exponent: float = 0.3, normalize_power: bool = False) -> np.ndarray:
     '''
     Adaptive frequency-wavenumber filter for denoising. Adapted from pyrockos
-    lightguide package
+    `lightguide <https://github.com/pyrocko/lightguide/blob/main/lightguide/afk_filter_python.py>`_ package
 
     Parameters
     ----------
@@ -589,7 +590,7 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     window_size : int, optional
         Size of window in samples
     overlap : int, optional
-        Overlap in samples. The default is 14.
+        Overlap in samples.
     exponent : float, optional
         Scaling exponent ∈ [0, 1], controls the strength of the filter.
     normalize_power : bool, optional
@@ -611,7 +612,6 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
 
     See also
     --------
-    `Original code <https://github.com/pyrocko/lightguide/blob/main/lightguide/afk_filter_python.py>`_
     `Isken et al. 2022 <https://doi.org/10.1093/gji/ggac229>`_
 
     '''
@@ -692,8 +692,8 @@ def lfir235()-> tuple[float, float, float]:
 def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
              n: int = None, zero_phase: bool = True):
     '''
+    Decimates data with appropriate lowpass filtering before.
     :Contributors: : Marius Isken (GFZ-Potsdam)
-    Decimates data with appropriate LP filtering before
 
     Parameters
     ----------
@@ -703,11 +703,10 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
         Downsampling factor.
     f_type : str
         LP filter type. Options are:
-            - 'iir': Chebyshev type I of order 8
-            - 'fir': 30 point FIR with Hamming window
-            - 'fir-remez':
-            - 'fir235':
-.
+            - ``'iir'``: Chebyshev type I of order 8
+            - ``'fir'``: 30 point FIR with Hamming window
+            - ``'fir-remez'``:
+            - ``'fir235'``:
     axis : int, optional
         Axis along which to perform decimation.
     n : int, optional
@@ -754,7 +753,7 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
     Returns
     -------
     filtered data : np.ndarray.
-        The filtered data
+        Filtered data
 
     See also
     --------
@@ -780,7 +779,7 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
     bands : list[dict]
         Bands that will be retained.
     propagation : str | None, optional
-        . Keep only ``'positive'`` or ``'negative'`` wavenumbers.
+        Keep only ``'positive'`` or ``'negative'`` wavenumbers.
     alpha : float, optional
         Tukey taper parameter
     plot_mode : str
@@ -791,7 +790,7 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
 
     See also
     --------
-    See :func:`~fobench.tools.filters.fk_mask` for details on the bands input.
+    :func:`~fobench.tools.filters.fk_mask`
 
     Returns
     -------
@@ -832,11 +831,11 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
     ----------
     bands : list of dict
         The limits of the fk-domain regions that will be retained, i.e. the
-        passband
+        passband.
         Each dict can contain any of:
-            fmin, fmax (frequency limits)
-            kmin, kmax (wavenumber limits)
-            vmin, vmax (velocity limits)
+            - fmin, fmax (frequency limits)
+            - kmin, kmax (wavenumber limits)
+            - vmin, vmax (velocity limits)
     f : np.ndarray
         Frequency axis
     k : np.ndarray
