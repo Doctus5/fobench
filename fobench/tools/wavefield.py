@@ -4,6 +4,7 @@ import numpy as np
 from warnings import warn
 from tqdm import trange
 from obspy.signal.cross_correlation import correlate
+from scipy.signal import correlate as scipy_correlate, correlation_lags
 from fobench.tools import signals
 from fobench.plotting import plotting_pyqt as plot_pyqt
 from fobench.plotting.plotting_mpl import plot_acfs
@@ -309,3 +310,136 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
     amp = np.abs(fft) / fft.max() if norm else np.abs(fft)
 
     return amp, freq
+
+def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
+                mode: str = 'full', demean: bool = True, normalize: bool = True,
+                normalization: str = 'global', min_overlap: int = 1,
+                gpu_use: bool = False) -> tuple[np.ndarray, np.ndarray]:
+    '''
+    Cross-correlates two signals (1D to N-D) along a selected axis.
+
+    Parameters
+    ----------
+    signal1, signal2 : np.ndarray
+        Input arrays. They can have any number of dimensions. Along ``axis``,
+        lengths may differ. All other dimensions must be broadcast-compatible.
+    axis : int, optional
+        Axis along which cross-correlation is computed. The default is -1.
+    mode : str, optional
+        Correlation output mode:
+        - ``full``: all overlaps, longest output (``n1 + n2 - 1`` samples).
+        - ``same``: output length equals ``signal1.shape[axis]``.
+        - ``valid``: only complete overlaps, shortest output.
+        The default is ``full``.
+    demean : bool, optional
+        Removes mean from each trace before correlation. The default is True.
+    normalize : bool, optional
+        If True, correlation is divided by ``||x|| * ||y||``, keeping scores in
+        ``[-1, 1]``. The default is True.
+    normalization : str, optional
+        Normalization strategy when ``normalize=True``:
+        - ``global``: uses one denominator per trace (faster; can show edge spikes in
+          ``mode='full'`` with different lengths).
+        - ``windowed``: computes denominator per lag using only overlapping samples
+          (Pearson-like per lag, more robust at edges).
+        The default is ``global``.
+    min_overlap : int, optional
+        Minimum number of overlapping samples required at a lag. Lags with less
+        overlap are set to 0. Useful to suppress unstable edge values in
+        ``mode='full'``. The default is 1.
+    gpu_use : bool, optional
+        Kept for backwards compatibility. Currently unused.
+
+    Returns
+    -------
+    lags : np.ndarray
+        Lags (in samples) corresponding to ``corr`` along ``axis``.
+    corr : np.ndarray
+        Cross-correlation values. Shape equals the broadcasted input shape with
+        length ``len(lags)`` along ``axis``.
+    '''
+
+    if isinstance(axis, bool):
+        # Backward compatibility with the old signature x_correlate(s1, s2, gpu_use)
+        gpu_use = axis
+        axis = -1
+    if gpu_use:
+        warn('gpu_use is currently not implemented; running on CPU.')
+
+    signal1 = np.asarray(signal1, dtype=float)
+    signal2 = np.asarray(signal2, dtype=float)
+
+    if signal1.ndim == 0 or signal2.ndim == 0:
+        raise ValueError('signal1 and signal2 must be at least 1D arrays.')
+    if signal1.ndim != signal2.ndim:
+        raise ValueError('signal1 and signal2 must have the same number of dimensions.')
+    if mode not in {'full', 'same', 'valid'}:
+        raise ValueError("mode must be one of: 'full', 'same', 'valid'.")
+    if normalization not in {'global', 'windowed'}:
+        raise ValueError("normalization must be one of: 'global', 'windowed'.")
+    if min_overlap < 1:
+        raise ValueError('min_overlap must be >= 1.')
+
+    if axis < -signal1.ndim or axis >= signal1.ndim:
+        raise np.AxisError(axis, ndim=signal1.ndim)
+    axis = axis % signal1.ndim
+    data1 = np.moveaxis(signal1, axis, -1)
+    data2 = np.moveaxis(signal2, axis, -1)
+
+    try:
+        batch_shape = np.broadcast_shapes(data1.shape[:-1], data2.shape[:-1])
+        data1 = np.broadcast_to(data1, batch_shape + (data1.shape[-1],))
+        data2 = np.broadcast_to(data2, batch_shape + (data2.shape[-1],))
+    except ValueError as exc:
+        raise ValueError(
+            'signal1 and signal2 are not broadcast-compatible outside the selected axis.'
+        ) from exc
+
+    n1 = data1.shape[-1]
+    n2 = data2.shape[-1]
+    lags = correlation_lags(n1, n2, mode=mode)
+
+    flat1 = data1.reshape(-1, n1)
+    flat2 = data2.reshape(-1, n2)
+    corr = np.empty((flat1.shape[0], lags.size), dtype=float)
+
+    for i in range(flat1.shape[0]):
+        x = flat1[i]
+        y = flat2[i]
+
+        if normalize and normalization == 'windowed':
+            cc = np.zeros(lags.size, dtype=float)
+            for j, lag in enumerate(lags):
+                start = max(0, lag)
+                stop = min(n1, n2 + lag)
+                overlap = stop - start
+
+                if overlap < min_overlap:
+                    continue
+
+                x_seg = x[start:stop]
+                y_seg = y[start-lag:stop-lag]
+
+                if demean:
+                    x_seg = x_seg - x_seg.mean()
+                    y_seg = y_seg - y_seg.mean()
+
+                denom = np.linalg.norm(x_seg) * np.linalg.norm(y_seg)
+                cc[j] = np.dot(x_seg, y_seg) / denom if denom > 0 else 0.0
+        else:
+            if demean:
+                x = x - x.mean()
+                y = y - y.mean()
+
+            cc = scipy_correlate(x, y, mode=mode, method='auto')
+
+            if normalize:
+                denom = np.linalg.norm(x) * np.linalg.norm(y)
+                cc = cc / denom if denom > 0 else np.zeros_like(cc)
+
+        corr[i] = cc
+
+    corr = corr.reshape(batch_shape + (lags.size,))
+    corr = np.moveaxis(corr, -1, axis)
+
+    return lags, corr
