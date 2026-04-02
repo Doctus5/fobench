@@ -410,8 +410,7 @@ class Fiber(object):
 		if 'bandpass' or 'bandstop', freq must be tuple(float, float)
 		'''
 		if pre_process and f_type != 'median':
-			self.preprocess(alpha=alpha, sym=sym, order=order,
-							   axis=0)
+			self.preprocess(alpha=alpha, sym=sym, order=order, axis=0)
 
 		self.data = filters.point_filter(f_type=f_type, data=self.data,
 								  df=self.sampling_frequency, freq=freq, **options)

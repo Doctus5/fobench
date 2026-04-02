@@ -4,8 +4,8 @@ import numpy as np
 from warnings import warn
 from pathlib import Path
 from scipy.signal import decimate as decimate_scipy
-from scipy.signal import (cheb2ord, cheby2, convolve, get_window, iirfilter,
-                          remez, medfilt2d, dlti)
+from scipy.signal import (cheb2ord, cheby2, get_window, iirfilter, remez,
+                          medfilt2d, dlti, filtfilt, lfilter)
 from scipy.fft import (fftshift, ifftshift, fftfreq, rfftfreq, fft, rfft,
                        irfft, ifft)
 from pyrocko.util import decimate_coeffs
@@ -63,8 +63,14 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
                          f'choose one of:\n' + '\n'.join(f"'{key}'" for key in filter_functions.keys()))
 
     if f_type in {'bandpass', 'bandstop', 'remez_fir'}:
+        if not isinstance(freq, (tuple, list)) or len(freq) != 2:
+            raise ValueError(f'For filter type "{f_type}" freq must be a tuple of '
+                             f'(freqmin, freqmax), got: {freq=} instead!')
         result = filter_func(data=data, df=df, freqmin=freq[0], freqmax=freq[1], **options)
     elif f_type in {'lowpass', 'highpass', 'lp_fir', 'lp_cheby2'}:
+        if not isinstance(freq, (int, float)):
+            raise ValueError(f'For filter type "{f_type}" freq must be a int or '
+                             f'float, got: {type(freq).__name__} with {freq=} instead!')
         result = filter_func(data=data, df=df, freq=freq, **options)
     elif f_type in {'median', 'afk'}:
         result = filter_func(data=data, **options)
@@ -367,7 +373,7 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         return sosfilt(sos, data, axis=0)
 
 def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
-              numtaps: int = 50)-> np.ndarray:
+              numtaps: int = 50, zerophase: bool = False)-> np.ndarray:
     '''
     Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
@@ -389,6 +395,11 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
         Sampling rate in Hz.
     numtaps : int
         Desired number of taps in the filter.
+    zerophase : bool
+        If True, applies the filter twice in opposite directions using
+        :func:`~scipy.signal.filtfilt` for zero phase distortion. If False,
+        applies the filter once causally using :func:`~scipy.signal.lfilter`,
+        introducing a phase shift.
 
     Returns
     -------
@@ -408,9 +419,13 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
     filt = remez(numtaps, np.array([0, flt, freqmin, freqmax, fut, df/2-1]),
                  np.array([0, 1, 0]), fs=df)
 
-    return np.apply_along_axis(lambda row: convolve(filt, row), axis=0, arr=data)
+    if zerophase:
+        return filtfilt(filt, 1.0, data, axis=0)
+    else:
+        return lfilter(filt, 1.0, data, axis=0)
 
-def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) -> np.ndarray:
+def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
+                zerophase: bool = False) -> np.ndarray:
     '''
     FIR-Lowpass Filter. Filter data by passing data only below a certain frequency.
 
@@ -428,6 +443,11 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) ->
         Sampling rate in Hz.
     winlen : int, optional
         Window length for filter in samples, must be power of 2.
+    zerophase : bool
+        If True, applies the filter twice in opposite directions using
+        :func:`~scipy.signal.filtfilt` for zero phase distortion. If False,
+        applies the filter once causally using :func:`~scipy.signal.lfilter`,
+        introducing a phase shift.
 
     Returns
     -------
@@ -448,10 +468,11 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048) ->
     myh = np.fft.fftshift(h) * get_window(beta, winlen)
 
     kernel = abs(myh)
-    winlen_half = winlen // 2
 
-    return np.apply_along_axis(lambda row: convolve(kernel, row)[winlen_half:-winlen_half],
-                               axis=0, arr=data)
+    if zerophase:
+        return filtfilt(kernel, 1.0, data, axis=0)
+    else:
+        return lfilter(kernel, 1.0, data, axis=0)
 
 def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
     '''
