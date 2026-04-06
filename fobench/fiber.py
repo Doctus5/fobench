@@ -429,12 +429,12 @@ class Fiber(object):
 
 	@utils._update_processing
 	def fk_filter(self, bands=[{}], propagation='both', alpha=0.3, plot_mode=None,
-				  verbose=False, results=False):
+				  verbose=False, results=False, mode='pass'):
 		'''Applies frequency wavenumber filter to data'''
 
 		out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
 								bands=bands, propagation=propagation, alpha=alpha,
-								plot_mode=plot_mode, verbose=verbose)
+								plot_mode=plot_mode, verbose=verbose, mode=mode)
 		self.data = out[0] if len(out) == 3 else out
 		if results:
 			return (out[0], out[1], out[2]) if verbose else (out[0])

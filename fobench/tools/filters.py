@@ -764,7 +764,7 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
 
 def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               propagation: str | None = None, alpha: float = 0.3,
-              plot_mode:str = 'pyqt', verbose: bool = False):
+              plot_mode:str = 'pyqt', verbose: bool = False, mode='pass'):
     '''
     Frequency wavenumber filter
 
@@ -787,6 +787,8 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
         spectrum and the fk mask will be generated
     verbose : bool
         If ``True`` additionally returns the fk spectrum and fk mask
+    mode : str
+
 
     See also
     --------
@@ -798,15 +800,16 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
         Filtered data.
     data_fk : np.ndarray
         Initial data in fk domain
-    mask : np.ndarray
-        The fk mask
+    mode : str
+        Either ``'pass'`` or ``'remove'`` the specified band(s).
 
     '''
     nt, nx = data.shape
     data_fk = fftshift(fft(rfft(data, axis=0), axis=1), axes=1) # transform and shift data
     f = rfftfreq(nt, d=dt) # frequency axis
     k = fftshift(fftfreq(nx, d=dx)) # wavenumber axis
-    mask = fk_mask(bands=bands, f=f, k=k, propagation=propagation, alpha=alpha) # build mask
+    mask = fk_mask(bands=bands, f=f, k=k, propagation=propagation, alpha=alpha,
+                   mode=mode) # build mask
     data_filt = data_fk * mask # apply mask
     data_filt = irfft(ifft(ifftshift(data_filt, axes=1), axis=1),
                       n=nt, axis=0).real # unshift and inverse transform
@@ -823,14 +826,14 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
     return (data_filt, data_fk, mask) if verbose else data_filt
 
 def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = None,
-            alpha: float = 0.3) -> np.ndarray:
+            alpha: float = 0.3, mode: str = 'pass') -> np.ndarray:
     '''
     Builds a Tukey-tapered fk-domain mask
 
     Parameters
     ----------
     bands : list of dict
-        The limits of the fk-domain regions that will be retained, i.e. the
+        The limits of the fk-domain regions that will masked, i.e. the
         passband.
         Each dict can contain any of:
             - fmin, fmax (frequency limits)
@@ -844,6 +847,8 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
         Keep only ``'positive'`` or ``'negative'`` wavenumbers
     alpha : float
         Tukey taper parameter
+    mode : str
+        Either ``'pass'`` or ``'remove'`` the specified band(s).
 
     Raises
     ------
@@ -880,25 +885,36 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
             The fk mask.
 
         '''
+        mask = np.ones_like(grid, dtype=float)  # start fully open
 
-        mask = np.zeros_like(grid, dtype=float)
         if low is None and high is None:  # no limits requested -> let everything pass
-            return np.ones_like(grid, dtype=float)
-        low = grid.min() if low is None else low # only one limit requested
-        high = grid.max() if high is None else high
+            return mask
 
-        x = (grid-low) / (high-low)  # normalize
+        if low is not None:
+            mask[grid < low] = 0
+        if high is not None:
+            mask[grid > high] = 0
 
-        if alpha <= 0: # no tapering requested, sharp mask
-            mask[(x >= 0) & (x <= 1)] = 1
+        if alpha <= 0: # no taper, return sharp mask
             return mask
 
         half = alpha/2
-        mask[(x >= half) & (x <= 1 - half)] = 1 # region not affected by taper
-        in_taper = ((x >= 0) & (x < half)) | ((x > 1 - half) & (x <= 1))
-        t = np.where(x < half, x / half, (1 - x) / half)
-        mask[in_taper] = 0.5 * (1 - np.cos(np.pi * t[in_taper]))
+
+        if low is not None:
+            t_width = half * low
+            in_lower = (grid >= low) & (grid < low + t_width)
+            t = (grid[in_lower] - low) / t_width
+            mask[in_lower] = 0.5 * (1 - np.cos(np.pi * t))
+
+        if high is not None:
+            t_width = half * high
+            in_upper = (grid > high - t_width) & (grid <= high)
+            t = (high - grid[in_upper]) / t_width
+            mask[in_upper] = 0.5 * (1 - np.cos(np.pi * t))
+
         return mask
+
+    #######
 
     # initialize f, k, v grids and final mask
     if alpha < 0 or alpha > 1:
@@ -906,7 +922,7 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
 
     f_grid = f[:, None]
     k_grid = k[None, :]
-    vel_grid = np.full_like(f_grid / np.ones_like(k_grid), 10e6, dtype=float)
+    vel_grid = np.full_like(f_grid / np.ones_like(k_grid), 1e7, dtype=float)
     np.divide(f_grid, k_grid, out=vel_grid, where=k_grid != 0)
     final_mask = np.zeros((len(f), len(k)), dtype=float)
 
@@ -932,5 +948,8 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
         final_mask[vel_grid <= 0] = 0
     elif propagation == 'negative':
         final_mask[vel_grid >= 0] = 0
+
+    if mode == 'remove':
+        final_mask = 1-final_mask
 
     return final_mask
