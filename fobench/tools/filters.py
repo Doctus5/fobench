@@ -767,6 +767,7 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               plot_mode:str = 'pyqt', verbose: bool = False, mode='pass'):
     '''
     Frequency wavenumber filter
+    :Contributors: : Johannes Hart (GFZ-Potsdam)
 
     Parameters
     ----------
@@ -829,6 +830,7 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
             alpha: float = 0.3, mode: str = 'pass') -> np.ndarray:
     '''
     Builds a Tukey-tapered fk-domain mask
+    :Contributors: : Johannes Hart (GFZ-Potsdam)
 
     Parameters
     ----------
