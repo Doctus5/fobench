@@ -9,3 +9,13 @@ pyrocko
 pyqtgraph
 PyQt5
 tqdm
+
+[dask]
+dask[distributed]
+
+[hpc]
+mpi4py
+dask[distributed]
+
+[mpi]
+mpi4py

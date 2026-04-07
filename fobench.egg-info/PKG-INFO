@@ -1,9 +1,9 @@
 Metadata-Version: 2.4
 Name: fobench
-Version: 0.0.21
-Summary: A fiber optic sensing toolbox
-Author: Sergio Diaz-Meza
-Author-email: sergioad@gfz-potsdam.de
+Version: 0.0.31
+Summary: A toolbox for basic signal processing of fibre optic sensing data, and data/file management.
+Author: Sergio Diaz-Meza, Jonas Pätzel
+Author-email: sergioad@gfz.de, jonas.patzel@ulb.be
 License-File: LICENSE
 Requires-Dist: numpy<2.0.0
 Requires-Dist: h5py
@@ -16,8 +16,16 @@ Requires-Dist: pyrocko
 Requires-Dist: pyqtgraph
 Requires-Dist: PyQt5
 Requires-Dist: tqdm
+Provides-Extra: mpi
+Requires-Dist: mpi4py; extra == "mpi"
+Provides-Extra: dask
+Requires-Dist: dask[distributed]; extra == "dask"
+Provides-Extra: hpc
+Requires-Dist: mpi4py; extra == "hpc"
+Requires-Dist: dask[distributed]; extra == "hpc"
 Dynamic: author
 Dynamic: author-email
 Dynamic: license-file
+Dynamic: provides-extra
 Dynamic: requires-dist
 Dynamic: summary
