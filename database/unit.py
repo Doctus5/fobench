@@ -27,6 +27,7 @@ from .parallel import Parallel
 # Inner functions
 from . import manager as manager
 from .plotters import unit_plots as uni_plots
+from .utils.windowing import build_unit_window_map
 
 
 
@@ -396,7 +397,7 @@ class Unit(object):
 			print(df.to_string(header=True))
 
 
-	def trim(time_range: tuple, include_overlap : bool = True):
+	def trim(self, time_range: tuple, include_overlap : bool = True):
 		"""Trim the unit and its datasets based on date ranges. See manager.fr_time_filtering for more details.
 
 		Parameters
@@ -415,16 +416,86 @@ class Unit(object):
 		"""
 
 		self.total_files = 0
+		trimmed_datasets = []
 
-		for i, ds in enumerate(self.datasets):
+		for ds in self.datasets:
     
 			ds.trim(time_range, include_overlap)
-			self.total_files += ds.total_files
-   
-		self.database = [db for db in self.database if db.total_files > 0]
+
+			if ds.total_files > 0:
+				trimmed_datasets.append(ds)
+				self.total_files += ds.total_files
+
+		self.datasets = trimmed_datasets
 		self.total_datasets = len(self.datasets)
 
+		if self.total_datasets > 0:
+			self.earliest_usage = min(ds.start_time for ds in self.datasets)
+			self.latest_usage = max(ds.end_time for ds in self.datasets)
+		else:
+			self.earliest_usage = None
+			self.latest_usage = None
+
 		return self
+
+
+	def window_map(self, time_range: tuple, window_size: float, step: float = None,
+		include_overlap: bool = True, min_overlap_s: float = 0.0,
+		merge_datasets: bool = True, split_by_acquisition: bool = False,
+		group_cols: list[str] = None, include_meta: bool = True,
+		return_windows: bool = False):
+		"""Build file-to-window mapping for this unit.
+
+		Parameters
+		----------
+		time_range : tuple
+			Requested time range as ``(start_time, end_time)``.
+		window_size : float
+			Window size in seconds.
+		step : float, optional
+			Step between consecutive windows in seconds. If ``None``,
+			non-overlapping windows are used.
+		include_overlap : bool, optional
+			If ``True``, keep files that overlap the requested range.
+			If ``False``, keep only files fully contained in the range.
+		min_overlap_s : float, optional
+			Minimum overlap (seconds) for file-window relations.
+		merge_datasets : bool, optional
+			If ``True``, all datasets in the unit are mapped into one single
+			window timeline. If ``False``, each dataset is mapped independently
+			and results are concatenated.
+		split_by_acquisition : bool, optional
+			If ``True``, files are split into compatibility groups before
+			window mapping.
+		group_cols : list of str, optional
+			Columns to define compatibility groups. If ``None`` and
+			``split_by_acquisition=True``, a default FoBench compatibility set
+			is used.
+		include_meta : bool, optional
+			If ``True``, merge file and window metadata into the output map.
+		return_windows : bool, optional
+			If ``True``, return both mapping and windows table.
+
+		Returns
+		-------
+		pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
+			Window mapping for this unit. If ``return_windows=True``,
+			returns ``(map_df, windows_df)``.
+		"""
+
+		return build_unit_window_map(
+			unit=self,
+			time_range=time_range,
+			window_size=window_size,
+			step=step,
+			include_overlap=include_overlap,
+			min_overlap_s=min_overlap_s,
+			merge_datasets=merge_datasets,
+			split_by_acquisition=split_by_acquisition,
+			group_cols=group_cols,
+			include_meta=include_meta,
+			return_windows=return_windows
+		)
 
 
 	'''

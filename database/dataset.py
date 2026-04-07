@@ -25,6 +25,7 @@ from .parallel import Parallel
 
 # Inner functions
 from . import manager as manager
+from .utils.windowing import build_dataset_window_map
 
 
 
@@ -348,7 +349,7 @@ class Dataset(object):
         return self
     
     # Cuts the datasets in time, so you only get the files that you are supposed to have in a certain time window.
-    def trim(time_range: tuple, include_overlap : bool = True):
+    def trim(self, time_range: tuple, include_overlap : bool = True):
         """Trim the dataset based on date ranges. See manager.fr_time_filtering for more details.
 
         Parameters
@@ -366,9 +367,63 @@ class Dataset(object):
             NA
         """
         
-        self.database = manager.df_time_filtering(df=self.database, range=time_range, include_overlap=include_overlap)
+        self.database = manager.df_time_filtering(df=self.database, range=time_range, include_overlaps=include_overlap)
         self.total_files = len(self.database)
+
+        if self.total_files == 0:
+
+            self.start_time = None
+            self.end_time = None
+            return self
+
         self.start_time = self.database["start_time"].iloc[0]
         self.end_time = self.database["end_time"].iloc[-1]
         
         return self
+
+
+    def window_map(self, time_range: tuple, window_size: float, step: float = None,
+        include_overlap: bool = True, min_overlap_s: float = 0.0,
+        group_cols: list[str] = None, include_meta: bool = True,
+        return_windows: bool = False):
+        """Build file-to-window mapping for this dataset.
+
+        Parameters
+        ----------
+        time_range : tuple
+            Requested time range as ``(start_time, end_time)``.
+        window_size : float
+            Window size in seconds.
+        step : float, optional
+            Step between consecutive windows in seconds. If ``None``,
+            non-overlapping windows are used.
+        include_overlap : bool, optional
+            If ``True``, keep files that overlap the requested range.
+            If ``False``, keep only files fully contained in the range.
+        min_overlap_s : float, optional
+            Minimum overlap (seconds) for file-window relations.
+        group_cols : list of str, optional
+            Optional grouping columns for compatibility grouping.
+        include_meta : bool, optional
+            If ``True``, merge file and window metadata into the output map.
+        return_windows : bool, optional
+            If ``True``, return both mapping and windows table.
+
+        Returns
+        -------
+        pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
+            Window mapping for this dataset. If ``return_windows=True``,
+            returns ``(map_df, windows_df)``.
+        """
+
+        return build_dataset_window_map(
+            dataset=self,
+            time_range=time_range,
+            window_size=window_size,
+            step=step,
+            include_overlap=include_overlap,
+            min_overlap_s=min_overlap_s,
+            group_cols=group_cols,
+            include_meta=include_meta,
+            return_windows=return_windows
+        )
