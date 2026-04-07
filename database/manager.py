@@ -21,8 +21,13 @@ import json
 import pandas as pd
 import numpy as np
 
-# inside packaged
-from ..fobench.fiber import Fiber
+# Import Fiber for both install layouts:
+# - editable install (`from fobench.fiber import Fiber`)
+# - repo namespace usage (`from fobench.fobench.fiber import Fiber`)
+try:
+    from fobench.fiber import Fiber
+except ModuleNotFoundError:
+    from ..fobench.fiber import Fiber
 
 
 def scan_folder(folder_path, format=None):
