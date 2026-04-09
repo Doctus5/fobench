@@ -168,7 +168,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         spatial_interval = float(properties['dx'])
         time_length = end_time - start_time
         gauge_length = float(properties['gauge_length'])
-        channel_offset = int(properties['sensing_range_start'] / spatial_interval)
+        channel_offset = round(properties['sensing_range_start']/spatial_interval)
         units = 'strain-rate' if properties['data_product'] == 'strainrate' else properties['data_product']
         conv_factor = None # conversion factor if given explicitly
 
@@ -242,7 +242,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         spatial_interval = float(properties['spatial_sampling'][0])
         time_length = end_time - start_time
         gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
-        channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
+        channel_offset = round(properties['fiber_position_offset'][0]/spatial_interval)
         units = [key for key in file_file.keys()][2]
         conv_factor = None # conversion factor if given explicitly
 
@@ -265,7 +265,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         end_time = UTC(start_time + num_points * dt)
         time_length = end_time - start_time
         spatial_interval = float(properties['SpatialSamplingInterval'])
-        channel_offset = properties['StartLocusIndex']*spatial_interval
+        channel_offset = properties['StartLocusIndex']
         gauge_length = float(properties['GaugeLength'])
         units = 'units' # unit is not coded in metadata for Sintela .h5
         conv_factor = None
