@@ -152,8 +152,9 @@ class Fiber(object):
 		'''
 		if not self.corrected:
 			(self.data, self.units, self.channels, self.channels_num,
-					self.total_channels, self.gauge_length) = utils.instr_corr(self.data, vars(self),
+					self.total_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
 									target=target, terra15_gl=terra15_gl)
+			# self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels_num]
 			self.corrected = True
 			return self
 

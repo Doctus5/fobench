@@ -173,10 +173,13 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = '
 			gl = gauge_samples * attributes['spatial_interval']
 			print(f'⚠️ Applying the nearest possible gauge length: {gl}m')
 			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl
-			n_decim = int(gauge_samples/2)
-			attributes['channels'] = attributes['channels'][n_decim:-n_decim]
-			attributes['channels_num'] = attributes['channels_num'][n_decim:-n_decim]
-			attributes['total_channels'] = attributes['channels'].size
+			n_left = gauge_samples // 2
+			n_right = gauge_samples - n_left
+			if gauge_samples != 0:
+				attributes['channels'] = attributes['channels'][n_left:-n_right]
+				attributes['channels_num'] = attributes['channels_num'][n_left:-n_right]
+				attributes['distances'] = attributes['distances'][n_left:-n_right]
+				attributes['total_channels'] = attributes['channels'].size
 			attributes['gauge_length'] = gl
 
 	elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
@@ -218,7 +221,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = '
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
-	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels'], attributes['gauge_length']
+	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
 
 
 def interpolate_channels(n_ch, x_ch, y_ch, z_ch, system='decimal', err=None, spacing=None):
