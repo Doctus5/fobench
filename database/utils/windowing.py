@@ -18,7 +18,28 @@ import numpy as np
 import pandas as pd
 
 
-def build_time_windows(start_time, end_time, window_size, step=None):
+def _to_pandas_datetime(value):
+    """Convert scalar-like datetime values to pandas.Timestamp-compatible input.
+
+    Parameters
+    ----------
+    value : object
+        Datetime-like value.
+
+    Returns
+    -------
+    pandas.Timestamp
+        Converted timestamp.
+    """
+
+    # ObsPy UTCDateTime exposes native datetime through ``.datetime``.
+    if hasattr(value, "datetime"):
+        value = value.datetime
+
+    return pd.to_datetime(value)
+
+
+def time_windows(start_time, end_time, window_size, step=None):
     """Build fixed windows between two times.
 
     Parameters
@@ -46,8 +67,9 @@ def build_time_windows(start_time, end_time, window_size, step=None):
         If the provided time range is invalid or empty.
     """
 
-    t0 = pd.to_datetime(start_time)
-    tf = pd.to_datetime(end_time)
+    # Normalize datetime-like inputs.
+    t0 = _to_pandas_datetime(start_time)
+    tf = _to_pandas_datetime(end_time)
 
     if t0 >= tf:
         raise ValueError('"start_time" must be earlier than "end_time".')
@@ -68,6 +90,7 @@ def build_time_windows(start_time, end_time, window_size, step=None):
     if step <= pd.Timedelta(0):
         raise ValueError(f'"step" must be positive. Received: {step}.')
 
+    # Build sequential fixed windows over the requested range.
     windows = []
     current = t0
     win_id = 0
@@ -114,8 +137,8 @@ def overlap_seconds(start_a, end_a, start_b, end_b):
         overlap.
     """
 
-    sa, ea = pd.to_datetime(start_a), pd.to_datetime(end_a)
-    sb, eb = pd.to_datetime(start_b), pd.to_datetime(end_b)
+    sa, ea = _to_pandas_datetime(start_a), _to_pandas_datetime(end_a)
+    sb, eb = _to_pandas_datetime(start_b), _to_pandas_datetime(end_b)
 
     latest_start = max(sa, sb)
     earliest_end = min(ea, eb)
@@ -124,7 +147,7 @@ def overlap_seconds(start_a, end_a, start_b, end_b):
     return max(float(overlap), 0.0)
 
 
-def map_files_to_windows(files_df, windows_df, start_label="start_time",
+def files2windows(files_df, windows_df, start_label="start_time",
     end_label="end_time", min_overlap_s=0.0):
     """Map file intervals to windows using temporal overlap.
 
@@ -133,7 +156,7 @@ def map_files_to_windows(files_df, windows_df, start_label="start_time",
     files_df : pandas.DataFrame
         File metadata table containing at least start/end time columns.
     windows_df : pandas.DataFrame
-        Window metadata table from :func:`build_time_windows`.
+        Window metadata table from :func:`time_windows`.
     start_label : str, optional
         Column name for file start time.
     end_label : str, optional
@@ -168,6 +191,7 @@ def map_files_to_windows(files_df, windows_df, start_label="start_time",
         missing = sorted(required_window_cols - set(windows_df.columns))
         raise KeyError(f"Missing required window columns: {missing}")
 
+    # Build compact views with only the required columns.
     files = files_df[[start_label, end_label]].copy()
     files[start_label] = pd.to_datetime(files[start_label])
     files[end_label] = pd.to_datetime(files[end_label])
@@ -180,6 +204,7 @@ def map_files_to_windows(files_df, windows_df, start_label="start_time",
     windows["end_time"] = pd.to_datetime(windows["end_time"])
     windows = windows.sort_values(by=["start_time", "end_time"]).reset_index(drop=True)
 
+    # Sliding-pointer approach to avoid full cartesian comparisons.
     relations = []
     n_files = len(files)
     file_pointer = 0
@@ -190,16 +215,19 @@ def map_files_to_windows(files_df, windows_df, start_label="start_time",
         win_end = win["end_time"]
         win_duration = float(win["duration_s"])
 
+        # Move pointer to first file that can overlap this window.
         while file_pointer < n_files and files.loc[file_pointer, end_label] <= win_start:
             file_pointer += 1
 
         file_scan = file_pointer
+        # Scan only candidate files that start before window end.
         while file_scan < n_files and files.loc[file_scan, start_label] < win_end:
 
             file_start = files.loc[file_scan, start_label]
             file_end = files.loc[file_scan, end_label]
             file_duration = float(files.loc[file_scan, "file_duration_s"])
 
+            # Compute overlap and keep only meaningful relations.
             ovlp = overlap_seconds(file_start, file_end, win_start, win_end)
             if ovlp > min_overlap_s:
 
@@ -216,7 +244,7 @@ def map_files_to_windows(files_df, windows_df, start_label="start_time",
     return pd.DataFrame(relations)
 
 
-def map_files_to_windows_grouped(files_df, windows_df, group_cols=None,
+def files2windows_groups(files_df, windows_df, group_cols=None,
     start_label="start_time", end_label="end_time", min_overlap_s=0.0):
     """Map files to windows with optional grouping by acquisition parameters.
 
@@ -226,11 +254,11 @@ def map_files_to_windows_grouped(files_df, windows_df, group_cols=None,
         File metadata table containing at least start/end time columns and
         optionally grouping columns.
     windows_df : pandas.DataFrame
-        Window metadata table from :func:`build_time_windows`.
+        Window metadata table from :func:`time_windows`.
     group_cols : list of str, optional
         Columns used to split files into compatibility groups before mapping.
         If ``None`` or empty, behavior is identical to
-        :func:`map_files_to_windows`.
+        :func:`files2windows`.
     start_label : str, optional
         Column name for file start time.
     end_label : str, optional
@@ -245,8 +273,9 @@ def map_files_to_windows_grouped(files_df, windows_df, group_cols=None,
         ``group_id`` and the grouping columns.
     """
 
+    # Fast path without grouping.
     if group_cols is None or len(group_cols) == 0:
-        return map_files_to_windows(
+        return files2windows(
             files_df=files_df,
             windows_df=windows_df,
             start_label=start_label,
@@ -258,13 +287,14 @@ def map_files_to_windows_grouped(files_df, windows_df, group_cols=None,
     if missing:
         raise KeyError(f"Missing required grouping columns: {missing}")
 
+    # Run mapping independently for each compatibility group.
     groups = files_df.groupby(group_cols, dropna=False)
     outputs = []
     expected_cols = ["file_index", "window_id", "overlap_s", "file_weight", "window_weight", "group_id", *group_cols]
 
     for group_id, (group_values, group_df) in enumerate(groups):
 
-        group_map = map_files_to_windows(
+        group_map = files2windows(
             files_df=group_df,
             windows_df=windows_df,
             start_label=start_label,
@@ -290,9 +320,9 @@ def map_files_to_windows_grouped(files_df, windows_df, group_cols=None,
     return pd.concat(outputs, ignore_index=True)
 
 
-def build_window_file_map(files_df, time_range, window_size, step=None,
+def windows_file_map(files_df, time_range, window_size, step=None,
     include_overlaps=True, min_overlap_s=0.0, group_cols=None,
-    start_label="start_time", end_label="end_time", include_meta=True,
+    start_label="start_time", end_label="end_time", include_meta=False,
     return_windows=False):
     """Build a complete file-to-window map for a requested time range.
 
@@ -300,8 +330,9 @@ def build_window_file_map(files_df, time_range, window_size, step=None,
     ----------
     files_df : pandas.DataFrame
         File metadata table containing at least start/end time columns.
-    time_range : tuple
+    time_range : tuple, optional
         Two-value tuple ``(start_time, end_time)`` for the requested range.
+        If ``None``, the full range from ``files_df`` is used.
     window_size : float or int
         Window size in seconds.
     step : float or int, optional
@@ -330,17 +361,29 @@ def build_window_file_map(files_df, time_range, window_size, step=None,
         ``(file_window_map, windows_df)``.
     """
 
-    if len(time_range) != 2:
-        raise ValueError('"time_range" must contain exactly two values: (start_time, end_time).')
-
     if start_label not in files_df.columns or end_label not in files_df.columns:
         raise KeyError(f'files_df must contain "{start_label}" and "{end_label}" columns.')
 
-    t0 = pd.to_datetime(time_range[0])
-    tf = pd.to_datetime(time_range[1])
+    if files_df.empty:
+        raise ValueError('"files_df" is empty. Unable to infer time range for window mapping.')
+
+    # If no explicit range is provided, infer from file extents.
+    if time_range is None:
+        files_for_range = files_df[[start_label, end_label]].copy()
+        files_for_range[start_label] = pd.to_datetime(files_for_range[start_label])
+        files_for_range[end_label] = pd.to_datetime(files_for_range[end_label])
+        t0 = files_for_range[start_label].min()
+        tf = files_for_range[end_label].max()
+    else:
+        if len(time_range) != 2:
+            raise ValueError('"time_range" must contain exactly two values: (start_time, end_time).')
+        t0 = _to_pandas_datetime(time_range[0])
+        tf = _to_pandas_datetime(time_range[1])
+
     if t0 > tf:
         raise ValueError('"time_range[0]" must be earlier than or equal to "time_range[1]".')
 
+    # Prepare datetime columns and select files in requested range.
     files = files_df.copy()
     files[start_label] = pd.to_datetime(files[start_label])
     files[end_label] = pd.to_datetime(files[end_label])
@@ -353,7 +396,8 @@ def build_window_file_map(files_df, time_range, window_size, step=None,
     selected = files.loc[keep].copy()
     selected = selected.sort_values(by=[start_label, end_label])
 
-    windows_df = build_time_windows(start_time=t0, end_time=tf, window_size=window_size, step=step)
+    # Create the time windows where files will be mapped.
+    windows_df = time_windows(start_time=t0, end_time=tf, window_size=window_size, step=step)
 
     if selected.empty:
         empty_map = pd.DataFrame(columns=["file_index", "window_id", "overlap_s", "file_weight", "window_weight"])
@@ -361,7 +405,8 @@ def build_window_file_map(files_df, time_range, window_size, step=None,
             return empty_map, windows_df
         return empty_map
 
-    file_window_map = map_files_to_windows_grouped(
+    # Compute the long mapping table file->window.
+    file_window_map = files2windows_groups(
         files_df=selected,
         windows_df=windows_df,
         group_cols=group_cols,
@@ -370,6 +415,7 @@ def build_window_file_map(files_df, time_range, window_size, step=None,
         min_overlap_s=min_overlap_s
     )
 
+    # Merge mapping with metadata only when requested.
     if include_meta and not file_window_map.empty:
 
         file_window_map = file_window_map.merge(
@@ -392,17 +438,18 @@ def build_window_file_map(files_df, time_range, window_size, step=None,
     return file_window_map
 
 
-def build_dataset_window_map(dataset, time_range, window_size, step=None,
-    include_overlap=True, min_overlap_s=0.0, group_cols=None,
-    include_meta=True, return_windows=False):
+def dataset_windowing(dataset, time_range : tuple, window_size : float | int, step=None,
+    include_overlap : bool = True, min_overlap_s : float = 0.0, group_cols=None,
+    include_meta : bool = False, return_windows : bool = False):
     """Build file-to-window mapping from a Dataset instance.
 
     Parameters
     ----------
     dataset : object
         Dataset-like object with ``database`` attribute.
-    time_range : tuple
-        Requested time range as ``(start_time, end_time)``.
+    time_range : tuple, optional
+        Requested time range as ``(start_time, end_time)``. If ``None``,
+        the full dataset range is used.
     window_size : float or int
         Window size in seconds.
     step : float or int, optional
@@ -433,7 +480,20 @@ def build_dataset_window_map(dataset, time_range, window_size, step=None,
     if dataset.database is None:
         raise RuntimeError("Dataset has no database. Build or load metadata first.")
 
-    return build_window_file_map(
+    # Infer default time range from dataset metadata/database.
+    if time_range is None:
+        t0 = getattr(dataset, "start_time", None)
+        tf = getattr(dataset, "end_time", None)
+
+        if t0 is None or tf is None:
+            if dataset.database.empty:
+                raise ValueError("Dataset database is empty. Unable to infer full time range.")
+            t0 = dataset.database["start_time"].min()
+            tf = dataset.database["end_time"].max()
+
+        time_range = (t0, tf)
+
+    return windows_file_map(
         files_df=dataset.database,
         time_range=time_range,
         window_size=window_size,
@@ -446,43 +506,9 @@ def build_dataset_window_map(dataset, time_range, window_size, step=None,
     )
 
 
-def _resolve_group_columns(split_by_acquisition=False, group_cols=None):
-    """Resolve compatibility grouping columns for file-window mapping.
-
-    Parameters
-    ----------
-    split_by_acquisition : bool, optional
-        If ``True``, default compatibility columns are used when
-        ``group_cols`` is ``None``.
-    group_cols : list of str, optional
-        User-defined grouping columns.
-
-    Returns
-    -------
-    list of str or None
-        Grouping columns to use in mapping.
-    """
-
-    default_group_cols = [
-        "sampling_frequency",
-        "total_channels",
-        "spatial_interval",
-        "gauge_length",
-        "channel_offset"
-    ]
-
-    if split_by_acquisition:
-        return default_group_cols if group_cols is None else group_cols
-
-    if group_cols is not None:
-        return group_cols
-
-    return None
-
-
-def build_unit_window_map(unit, time_range, window_size, step=None,
+def unit_windowing(unit, time_range, window_size, step=None,
     include_overlap=True, min_overlap_s=0.0, merge_datasets=True,
-    split_by_acquisition=False, group_cols=None, include_meta=True,
+    group_cols=None, include_meta=False,
     return_windows=False):
     """Build file-to-window mapping from a Unit instance.
 
@@ -490,8 +516,9 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
     ----------
     unit : object
         Unit-like object with ``datasets`` attribute.
-    time_range : tuple
-        Requested time range as ``(start_time, end_time)``.
+    time_range : tuple, optional
+        Requested time range as ``(start_time, end_time)``. If ``None``,
+        the full unit range is used.
     window_size : float or int
         Window size in seconds.
     step : float or int, optional
@@ -506,8 +533,6 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
         If ``True``, all datasets are mapped into one single timeline.
         If ``False``, each dataset is mapped independently and results are
         concatenated.
-    split_by_acquisition : bool, optional
-        If ``True``, files are split into compatibility groups before mapping.
     group_cols : list of str, optional
         Columns to define compatibility groups.
     include_meta : bool, optional
@@ -525,11 +550,29 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
     if not hasattr(unit, "datasets"):
         raise TypeError('"unit" must define a "datasets" attribute.')
 
-    group_cols_final = _resolve_group_columns(
-        split_by_acquisition=split_by_acquisition,
-        group_cols=group_cols
-    )
+    # Infer default time range from unit metadata or datasets.
+    if time_range is None:
+        t0 = getattr(unit, "earliest_usage", None)
+        tf = getattr(unit, "latest_usage", None)
 
+        if t0 is None or tf is None:
+            starts = []
+            ends = []
+            for dataset in unit.datasets:
+                if getattr(dataset, "database", None) is None or dataset.database.empty:
+                    continue
+                starts.append(dataset.database["start_time"].min())
+                ends.append(dataset.database["end_time"].max())
+
+            if not starts or not ends:
+                raise ValueError("Unit has no files with valid time information.")
+
+            t0 = min(starts)
+            tf = max(ends)
+
+        time_range = (t0, tf)
+
+    # Option 1: Keep dataset-wise mapping and concatenate outputs.
     if merge_datasets is False:
 
         maps = []
@@ -540,14 +583,14 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
             if getattr(dataset, "database", None) is None or dataset.database.empty:
                 continue
 
-            ds_map, ds_windows = build_dataset_window_map(
+            ds_map, ds_windows = dataset_windowing(
                 dataset=dataset,
                 time_range=time_range,
                 window_size=window_size,
                 step=step,
                 include_overlap=include_overlap,
                 min_overlap_s=min_overlap_s,
-                group_cols=group_cols_final,
+                group_cols=group_cols,
                 include_meta=include_meta,
                 return_windows=True
             )
@@ -564,10 +607,11 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
 
             maps.append(ds_map)
 
+        # Return empty mapping with valid windows when there are no matches.
         if not maps:
             empty = pd.DataFrame()
             if windows_ref is None:
-                windows_ref = build_time_windows(
+                windows_ref = time_windows(
                     start_time=time_range[0],
                     end_time=time_range[1],
                     window_size=window_size,
@@ -582,6 +626,7 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
             return merged, windows_ref
         return merged
 
+    # Option 2: Merge all dataset databases first, then map once.
     parts = []
     for dataset_id, dataset in enumerate(unit.datasets):
 
@@ -595,7 +640,7 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
     if not parts:
         empty = pd.DataFrame()
         if return_windows:
-            windows_ref = build_time_windows(
+            windows_ref = time_windows(
                 start_time=time_range[0],
                 end_time=time_range[1],
                 window_size=window_size,
@@ -604,21 +649,22 @@ def build_unit_window_map(unit, time_range, window_size, step=None,
             return empty, windows_ref
         return empty
 
+    # Build one consolidated files table for unit-wide mapping.
     files_df = pd.concat(parts, ignore_index=True)
-    return build_window_file_map(
+    return windows_file_map(
         files_df=files_df,
         time_range=time_range,
         window_size=window_size,
         step=step,
         include_overlaps=include_overlap,
         min_overlap_s=min_overlap_s,
-        group_cols=group_cols_final,
+        group_cols=group_cols,
         include_meta=include_meta,
         return_windows=return_windows
     )
 
 
-def aggregate_file_vectors(file_vectors, file_window_map, n_windows=None,
+def files_window_vector(file_vectors, file_window_map, n_windows=None,
     mode="sum", weight_label="overlap_s", fill_value=np.nan):
     """Aggregate per-file vectors into a windowed matrix.
 
@@ -627,7 +673,7 @@ def aggregate_file_vectors(file_vectors, file_window_map, n_windows=None,
     file_vectors : array-like of shape (n_files, n_channels)
         Per-file vectors to aggregate (for example RMSA vectors).
     file_window_map : pandas.DataFrame
-        Mapping generated by :func:`map_files_to_windows`.
+        Mapping generated by :func:`files2windows`.
     n_windows : int, optional
         Number of windows. If ``None``, it is inferred from
         ``file_window_map["window_id"]``.
@@ -648,6 +694,7 @@ def aggregate_file_vectors(file_vectors, file_window_map, n_windows=None,
         Matrix of shape ``(n_windows, n_channels)``.
     """
 
+    # Ensure numeric 2D array for vectorized math.
     values = np.asarray(file_vectors, dtype=float)
     if values.ndim != 2:
         raise ValueError('"file_vectors" must be a 2D array with shape (n_files, n_channels).')
@@ -659,6 +706,7 @@ def aggregate_file_vectors(file_vectors, file_window_map, n_windows=None,
     if n_windows is None:
         n_windows = int(file_window_map["window_id"].max()) + 1
 
+    # Initialize accumulation buffers with window x channel layout.
     n_channels = values.shape[1]
     accum = np.zeros((n_windows, n_channels), dtype=float)
     weights = np.zeros((n_windows, n_channels), dtype=float)
@@ -669,6 +717,7 @@ def aggregate_file_vectors(file_vectors, file_window_map, n_windows=None,
     if mode in {"rms", "mean"} and weight_label not in file_window_map.columns:
         raise KeyError(f'Missing weight column "{weight_label}" in file_window_map.')
 
+    # Accumulate contributions relation-by-relation.
     for rel in file_window_map.itertuples(index=False):
 
         file_idx = int(getattr(rel, "file_index"))
@@ -697,6 +746,7 @@ def aggregate_file_vectors(file_vectors, file_window_map, n_windows=None,
 
             weights[win_idx, valid] += w
 
+    # Finalize output depending on selected aggregation mode.
     result = np.full((n_windows, n_channels), fill_value, dtype=float)
     valid_out = weights > 0
 
