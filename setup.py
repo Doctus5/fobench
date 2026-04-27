@@ -36,7 +36,9 @@ setup(
         'pyrocko',
         'pyqtgraph',
         'PyQt5',
-        'tqdm'
+        'tqdm',
+        'zarr',
+        'rich' # dependency of zarr
     ],
     extras_require={
         # Here goes the optional dependencies, usually for paralle runinng.
