@@ -25,7 +25,7 @@ from .parallel import Parallel
 
 # Inner functions
 from . import manager as manager
-from .utils.windowing import build_dataset_window_map
+from .utils.windowing import dataset_windowing
 
 
 
@@ -382,16 +382,17 @@ class Dataset(object):
         return self
 
 
-    def window_map(self, time_range: tuple, window_size: float, step: float = None,
+    def window_map(self, time_range: tuple = None, window_size: float = None, step: float = None,
         include_overlap: bool = True, min_overlap_s: float = 0.0,
-        group_cols: list[str] = None, include_meta: bool = True,
+        group_cols: list[str] = None, include_meta: bool = False,
         return_windows: bool = False):
         """Build file-to-window mapping for this dataset.
 
         Parameters
         ----------
-        time_range : tuple
+        time_range : tuple, optional
             Requested time range as ``(start_time, end_time)``.
+            If ``None``, the full dataset range is used.
         window_size : float
             Window size in seconds.
         step : float, optional
@@ -416,7 +417,7 @@ class Dataset(object):
             returns ``(map_df, windows_df)``.
         """
 
-        return build_dataset_window_map(
+        return dataset_windowing(
             dataset=self,
             time_range=time_range,
             window_size=window_size,
@@ -426,4 +427,81 @@ class Dataset(object):
             group_cols=group_cols,
             include_meta=include_meta,
             return_windows=return_windows
+        )
+
+
+    def apply_fiber(self, task, output_store: str, output_key: str = None,
+        time_range: tuple = None, window_size: float = None, step: float = None,
+        include_overlap: bool = True, min_overlap_s: float = 0.0,
+        group_cols: list[str] = None, fiber_kwargs: dict = None,
+        parallel_params: dict = None, submit_chunk_size: int = None,
+        cpu_ratio: float = 0.85, show_progress: bool = True,
+        reducer: str = "mean", output_adapter=None):
+        """Apply a Fiber task over the dataset windows and save to zarr.
+
+        Parameters
+        ----------
+        task : list, tuple, dict, str, or callable
+            Fiber processing task definition.
+        output_store : str
+            Output zarr path.
+        output_key : str, optional
+            Output key to read from pipeline results.
+        time_range : tuple, optional
+            Time range as ``(start_time, end_time)``.
+        window_size : float
+            Window size in seconds.
+        step : float, optional
+            Window step in seconds. If ``None``, uses non-overlapping windows.
+        include_overlap : bool, optional
+            Keep files that overlap the requested range.
+        min_overlap_s : float, optional
+            Minimum overlap in seconds for file-window relations.
+        group_cols : list[str], optional
+            Optional grouping columns for compatibility grouping.
+        fiber_kwargs : dict, optional
+            Keyword arguments passed to Fiber initialization.
+        parallel_params : dict, optional
+            Parallel backend parameters.
+        submit_chunk_size : int, optional
+            Number of files processed per submit wave.
+        cpu_ratio : float, optional
+            Automatic fraction of available CPUs used when ``n_cores`` is
+            not explicitly set. Defaults to ``0.85``.
+        show_progress : bool, optional
+            Show progress bars for parallel execution.
+        reducer : str, optional
+            Reduction mode. Currently supports ``"mean"``.
+        output_adapter : callable, optional
+            Adapter ``adapter(value) -> 1D vector`` for operation output.
+
+        Returns
+        -------
+        dict
+            Execution summary and output metadata.
+        """
+
+        # Lazy import to avoid requiring zarr unless apply_fiber is used.
+        from .processing import run_window_pipeline_to_zarr
+
+        # Thin wrapper: keep orchestration logic in shared processing module.
+        return run_window_pipeline_to_zarr(
+            source=self,
+            task=task,
+            output_store=output_store,
+            output_key=output_key,
+            time_range=time_range,
+            window_size=window_size,
+            step=step,
+            include_overlap=include_overlap,
+            min_overlap_s=min_overlap_s,
+            group_cols=group_cols,
+            merge_datasets=True,
+            fiber_kwargs=fiber_kwargs,
+            parallel_params=parallel_params,
+            submit_chunk_size=submit_chunk_size,
+            cpu_ratio=cpu_ratio,
+            show_progress=show_progress,
+            reducer=reducer,
+            output_adapter=output_adapter
         )
