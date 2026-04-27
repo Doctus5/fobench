@@ -58,7 +58,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Silixa TDMS file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Silixa TDMS file', disable=not show_progress)
         file_file = tdms.TdmsFile.read(filepath)
         template = __scan_template__(core_file=file_file, company=company, format=format)
         properties = file_file.properties
