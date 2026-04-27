@@ -38,7 +38,8 @@ class Fiber(object):
 	to not generate plot set to anything else, e.g. None
 	'''
 
-	def __init__(self, filepath, company=None, range_ch=None, sensing='das', load_data=True):
+	def __init__(self, filepath, company=None, range_ch=None, sensing='das',
+	             load_data=True, show_progress=True):
 		'''
 		Initializes base class of Fobench, reading in data and metadata, data is manipulated mostly
 		using numpy and scipy, tools are inspired by obspy
@@ -60,7 +61,8 @@ class Fiber(object):
 		self.company = company
 		self.format = filepath.split('.')[-1]
 
-		self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch, self.format, load_data=load_data)
+		self.attributes = file_io.read_data(self.__filepath__, self.company, range_ch,
+						self.format, load_data=load_data, show_progress=show_progress)
 
 		self.__basefile__ = self.attributes['basefile'] # changed to the structure of the file
 		self.fiber = self.attributes['fiber']
