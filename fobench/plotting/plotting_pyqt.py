@@ -533,3 +533,113 @@ def get_colors(n: int, colormap:str = 'tab10') -> list[tuple[int, int, int]]:
     '''Returns a set of n unique colors from a plt colormap'''
     cmap = plt.get_cmap(colormap, n)
     return [tuple(int(x*255) for x in cmap(i)[:3]) for i in range(n)]
+
+'''Special Plotting Functions'''
+
+def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
+            mask: np.ndarray, f: np.ndarray, k: np.ndarray,
+            dt: float) -> None:
+    '''
+    Plots the in- and outputs of fk filter: initial and filtered wavefield,
+    the fk spectrum and the fk mask.
+
+    Parameters
+    ----------
+    wf_ini : np.ndarray
+        Unfiltered wavefield.
+    wf_filt : np.ndarray
+        Filtered Wavefield.
+    wf_fk : np.ndarray
+        fk spectrum.
+    mask : np.ndarray
+        fk mask.
+    f : np.ndarray
+        Frequency vector.
+    k : np.ndarray
+        Wavenumber vector.
+    dt : float
+        Sampling period of data.
+
+    Returns
+    -------
+    None
+        -.
+
+    '''
+
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication(sys.argv)
+    win = pg.GraphicsLayoutWidget(show=True)
+    win.setWindowTitle('Fobench: Frequency-Wavenumber Filter')
+    win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / 'logo.png')))
+    win.setBackground('w')
+    win.resize(1200, 600)
+
+    titles = ['Initial Wavefield', 'Filtered Wavefield', '|fk| Spectrum', 'fk Mask']
+    images = [wf_ini, wf_filt, np.abs(wf_fk), mask]
+    cmaps = [pg.colormap.get('seismic', source='matplotlib'), pg.colormap.get('seismic', source='matplotlib'),
+             pg.colormap.get('magma', source='matplotlib'), pg.colormap.get('gray', source='matplotlib')]
+
+    n_samples, n_channels  = wf_ini.shape
+    tmax = n_samples*dt
+    fmin, fmax = f[0], f[-1]
+    kmin, kmax = k[0], k[-1]
+
+    plots = []
+    for i, (title, data, cmap) in enumerate(zip(titles, images, cmaps)):
+        row, col = divmod(i, 2)
+        is_wavefield = i < 2
+
+        plot = win.addPlot(row=row, col=col)
+        plot.setTitle(title, color='k', size='14pt')
+        plots.append(plot)
+        plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
+        plot.setMouseEnabled(x=True, y=True)
+        plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+        plot.setAspectLocked(False)
+        img_item = pg.ImageItem(image=data)
+        plot.addItem(img_item)
+
+        if title == 'fk Mask':
+            vmin, vmax = 0, 1
+        else:
+            vmax = np.percentile(abs(data), 95)
+            vmin = 0 if title == '|fk| Spectrum' else -vmax
+        data_range = np.nanmax(data) - np.nanmin(data)
+        bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax), interactive=True,
+                              rounding=0.0001 * data_range)
+        bar.setImageItem(img_item, insert_in=plot)
+
+        for axis in (plot.getAxis('left'), plot.getAxis('bottom')):
+            axis.setPen(pg.mkPen('k', width=1))
+            axis.setTextPen(pg.mkPen('k'))
+            axis.setStyle(tickFont=QtGui.QFont('Arial', 10))
+
+        if is_wavefield:
+            img_item.setRect(QtCore.QRectF(0, 0, tmax, n_channels))
+            plot.setLimits(xMin=0, xMax=tmax, yMin=0, yMax=n_channels,
+                           minXRange=dt, minYRange=1,
+                           maxXRange=tmax, maxYRange=n_channels)
+            plot.setRange(xRange=(0, tmax), yRange=(0, n_channels), padding=0)
+        else:
+            img_item.setRect(QtCore.QRectF(fmin, kmin, fmax-fmin, kmax-kmin))
+            plot.setLimits(xMin=fmin, xMax=fmax, yMin=kmin, yMax=kmax,
+                           minXRange=abs(fmax-fmin) * 0.01,
+                           minYRange=abs(kmax-kmin) * 0.01,
+                           maxXRange=abs(fmax-fmin),
+                           maxYRange=abs(kmax-kmin))
+            plot.setRange(xRange=(fmin, fmax), yRange=(kmin, kmax), padding=0)
+
+    labels = [('Channel', 'Time [s]'), ('Channel', 'Time [s]'),
+              ('Wavenumber [1/m]', 'Frequency [Hz]'), ('Wavenumber [1/m]', 'Frequency [Hz]')]
+    for plot, (left, bottom) in zip(plots, labels):
+        plot.setLabel('left', left)
+        plot.setLabel('bottom', bottom)
+
+    plots[1].setXLink(plots[0])
+    plots[1].setYLink(plots[0])
+    plots[3].setXLink(plots[2])
+    plots[3].setYLink(plots[2])
+
+    pg.exec()
