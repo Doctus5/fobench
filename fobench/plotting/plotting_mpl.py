@@ -1,30 +1,34 @@
+"""
+Contains all functionality related to plotting using matplotlib, i.e. whenever plot_mode is set to 'mpl'
+"""
+
 import numpy as np
+import datetime as datetime
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-from matplotlib.widgets import TextBox
 from matplotlib.dates import num2date
-import datetime as datetime
-'''
-########################################################################################
-Necessary for Technical aspects...
-########################################################################################
-'''
 
-# #Setting the precision for the labels in the plots. Taken from StackOverflow.
+"""Helper Functions"""
+
 class PrecisionDateFormatter(ticker.Formatter):
     """
     Extend the `matplotlib.ticker.Formatter` class to allow for millisecond
     precision when formatting a tick (in days since the epoch) with a
-    `~datetime.datetime.strftime` format string.
+    `~datetime.datetime.strftime` format string. Adapted from StackOverflow.
     """
 
-    def __init__(self, fmt, precision=3, tz=None):
+    def __init__(self, fmt: str, precision: int = 3, tz: str = None):
         """
         Parameters
         ----------
         fmt : str
             `~datetime.datetime.strftime` format string.
+        precision : int
+            Necessary precision.
+        tz : str
+            Timezone info.
         """
+
         self.num2date = num2date
         self.fmt = fmt
         self.tz = tz if tz is not None else datetime.timezone.utc
@@ -43,287 +47,434 @@ class PrecisionDateFormatter(ticker.Formatter):
         return dt.strftime(self.fmt).format(ms=ms)
 
 
-'''
-########################################################################################
-Matplotlib plotting functions below
-########################################################################################
-'''
+"""matplotlib plotting Functions"""
 
-#Plotting the DAS as an image in the Class DAS.
-def gen_DAS_plot(data=None, t=None, channels=None, units_y=None, max_value=None, figsize=None, title=None, cmap='seismic', show=True, file_name=None, where=None, add_data=None, **kwargs):
-	'''
-	- max_value(type:Float; optional): maximum value of the colormap. It will limit the plot in a range of -max_value to max_value.
-	All values above this will look saturated with the color limits of the colormap.
-	- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-	- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-	but the figure instance would be open so the user can add further changes. Default = True.
-	- cmap(type:String; optional): name of the matplotlib colormap to use for the data. Default = 'seismic'.
-	- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-	(f.e.: "example.png"). Default = None.
-	- where(type:String; optional): path of the directory where the plot wants to be saved.
-	'''
-	fig, ax = plt.subplots() if figsize is None else plt.subplots(figsize=figsize)
-	fig.autofmt_xdate()
-	max_val = max(data.max(), abs(data.min())) if max_value == None else max_value
-	cm = ax.imshow(data, vmin=-max_val, vmax=max_val, cmap=cmap, extent=(channels[0],channels[-1]+1,t[-1],t[0]), aspect='auto', interpolation='none', **kwargs)
-	plt.colorbar(cm, label=units_y)
+def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list = None,
+                 units_y: str = None, figsize: list[float, float] | tuple[float, float] = None,
+                 title: str = None, cmap:str = "seismic", file_name: str = None,
+                 add_data: np.ndarray = None, show: bool = True, **kwargs)-> plt.Figure:
 
-	#Additional data
-	if add_data is not None:
+    """Plots FOS data
 
-		ax.imshow(add_data, cmap='binary', extent=(channels[0],channels[-1]+1,t[-1],t[0]), aspect='auto', alpha=add_data)
+    Parameters
+    ----------
+    data : np.ndarray
+        Data to plot.
+    t : np.ndarray
+        Timestamps in matplotlib format.
+    channels : list[int | float]
+        List of channel numbers or distance values.
+    units_y : str
+        The units of the amplitude values.
+    figsize : list[float, float] | tuple[float, float]
+        Controls figure size
+    title : str
+        Title of plot
+    cmap : str, optional
+        matplotlib colormap to use.
+    file_name : str
+        If not ``None``, plot will be saved at given location.
+    add_data : np.ndarray
+        Additional data to plot on top of FOS data.
+    show : bool
+        Toggles display of figure.
+    **kwargs:
+        Additional arguments passed to ``imshow``
 
-	ax.yaxis_date()
-	precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-	ax.yaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
+    Returns
+    -------
+    fig : plt.Figure
+        Figure instance.
+    """
 
-	plt.ylabel('Time', fontsize=15)
-	plt.xlabel('Channel', fontsize=15)
-	plt.title(title, fontsize=20)
+    fig, ax = plt.subplots(figsize=figsize)
+    fig.autofmt_xdate()
+    extent=(channels[0], channels[-1]+1,t[-1],t[0])
+    cm = ax.imshow(data, cmap=cmap, extent=extent,
+                   aspect="auto", interpolation="none", **kwargs)
+    plt.colorbar(cm, label=units_y.title())
 
-	ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labelleft=True, labeltop=True, rotation=0)
+    if add_data is not None:
+        ax.imshow(add_data, cmap="binary", extent=extent, aspect="auto", alpha=add_data)
 
-	if show == True:
-		plt.show()
-	if file_name is not None:
-		fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
+    ax.yaxis_date()
+    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
+    ax.yaxis.set_major_formatter(PrecisionDateFormatter("%H:%M:%S.{ms}", precision))
+    ax.set_ylabel("Time", fontsize=15)
+    ax.set_xlabel("Channel", fontsize=15)
+    ax.set_title(title, fontsize=20)
+    ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True,
+                   labelleft=True, labeltop=True, rotation=0)
+
+    if file_name is not None:
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
+    if show:
+        plt.show()
+
+    return fig
 
 
-#Function for simple plot of a channel for the DAS class object.
-def simple_plot(data, t, channel='', units_y=None, max_value=None, spectrogram=False, show=True, figsize=None, title=None, file_name=None, where=None, **kwargs):
-    '''
-	Co-authors: --
-	Description:
-		Plots the time-signal of a single selected channel.
-	Params:
-		- channel(type:String or Int or Float): channel to plot.
-		- max_value(type:Float; optional): maximum value of the y-axis. It will limit the plot in a range of -max_value to max_value. Default = None.
-		- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-		- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-		but the figure instance would be open so the user can add further changes. Default = True.
-		- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-		(f.e.: "example.png"). Default = None.
-		- where(type:String; optional): path of the directory where the plot wants to be saved.
-	:Return:
-		- NA.
-	'''
+def simple_plot(data: np.ndarray, t: np.ndarray, channel: list[str | int | float] = [''],
+                units_y: str = None, max_value: float = None,
+                figsize: list[float, float] | tuple[float, float] = None, title: str = None,
+                file_name: str = None, show: bool = True, **kwargs) -> plt.Figure:
+    """Plots a simple timeseries
 
-    fig, ax = plt.subplots(1,1, sharex=True, gridspec_kw={'hspace': 0.3}) if figsize is None else plt.subplots(1,1, sharex=True, gridspec_kw={'hspace': 0.3}, figsize=figsize)
+    Parameters
+    ----------
+    data : np.ndarray
+        Timeseries to plot.
+    t : np.ndarray
+        Timestamps in matplotlib format.
+    channel : list[str | int | float]
+        List of channel numbers or description.
+    units_y : str
+        The units of the amplitude values.
+    max_value : float
+        Limits the maximum value of y-axis, if not ``None``, limits will be set to
+        -``max_value`` to ``max_value``
+    figsize : list[float, float] | tuple[float, float]
+        Controls figure size
+    file_name : str
+        If not ``None``, plot will be saved at given location.
+    title : str
+        Title of plot
+    show : bool
+        Toggles display of figure.
+    **kwargs:
+        Additional arguments passed to ``plot``
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure instance.
+    """
+
+    fig, ax = plt.subplots(1, 1, sharex=True, gridspec_kw={'hspace': 0.3},
+                           figsize=figsize)
     fig.autofmt_xdate()
 
-    ax.plot(t, data, c='black', linewidth=0.7, label=str(channel).zfill(5), **kwargs)
-	# max_val = max(data.max(), abs(data.min())) if max_value == None else max_value
-    min_val, max_val = data.min(), data.max()
-    ax.set_ylim(min_val+(min_val*0.2), max_val+(max_val*0.2))
+    for ch_data, label in zip(data, channel):
+        ax.plot(t, ch_data, linewidth=0.7, label=label, **kwargs)
+    min_val, max_val = (-max_value, max_value) if max_value is not None else (data.min(), data.max())
+    ax.set_ylim(min_val * 1.2, max_val * 1.2)
 
     ax.xaxis_date()
     precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-    ax.xaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
+    ax.xaxis.set_major_formatter(PrecisionDateFormatter('%H:%M:%S.{ms}', precision))
     ax.set_xlim(t[0],t[-1])
-
     ax.legend(loc=1)
-    ax.set_ylabel(units_y, fontsize=15)
-    ax.set_xlabel('Time', fontsize=15)
+    ax.set_ylabel(units_y.title(), fontsize=15)
+    ax.set_xlabel("Time", fontsize=15)
     ax.set_title(title, fontsize=20)
-    plt.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
+    ax.ticklabel_format(axis="y", style="sci", scilimits=(-2,2))
 
-    if show == True:
-        plt.show()
     if file_name is not None:
-        fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
+    if show:
+        plt.show()
+
+    return fig
 
 
-#Function for the DAS spectrogram in the class DAS. Channels and the spectrogram matrix must already be computed and passed as an input. This is done in the DAS class under the method spectrogram().
-def gen_spectrogram(spec_matrix=None, freqs=None, x=None, max_value=None, units_y=None, figsize=None, cmap='viridis', title=None, show=True, file_name=None, where=None, **kwargs):
-    '''
-    - figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
+def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
+                x: list = None, units_y: str = None,
+                figsize: list[float, float] | tuple[float, float] = None,
+                cmap:str = "viridis", title: str = None, file_name: str = None,
+                show: bool = True, **kwargs) -> None:
+    """
+    Plots the fx-plot, i.e. frequency content over distance.
 
-     (type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown, but the figure instance would be open
-     			so the user can add further changes. Default = True.
- 			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
+    Parameters
+    ----------
+    spec_matrix : np.ndarray
+        fx data.
+    freqs : np.ndarray
+        Frequency axis values.
+    x : list
+        Channel numbers or distance values.
+    units_y : str
+        Amplitude units.
+    figsize : list[float, float] | tuple[float, float]
+        Controls figure size.
+    cmap : str, optional
+        matplotlib colormap to use for the spectrogram.
+    title : str, optional
+        Title of plot.
+    file_name : str, optional
+        If not ``None``, plot will be saved at given location.
+    show : bool
+        Toggles display of figure.
+    **kwargs
+        Addtional arguments passed to ``imshow``, e.g. ``vmin``, ``vmax``.
 
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
- 			(f.e.: "example.png"). Default = None.
- 			- where(type:String; optional): path of the directory where the plot wants to be saved.
+    Returns
+    -------
+    fig : plt.Figure
+        Figure instance.
+    """
 
-    '''
-    fig, ax = plt.subplots() if figsize is None else plt.subplots(figsize=figsize)
+    fig, ax = plt.subplots(figsize=figsize)
 
-    plt.ylabel('Frequency [Hz]', fontsize=15)
-    plt.xlabel('Channel', fontsize=15)
+    ax.set_ylabel("Frequency [Hz]", fontsize=15)
+    ax.set_xlabel("Channel", fontsize=15)
+    ax.set_title(title, fontsize=20)
+
     extent = (x[0], x[-1]+1, freqs[0], freqs[-1])
-
-    cm = ax.imshow(spec_matrix, cmap=cmap, vmin=0, vmax=max_value, extent=extent, aspect='auto', interpolation='none', **kwargs)
+    cm = ax.imshow(spec_matrix, cmap=cmap, extent=extent, aspect='auto',
+                   interpolation='none', **kwargs)
     plt.colorbar(cm, ax=ax, label=units_y)
-
-    ax.set_title(title, fontsize=20)
     ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labelleft=True, labeltop=True, rotation=0)
-
-    if show == True:
-        plt.show()
     if file_name is not None:
-        fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
+        fig.savefig(file_name, transparent=False, bbox_inches='tight', pad_inches=0)
+    if show:
+        plt.show()
+
+    return fig
 
 
-def simple_spectrogram(data=None, freq=None, t=None, units_y=None, figsize=None, trace=None, cmap='viridis', title=None, show=None, file_name=None, where=None, freq_lim=None, **kwargs):
-	'''
-			- figsize(type:Tuple; optional): Tuple of 2 positions containing width and heigth of the figure. Default = None.
-			- show(type:Boolean; optional): state if the plot must be shown. In case is False, the plot will not be shown,
-			but the figure instance would be open so the user can add further changes. Default = True.
-			- cmap(type:String; optional): name of the matplotlib colormap to use for the spectrogram. Default = 'viridis'.
-			- file_name(type:String; optional): in case the image want to be saved, this argument must be the name of the file, including the format
-			(f.e.: "example.png"). Default = None.
-			- where(type:String; optional): path of the directory where the plot wants to be saved.
-			- verbose(type:bool): if set to true, result (Spectrum, frequencies, time) is returned
-		:Return:
-	'''
-	if trace is not None:
+def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
+                       t: np.ndarray = None, units_y: str = None,
+                       figsize: list[float, float] | tuple[float, float] = None,
+                       trace: bool = False, cmap: str = "viridis", title: str = '',
+                       file_name: str = None, show: bool = True,
+                       freq_lim: list[float, float] | tuple[float, float] = None,
+                       **kwargs) -> plt.Figure:
+    """
+    Plots a simple spectrogram, optionally together with the time domain data.
 
-		fig, ax = plt.subplots(2,1, sharex=True, gridspec_kw={'hspace': 0.02,'height_ratios':[3,1]}, constrained_layout=True) if figsize is None else plt.subplots(2,1, sharex=True, gridspec_kw={'hspace': 0.2,'height_ratios':[3,1]}, figsize=figsize)
+    Parameters
+    ----------
+    data : np.ndarray
+        Spectrogram data.
+    freq : np.ndarray
+        Frequency axis values.
+    t : np.ndarray
+        Timestamps in matplotlib format.
+    units_y : str
+        Amplitude units.
+    figsize : list[float, float] | tuple[float, float]
+        Controls figure size.
+    trace : bool
+        Toggles plotting of the time domain data in a second panel.
+    cmap : str, optional
+        matplotlib colormap to use for the spectrogram.
+    title : str, optional
+        Title of plot.
+    file_name : str, optional
+        If not ``None``, plot will be saved at given location.
+    freq_lim : list[float, float] | tuple[float, float], optional
+        Limits for the displayed frequency range in spectrogram.
+    show : bool
+        Toggles display of figure.
+    **kwargs
+        Addtional arguments passed to ``imshow``, e.g. ``vmin``, ``vmax``.
 
-		extent = (t[0], t[-1], freq[0], freq[-1])
-		cm = ax[0].imshow(data, cmap=cmap, extent=extent, aspect='auto', interpolation='none',**kwargs)
-		plt.colorbar(cm, ax=ax[0], label=units_y)
+    Returns
+    -------
+    fig : plt.Figure
+        Figure instance.
+    """
 
-		precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-		ax[0].xaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
-		ax[0].set_xlim(t[0],t[-1])
-		ax[0].set_title(title, fontsize=20)
-		ax[0].set_ylabel('Frequency [Hz]', fontsize=10)
+    extent = (t[0], t[-1], freq[0], freq[-1])
+    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
 
-		ax[1].plot(t, trace, c='black', linewidth=0.7)
+    if trace is not None:
+        fig, ax = plt.subplots(2,1, sharex=True,
+                               gridspec_kw={"hspace": 0.2,"height_ratios":[3,1]},
+                               figsize=figsize)
+        cm = ax[0].imshow(data, cmap=cmap, extent=extent, aspect="auto",
+                          interpolation="none", **kwargs)
+        plt.colorbar(cm, ax=ax[0], label=units_y.title(), orientation="horizontal",
+                     aspect=40, pad=0.02)
+        ax[0].xaxis.set_major_formatter(PrecisionDateFormatter("%H:%M:%S.{ms}", precision))
+        ax[0].set_xlim(t[0],t[-1])
+        ax[0].set_title(title, fontsize=20)
+        ax[0].set_ylabel("Frequency [Hz]", fontsize=10)
 
-		ax[1].set_ylabel(units_y, fontsize=10)
-		ax[1].set_xlabel('Time', fontsize=15)
+        ax[1].plot(t, trace, c="black", linewidth=0.7)
+        ax[1].set_ylabel(units_y.title(), fontsize=10)
+        ax[1].set_xlabel("Time", fontsize=15)
 
-		if freq_lim is not None:
+        if freq_lim is not None:
+            ax[0].set_ylim(freq_lim[0],freq_lim[1])
 
-			ax[0].set_ylim(freq_lim[0],freq_lim[1])
+        ax[1].tick_params(axis="x", bottom=True, top=False, labelbottom=True,
+                          labelleft=True, labeltop=False, labelrotation=25)
 
-		ax[1].tick_params(axis="x", bottom=True, top=False, labelbottom=True, labelleft=True, labeltop=False, labelrotation=25)
+    else:
+        fig, ax = plt.subplots(figsize=figsize)
+        fig.autofmt_xdate()
 
+        cm = ax.imshow(data, cmap=cmap, extent=extent, aspect="auto",
+                       interpolation="none", **kwargs)
+        plt.colorbar(cm, ax=ax, label=units_y.title())
+        ax.xaxis.set_major_formatter(PrecisionDateFormatter("%H:%M:%S.{ms}", precision))
+        ax.set_xlim(t[0],t[-1])
+        ax.set_title(title, fontsize=20)
+        ax.set_ylabel("Frequency [Hz]", fontsize=15)
+        ax.set_xlabel("Time", fontsize=15)
+        ax.tick_params(axis="x", bottom=True, top=False, labelbottom=True,
+                       labelleft=True, labeltop=False, labelrotation=25)
+        if freq_lim is not None:
+            ax.set_ylim(freq_lim[0],freq_lim[1])
 
-	else:
+    if file_name is not None:
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
+    if show:
+        plt.show()
 
-		fig, ax = plt.subplots() if figsize is None else plt.subplots(figsize=figsize)
-		fig.autofmt_xdate()
-
-		extent = (t[0], t[-1], freq[0], freq[-1])
-		cm = ax.imshow(data, cmap=cmap, extent=extent, aspect='auto', interpolation='none', **kwargs)
-		plt.colorbar(cm, ax=ax, label=units_y)
-
-		precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-		ax.xaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
-		ax.set_xlim(t[0],t[-1])
-
-		plt.title(title, fontsize=20)
-		plt.ylabel('Frequency [Hz]', fontsize=15)
-		plt.xlabel('Time', fontsize=15)
-
-		ax.tick_params(axis="x", bottom=True, top=False, labelbottom=True, labelleft=True, labeltop=False, labelrotation=25)
-
-	if show == True:
-		plt.show()
-	if file_name is not None:
-		fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
-
-
-def simple_spectrum(spectrums=None, freqs=None, channels=None, y_units=None, legend=True, figsize=None, show=True,
-                    file_name=None, where=None, title=None, **kwargs):
-
-	fig = plt.figure() if figsize is None else plt.figure(figsize=figsize)
-
-	plt.ticklabel_format(axis='y', style='sci', scilimits=(-2,2))
-	plt.xlabel('Frequency [Hz]', fontsize=15)
-	plt.ylabel(y_units, fontsize=15)
-	plt.title(title, fontsize=20)
-	plt.xlim(freqs[0],freqs[-1])
-	#plt.xscale('log')
-	plt.ylim(0,spectrums.max() + spectrums.max()/10)
-	#plt.xlim(1E-3,100)
-	plt.grid()
-
-	for i in range(len(spectrums)):
-
-		plt.plot(freqs, spectrums[i], label=channels[i], **kwargs)
-
-	if legend == True:
-
-		plt.legend()
-
-	if show == True:
-		plt.show()
-	if file_name is not None:
-		fig.savefig(file_name, transparent=True, bbox_inches='tight', pad_inches = 0)
-
-
-# Function for plotting channels as record sections
-def plot_record_section(signals, t, channels, date):
-
-	num_stations = len(channels)
-
-	fig, ax = plt.subplots()
-	fig.set_size_inches(10, 8)
-
-	# Calculate the scaling factor based on the maximum absolute value in the signals
-	max_val = np.max(np.abs(signals))
-	scaling_factor = 1.5 / max_val
-
-	# Plot the signals as traces with further scaled down values
-	for i in range(num_stations):
-		#y = num_stations - i
-		y = i
-		ax.plot(t, signals[:, i] * scaling_factor + y, color='black', linewidth=0.7)
-
-	# Add station labels
-	ax.set_yticks(np.arange(0, num_stations))
-	ax.set_yticklabels([f'Ch {i}' for i in channels])
-	ax.invert_yaxis()
-
-	ax.xaxis_date()
-	precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-	ax.xaxis.set_major_formatter( PrecisionDateFormatter('%H:%M:%S.{ms}', precision) )
-	ax.set_xlim(t[0],t[-1])
-
-	ax.grid(color='gray', linestyle='--', alpha=0.8)
-	ax.set_xlabel('Time (s)', fontsize=15)
-	ax.set_ylabel('Station', fontsize=15)
-	ax.set_title('Record Section for '+date, fontsize=20)
-
-    # Show the plot
-	plt.show()
+    return fig
 
 
-def plot_acfs(acfs, distances, fs, max_shift, **imshow_kwargs):
-	'''
-    plots autocorrelation profile
+def simple_spectrum(spectra: np.ndarray = None, freqs: np.ndarray = None,
+                    channels: list = None, y_units: str = None, legend: bool = True,
+                    figsize: tuple[float, float] = None, file_name: str = None,
+                    title: str = None, show: bool = True, **kwargs) -> plt.Figure:
+    """Plots a simple spectrum for one or multiple channels
 
-	'''
+    Parameters
+    ----------
+    spectra : np.ndarray
+        Spectrum data to plot.
+    freqs : np.ndarray
+        Frequency axis values.
+    channels : np.ndarray
+        Channel numbers.
+    y_units : str
+        Units of the spectral amplitude.
+    legend : bool
+        Toggles legend in plot.
+    figsize : tuple[float, float]
+        Controls figure size.
+    file_name : str
+        If not ``None``, plot will be saved at given location.
+    title : str
+        Title of plot.
+    show : bool
+        Toggles display of figure.
+    **kwargs
+        Additional arguments passed to ``plot``.
 
-	extent = [distances[0], distances[-1], max_shift/fs, 0]
-	y_label = 'Lag/TWT [s]'
-	x_label = 'Channel Number'
-	if distances is not None:
-		extent = extent = [distances[0], distances[-1], max_shift/fs, 0]
-	x_label = 'Optical Distance [m]'
+    Returns
+    -------
+    fig : plt.Figure
+        Figure instance.
+    """
 
-	im = plt.imshow(acfs, aspect='auto', origin='upper', extent=extent, **imshow_kwargs)
+    fig, ax = plt.subplots(figsize=figsize)
 
-	vmin = imshow_kwargs.get('vmin')
-	vmax = imshow_kwargs.get('vmax')
+    ax.ticklabel_format(axis="y", style="sci", scilimits=(-2,2))
+    ax.set_xlabel("Frequency [Hz]", fontsize=15)
+    ax.set_ylabel(y_units.title(), fontsize=15)
+    ax.set_title(title, fontsize=20)
+    ax.set(xlim=(freqs[0], freqs[-1]), ylim=(0, spectra.max() * 1.1))
+    ax.grid()
 
-	if vmin is not None and vmax is not None:
-		extend = 'both'
-	elif vmin is not None:
-		extend = 'min'
-	elif vmax is not None:
-		extend = 'max'
-	else:
-		extend = 'neither'
+    for channel, spectrum in zip(channels, spectra):
+        ax.plot(freqs, spectrum, label=channel, **kwargs)
 
-	plt.colorbar(im, label='Auto-correlation Coefficient', extend=extend)
-	plt.xlabel(x_label, fontsize=16)
-	plt.ylabel(y_label, fontsize=16)
-	plt.gca().tick_params(axis='both', labelsize=16)
-	plt.tight_layout()
-	plt.show()
+    if legend:
+        ax.legend()
+    if file_name is not None:
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
+    if show:
+        plt.show()
+
+    return fig
+
+
+def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray,
+                        date: str, show: bool = True) -> plt.Figure:
+    """Plots a record section for selected channels
+
+    Parameters
+    ----------
+    signals : np.ndarray
+        Channel data to plot.
+    t : np.ndarray
+        Timestamps in matplotlib format.
+    channels : np.ndarray
+        Channel numbers.
+    date : str
+        The start date of data.
+    show : bool
+        Toggles display of figure.
+
+    Returns
+    -------
+    fig : plt.Figure
+        Figure instance.
+    """
+
+    num_stations = len(channels)
+    scaling_factor = 1.5 / np.max(np.abs(signals))
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    for i in range(num_stations):
+        ax.plot(t, signals[:, i] * scaling_factor +
+                i, color="black", linewidth=0.7)
+
+    ax.set_yticks(np.arange(num_stations))
+    ax.set_yticklabels(channels)
+    ax.invert_yaxis()
+
+    ax.xaxis_date()
+    precision = str(datetime.timedelta(
+        days=(t[1]-t[0])).total_seconds())[::-1].find(".")
+    ax.xaxis.set_major_formatter(
+        PrecisionDateFormatter("%H:%M:%S.{ms}", precision))
+    ax.set_xlim(t[0], t[-1])
+    ax.grid(color="gray", linestyle="--", alpha=0.8)
+    ax.set(xlabel="Time [s]", ylabel="Channel")
+    ax.set_title(f"Record Section for {date}", fontsize=20)
+    if show:
+        plt.show()
+
+    return fig
+
+
+def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
+              max_shift: int, **imshow_kwargs) -> None:
+    """Plots the autocorrelation profile
+
+    Parameters
+    ----------
+    acfs : np.ndarray
+        Array containing the autocorrelations.
+    distances : list | np.ndarray
+        Channel distances.
+    fs : int
+        Sampling frequency of data.
+    max_shift : int
+        Maximum shift chosen.
+    **imshow_kwargs :
+        Addtional arguments passed to ``imshow``, e.g. ``vmin``, ``vmax``.
+
+    Returns
+    -------
+    None
+    """
+
+    extent = [distances[0], distances[-1], max_shift/fs, 0]
+    y_label, x_label = "Lag/TWT [s]", "Optical Distance [m]"
+    im = plt.imshow(acfs, aspect="auto", origin="upper", extent=extent,
+                    **imshow_kwargs)
+    vmin = imshow_kwargs.get("vmin")
+    vmax = imshow_kwargs.get("vmax")
+
+    if vmin is not None and vmax is not None:
+        extend = "both"
+    elif vmin is not None:
+        extend = "min"
+    elif vmax is not None:
+        extend = "max"
+    else:
+        extend = "neither"
+
+    plt.colorbar(im, label="Auto-correlation Coefficient", extend=extend)
+    plt.xlabel(x_label, fontsize=16)
+    plt.ylabel(y_label, fontsize=16)
+    plt.gca().tick_params(axis="both", labelsize=16)
+    plt.tight_layout()
