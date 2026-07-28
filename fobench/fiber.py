@@ -478,6 +478,11 @@ class Fiber(object):
 		'''
 		axis = self.__axis__(dim)
 		snr = self.data.mean(axis=axis) / self.data.std(axis=axis)
+		if plot_mode == 'mpl':
+			warn('⚠️ matplotlib plotting not implemented for this method, '
+				 'plotting using pyqtgraph instead')
+			plot_mode = 'pyqt'
+
 		if plot_mode == 'pyqt':
 			plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
 									   data=snr, y_label='SNR [-]', title='SNR Profile')
@@ -493,6 +498,10 @@ class Fiber(object):
 		'''
 		axis = self.__axis__(dim)
 		if window is not None and dim == 't': window =  window*self.sampling_frequency
+		if plot_mode == 'mpl':
+			warn('⚠️ matplotlib plotting not implemented for this method, '
+				 'plotting using pyqtgraph instead')
+			plot_mode = 'pyqt'
 		rmsa = wavefield.rmsa(data=self.data, axis=axis, window=window, dim=dim,
 							times=self.times('unix'), distances = self.distances,
 							channels_num=self.channels_num, vmin=vmin, vmax=vmax,
@@ -527,7 +536,7 @@ class Fiber(object):
 	-----------------------------------------------------------------
 	'''
 
-	def fx_plot(self, norm=False, vmin=None, vmax=None, max_value=None, order=1, nfft=None, figsize=None,
+	def fx_plot(self, norm=False, vmin=None, vmax=None, order=1, nfft=None, figsize=None,
 				 show=True, cmap='viridis', results=False, file_name=None,
 				 where=None, plot_mode='pyqt', **kwargs):
 		'''
@@ -539,28 +548,26 @@ class Fiber(object):
 
 		fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
 										   order=order, nfft=nfft, norm=norm, axis=axis)
-
+		p95 = np.percentile(fx, 95)
+		if vmin is None: vmin = 0
+		if vmax is None: vmax = p95
 		if plot_mode == 'pyqt':
-			p95 = np.percentile(fx, 95)
-			if vmin is None: vmin = 0
-			if vmax is None: vmax = p95
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
 							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
 							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
 							  title='Frequency content', cbar_label=self.units)
 
 		elif plot_mode == 'mpl':
-			plot.gen_spectrogram(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
-					 max_value=max_value, units_y='Energy', figsize=figsize,
-					 title=self.start_time.isoformat()[:10], cmap=cmap, show=show, file_name=file_name,
-					 where=where, **kwargs)
+			plot.mpl_fx_plot(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
+					 units_y='Energy', figsize=figsize, title=str(self.start_time.date),
+					 cmap=cmap, file_name=file_name, vmin=vmin, vmax=vmax, **kwargs)
 
 		if results:
 			return fx, freqs
 
 	def spectrum(self, channel, plot_mode='pyqt', norm=False, pre_processing=True,
-				 order=1, pad=0, nfft=None, mode='spectrum', figsize=None, show=True,
-				 nperseg=None, file_name=None, where=None, legend=True, results=False, **kwargs):
+				 order=1, pad=0, nfft=None, mode='spectrum', figsize=None,
+				 nperseg=None, file_name=None, legend=True, results=False, **kwargs):
 		"""
 		compute spectrum of channel(s), mode can be 'spectrum' or 'psd'
 		see fobench.tools.signals.signal_spectrum for more details
@@ -589,14 +596,14 @@ class Fiber(object):
 								title= f'{mode.title()}' if mode=='spectrum' else f'{mode.upper()}', labels=channel)
 		elif plot_mode=='mpl':
 			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}$^{{2}}$/Hz'
-			plot.simple_spectrum(spectrums=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
-						title=self.start_time.isoformat()[:10], show=show, file_name=file_name, where=where, **kwargs)
+			plot.simple_spectrum(spectra=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
+						title=str(self.start_time.date), file_name=file_name, **kwargs)
 
 		if results:
 			return f, spec
 
-	def channel_plot(self, channel, max_value=None, figsize=None, show=True,
-				  file_name=None, where=None, plot_mode='pyqt', **kwargs):
+	def channel_plot(self, channel, max_value=None, figsize=None, file_name=None,
+					plot_mode='pyqt', **kwargs):
 		'''
 		generates simple plot of channel data
 		for mpl mode see fobench.plotting.plotting_mpl.simple_plot for details
@@ -620,11 +627,11 @@ class Fiber(object):
 
 		elif plot_mode=='mpl':
 			t = self.times('matplotlib')
-			plot.simple_plot(data=selected, t=t, channel=str(channel), units_y=self.units,
-					max_value=max_value, spectrogram=False, show=show, figsize=figsize,
-					title=self.start_time.isoformat()[:10], file_name=file_name, where=where, **kwargs)
+			plot.simple_plot(data=selected.T, t=t, channel=channel, units_y=self.units,
+					max_value=max_value, figsize=figsize, title=str(self.start_time.date),
+					file_name=file_name, **kwargs)
 
-	def plot(self, vmin=None, vmax=None, max_value=None, figsize=None, show=True, cmap='seismic',
+	def plot(self, vmin=None, vmax=None, figsize=None, show=True, cmap='seismic',
 		  file_name=None, where=None, add_data=None, plot_mode='pyqt', **kwargs):
 		'''
 		generates plot of data, for more details see fobench.plotting.plotting_pyqt
@@ -643,14 +650,13 @@ class Fiber(object):
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
 			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num,
-					 units_y=self.units, max_value=max_value, figsize=figsize,
-					 show=show, title=self.start_time.isoformat()[:10], cmap=cmap,
-					 file_name=file_name, where=where, add_data=add_data, **kwargs)
+					 units_y=self.units, figsize=figsize, title=str(self.start_time.date),
+					 cmap=cmap, file_name=file_name, vmin=vmin, vmax=vmax, add_data=add_data,
+					 **kwargs)
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-						show=True, cmap='viridis', file_name=None, where=None,
-						freq_lim=None, results=False, plot_mode='pyqt', vmin=None,
-						vmax=None, **kwargs):
+						cmap='viridis', file_name=None, 	freq_lim=None,  results=False,
+						plot_mode='pyqt', vmin=None, vmax=None, **kwargs):
 		'''
 		computes and plots spectrogram for a 'channel', is normalized to maximum value if norm is True
 		if using 'mpl' plot mode, see fobench.plotting.plotting_mpl.simple_spectrogram
@@ -678,8 +684,8 @@ class Fiber(object):
 			t = self.times(time_type='matplotlib')
 			plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
 						trace=data if trace == True else None, figsize=figsize, cmap=cmap,
-						title=self.start_time.isoformat()[:10]+'  '+'Ch:'+str(channel),
-						show=show, file_name=file_name, where=where, freq_lim=freq_lim, **kwargs)
+						title=str(self.start_time.date)+'  '+'Ch:'+str(channel),
+						file_name=file_name, freq_lim=freq_lim, **kwargs)
 
 		if results:
 			return Sxx, f, t
@@ -713,7 +719,7 @@ class Fiber(object):
 								 y_label='Channel')
 		elif plot_mode=='mpl':
 			plot.plot_record_section(signals=das_data, t=self.times('matplotlib'),
-							channels=das_channels, date=self.times()[0].isoformat()[:10])
+							channels=das_channels, date=str(self.start_time.date))
 
 	def acf_profile(self, max_lag, plot_mode='pyqt', deconvolve=False,
 					window_size=None, results=False, vmin=None, vmax=None, **imshow_kwargs):
