@@ -64,7 +64,8 @@ def scan_folder(folder_path, format=None, storage_opts=None):
             raise ImportError("S3 scanning library needed (s3fs).")
         
         s3 = s3fs.S3FileSystem(**storage_opts) # pass the credentials if you have them localy
-        files = s3.glob(folder_path.removeprefix("s3://") + f"**/*{format}")
+        prefix = folder_path.removeprefix("s3://").rstrip("/")
+        files = s3.glob(f"{prefix}/**/*{format}")
         files = ["s3://"+file for file in files]
         
     else: # for the local files
