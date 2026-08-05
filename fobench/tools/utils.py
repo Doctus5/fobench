@@ -4,63 +4,58 @@ import numpy as np
 import h5py as h5
 from tqdm import trange
 from pyrocko.orthodrome import distance_accurate50m_numpy as deg2m
-
-from obspy.core.trace import Trace as oTrace
-from obspy.core.stream import Stream
-
-from obspy.core import UTCDateTime as UTC
-
 from pyrocko.util import str_to_time
 from pyrocko.trace import Trace as pTrace
+from obspy.core.trace import Trace as oTrace
+from obspy.core.stream import Stream
+from obspy.core import UTCDateTime as UTC
 
-#Function to sscan hierarchycally the HDF5 files.
 def scan_hdf5(path, recursive=True, tab_step=2):
+	"""Function to sscan hdf5 file hierarchycally."""
 	def scan_node(g, tabs=0):
-		print(' ' * tabs, g.name)
+		print(" " * tabs, g.name)
 		for k, v in g.items():
 			if isinstance(v, h5.Dataset):
-				print(' ' * tabs + ' ' * tab_step + ' -', v.name)
+				print(" " * tabs + " " * tab_step + " -", v.name)
 			elif isinstance(v, h5.Group) and recursive:
 				scan_node(v, tabs=tabs + tab_step)
-	with h5.File(path, 'r') as f:
+	with h5.File(path, "r") as f:
 		scan_node(f)
 
 
-'''
-TOOLS USED EXCLUSIVE FOR Fiber CLASS
-'''
+"""TOOLS USED EXCLUSIVE FOR Fiber CLASS"""
+
 STRAIN_UNIT_MAP = {	  # mapping for strain(rate) data
--1: 'integrated strain',
-0: 'strain',
-1: 'strain-rate',
-2: 'strain-acceleration',
-3: 'strain-jerk'}
+                   -1: "integrated strain",
+                   0: "strain",
+                   1: "strain-rate",
+                   2: "strain-acceleration",
+                   3: "strain-jerk"}
 
 VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
--1: 'm',
-0: 'm/s',
-1: 'm/s^2',
-2: 'm/s^3'}
+                -1: "m",
+                0: "m/s",
+                1: "m/s^2",
+                2: "m/s^3"}
 
 TEMP_UNIT_MAP = {		# mapping for temperature data
--1: 'integrated temperature',
-0: 'temperature',
-1: 'temperature rate',
-2: 'temperature acceleration'}
+                 -1: "integrated temperature",
+                 0: "temperature",
+                 1: "temperature rate",
+                 2: "temperature acceleration"}
 
 UNKNOW_UNIT_MAP = {      # mapping for data with unknow unit
--1: 'integrated units',
-0: 'units',
-1: 'd/dt units',
-2: 'd/dt^2 units'}
+                   -1: "integrated units",
+                   0: "units",
+                   1: "d/dt units",
+                   2: "d/dt^2 units"}
 
 
 def _update_processing(func):
-	'''
-	decorator function that updates the Fiber.processing attribute after each
+	"""Decorator function that updates the Fiber.processing attribute after each
 	processing step, in case of integration or differentiation of the data
 	also updates Fiber.units
-	'''
+	"""
 
 	@functools.wraps(func)
 	def wrapper(*args, **kwargs):
@@ -71,23 +66,22 @@ def _update_processing(func):
 		bound_arguments = inspect.signature(func).bind(*args, **kwargs)
 		bound_arguments.apply_defaults()
 		args_dict = bound_arguments.arguments
-		args_dict.pop('self')
+		args_dict.pop("self")
 
-		# function call
-		result = func(*args, **kwargs)
+		result = func(*args, **kwargs) # function call
 
 		# append info to fiber instance
 		fiber = args[0]
 		fiber.processing.append({func_name : args_dict})
 
-		if func_name in ['integrate', 'differentiate'] and args_dict['dim']=='t':
+		if func_name in ["integrate", "differentiate"] and args_dict["dim"]=="t":
 			# determine unit map
-			if (fiber.sensing == 'das' or fiber.sensing == 'dss'):
+			if (fiber.sensing == "das" or fiber.sensing == "dss"):
 				unit_map = STRAIN_UNIT_MAP
-				if fiber.company == 'terra15':
-					if fiber.attributes['properties']['data_product'] == 'velocity': unit_map = VEL_UNIT_MAP
-				if fiber.company == 'sintela': unit_map = UNKNOW_UNIT_MAP
-			elif fiber.sensing == 'dts':
+				if fiber.company == "terra15" and "strain" not in fiber.units:
+					if fiber.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
+				if fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
+			elif fiber.sensing == "dts":
 				unit_map = TEMP_UNIT_MAP
 
 			# find current unit
@@ -95,107 +89,87 @@ def _update_processing(func):
 			except: key = int(fiber.units[2])
 
 			# depending on operation change key
-			if func_name == 'integrate': key -= 1
-			elif func_name == 'differentiate': key += 1
+			if func_name == "integrate": key -= 1
+			elif func_name == "differentiate": key += 1
 
 			# assign new unit
 			try: fiber.units = unit_map[key]
-			except: fiber.units = f'd^{key}/dt {unit_map[0]}'
+			except: fiber.units = f"d^{key}/dt {unit_map[0]}"
 
 		return result
 	return wrapper
 
-def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = 'strain-rate',
+def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "strain-rate",
 				terra15_gl: float = None) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
-	'''
-	performs instrument correction and data conversion for various instrument types
+	"""Performs instrument correction and data conversion for various instrument types
 
 	Parameters
 	----------
 	data : np.ndarray
-		data of Fiber class
+		Data of Fiber class.
 	attributes : dict
-		Fiber class attributes
+		Fiber class attributes.
 	target : str, optional
-		target unit. The default is 'strain-rate'.
+		Target unit. The default is "strain-rate".
 	terra15_gl : float, optional
-		gauge length for velocity to strain-rate conversion for Terra15 data.
-		If not specified, original gauge length from Fiber.gauge_length is taken
+		Gauge length for velocity to strain-rate conversion for Terra15 data.
+		If not specified, original gauge length from Fiber.gauge_length is taken.
 
 	Returns
 	-------
 	data : np.ndarray
-		corrected data
+		Corrected data.
 	target : str
-		(new) unit of measurement
-	attributes['channels'] : np.ndarray
-		(new) channels
-	attributes['channels_num'] : list
-		(new) channel_numbers
-	attributes['gauge_length'] : float
-		(new) gauge length
+		(New) unit of measurement.
+	attributes["channels"] : np.ndarray
+		(New) channels.
+	attributes["channels_num"] : list
+		(New) channel_numbers.
+	attributes["gauge_length"] : float
+		(New) gauge length.
 
-		'''
+	"""
 
 	format, company, units = attributes['format'], attributes['company'], attributes['units']
 
-	if format == 'tdms' and company == 'silixa': # Silixa TDMS
-
-		if units == 'counts' and target == 'strain-rate':
-
+	if format in ("tdms", "h5", "hdf5") and company == "silixa": # Silixa TDMS/HDF5
+		if units == "counts" and target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
-			gauge_L = attributes['gauge_length'] # gauge lenght in meters.
+			gauge_L = attributes["gauge_length"] # gauge length in meters.
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
-			fs = attributes['o_sampling_frequency'] # sampling frequency, which can be 1000 Hz for raw data.
-			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
-			data = np.multiply(data,factor)
+			fs = attributes["o_sampling_frequency"] # sampling frequency, which can be 1000 Hz for raw data.
+			factor = i_cst*(fs/gauge_L)/digital_N # strain-rate per counts.
+			data = np.multiply(data, factor)
 
-
-	# if (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
-
-	elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
-
-		if units == 'counts' and target == 'strain-rate':
-
-			i_cst = 116E-9 # meters per radians.
-			gauge_L = attributes['gauge_length'] # gauge lenght in meters.
-			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
-			fs = attributes['o_sampling_frequency'] # sampling frequency, which can be 1000 Hz for raw data.
-			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
-			data = np.multiply(data,factor)
-
-	# if format == 'npy' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
-
-	elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
-		if units == 'velocity' and target == 'strain-rate':
-			gl = attributes['gauge_length'] if terra15_gl is None else terra15_gl
-			gauge_samples = int(round(gl / attributes['spatial_interval']))
-			gl = gauge_samples * attributes['spatial_interval']
-			print(f'⚠️ Applying the nearest possible gauge length: {gl}m')
+	elif (format == "h5" or format == "hdf5") and company == "terra15": # Terra15 HDF5
+		if units == "m/s" and target == "strain-rate":
+			gl = attributes["gauge_length"] if terra15_gl is None else terra15_gl
+			gauge_samples = int(round(gl / attributes["spatial_interval"]))
+			gauge_samples = 1 if gauge_samples < 1 else gauge_samples
+			gl = gauge_samples * attributes["spatial_interval"]
+			print(f"\n⚠️ Applying the nearest possible gauge length: {gl}m")
 			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl
 			n_left = gauge_samples // 2
 			n_right = gauge_samples - n_left
 			if gauge_samples != 0:
-				attributes['channels'] = attributes['channels'][n_left:-n_right]
-				attributes['channels_num'] = attributes['channels_num'][n_left:-n_right]
-				attributes['distances'] = attributes['distances'][n_left:-n_right]
-				attributes['total_channels'] = attributes['channels'].size
-			attributes['gauge_length'] = gl
+				attributes["channels"] = attributes["channels"][n_left:-n_right]
+				attributes["channels_num"] = attributes["channels_num"][n_left:-n_right]
+				attributes["distances"] = attributes["distances"][n_left:-n_right]
+				attributes["total_channels"] = attributes["channels"].size
+			attributes["gauge_length"] = gl
+		else:
+			print("\n⚠️ Data not in velocity units, doing nothing ...")
 
-	elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
+	elif (format == "h5"	 or format == "hdf5"	) and company == "asn": # ASN OptoDAS HDF5 (It can be a bit more complex, so I"	m trying to make it simple!)
+		if units == "rad/(strain*m)" and target == "strain-rate":
+			data = data / attributes["conv_factor"] # divide by sensitivities. It seems they already provide the conversion factor
 
-		if units == 'rad/(strain*m)' and target == 'strain-rate':
-
-			data = data / attributes['conv_factor'] # divide by sensitivities. It seems they already provide the conversion factor
-
-	elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
-
-		if target == 'strain-rate':
-
+	elif (format == "h5" or format == "hdf5") and company == "quantx": # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
+		if target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
-			gauge_L = attributes['gauge_length'] # gauge lenght in meters.
-			digital_N = int(attributes['units'][-4]) ** int(attributes['units'][-2:]) # magic number linked to the digitalization of the data. why not 2**ints
-			fs = attributes['o_sampling_frequency'] # sampling frequency, which can be 1000 Hz for raw data.
+			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
+			digital_N = int(attributes["units"][-4]) ** int(attributes["units"][-2:]) # magic number linked to the digitalization of the data. why not 2**ints
+			fs = attributes["o_sampling_frequency"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
@@ -203,50 +177,63 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = '
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
 	# ####################################################
 
-	elif format == 'npz' and company == 'bam': # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
-
-		if units == 'counts' and target == 'strain':
-
+	elif format == "npz" and company == "bam": # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+		if units == "counts" and target == "strain":
 			factor = 1E-6 / 18.4 # strain per count (WEIRD!)
 			data = np.multiply(data,factor)
 
-	elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # Michelle HDF5 decimated from Silixa
-
-		if units == 'counts' and target == 'strain-rate':
-
+	elif (format == "h5" or format == "hdf5") and company == "michelle": # Michelle HDF5 decimated from Silixa
+		if units == "counts" and target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
-			gauge_L = attributes['gauge_length'] # gauge lenght in meters.
+			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
-			fs = attributes['o_sampling_frequency'] # sampling frequency, which can be 1000 Hz for raw data.
+			fs = attributes["o_sampling_frequency"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
 	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
 
 
-def interpolate_channels(n_ch, x_ch, y_ch, z_ch, system='decimal', err=None, spacing=None):
-	'''
-	Co-authors: --
-	Description:
-		Do a linear interpolation between sections of georeferenced channels to georeference the non-located channels.
-		Inputs must be the georeferences channels in ascending order.
-	:Params:
-		- n_ch(type:Numpy): 1D array of channel number.
-		- x_ch(type:Numpy): 1D array of X (longitude) coordinates of the channels specified in "n_ch".
-		- y_ch(type:Numpy): 1D array of Y (latitude) coordinates of the channels specified in "n_ch".
-		- z_ch(type:Numpy): 1D array of Z (depth - meters) coordinates of the channels specified in "n_ch".
-		- system(type:String): Defined the receiving coordinate systems for X and Y. It can be 'decimal' for decimal degrees
-		or 'utm' for Universal Transverse Mercator. Default is 'decimal'.
-		- err(type:Float - Optional): maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
-		- spacing(type:Int or Float - Optional): real channel spacing value in meters.
-	:Return:
-		- NA.
-	'''
+def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
+                         z_ch: np.ndarray, system: str = "decimal", err: float = None,
+                         spacing: int | float = None)-> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+	"""Do a linear interpolation between sections of georeferenced channels to
+	georeference the non-located channels. Inputs are the georeferenced channels
+	in ascending order.
+
+	Parameters
+	----------
+	n_ch : np.ndarray
+		1D array of channel number.
+	x_ch : np.ndarray
+		1D array of X (longitude) coordinates of the channels specified in ``"n_ch"``.
+	y_ch : np.ndarray
+		1D array of Y (latitude) coordinates of the channels specified in ``"n_ch"``.
+	z_ch : np.ndarray
+		1D array of Z (depth - meters) coordinates of the channels specified in ``"n_ch"``.
+	system : str
+		Defines the output coordinate system for X and Y. It can be ``'decimal'``
+		for decimal degrees or ``'utm'`` for Universal Transverse Mercator.
+	err: float
+		The maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
+	spacing : int, float
+		Real channel spacing value in meters.
+
+	Returns
+	-------
+    new_ch : np.ndarray
+        -
+    new_x : np.ndarray
+        X coordinates.
+    new_y : np.ndarray
+        Y coordinates.
+    new_z : np.ndarray
+        Z coordinates.
+
+	"""
 
 	new_ch, new_x, new_y, new_z =  [], [], [], []
-
 	for i in range(n_ch.size-1):
-
 		ch_start, ch_end = n_ch[i], n_ch[i+1]
 
 		# deltas or differences between extremes.
@@ -270,45 +257,42 @@ def interpolate_channels(n_ch, x_ch, y_ch, z_ch, system='decimal', err=None, spa
 		new_z += list(Z[ii:])
 
 		if err != None:
-
-			if system == 'decimal':
-
-				r1 = deg2m(y_ch[i+1], x_ch[i+1], y_ch[i], x_ch[i], implementation='python')[0] # lat/lon distance in meters.
+			if system == "decimal":
+				r1 = deg2m(y_ch[i+1], x_ch[i+1], y_ch[i], x_ch[i], implementation="python")[0] # lat/lon distance in meters.
 				r2 = np.sqrt(r1**2 + dz**2) # total calculated distance between known locations in 3D.
-
-			if system == 'utm':
-
+			elif system == "utm":
 				r2 = np.sqrt(dx**2 + dy**2 + dz**2) # total calculated distance between known locations in 3D with UTM.
 
 			calc_spacing = (1/(ch_end - ch_start)) * r2 # calculated channel spacing from georeferencing.
 			dev = (calc_spacing - spacing) / spacing # calculated error between new channel spacing and real.
-			print(f'Fiber section {i+1} -> channel spacing of {calc_spacing} m. Original spacing is {spacing} m.')
+			print(f"Fiber section {i+1} -> channel spacing of {calc_spacing} m. Original spacing is {spacing} m.")
 
 			if np.abs(dev) > err:
-
-				# A warning is raised but program continues.
-				print(f'WARNING: Error of calculated channels spacing in fiber section {i+1} is of {dev*100}%.\nCheck control points.')
+				print(f"\n⚠️ Error of calculated channels spacing in fiber section "
+					f"{i+1} is of {dev*100}%.\nCheck control points.")
 				return None # Calculation is interrupted for not fulfilling standards.
 
 	return np.array(new_ch).astype(int), np.array(new_x), np.array(new_y), np.array(new_z)
 
 
-'''
-####################################################
-Signal Analysis functions below...
-####################################################
-'''
+"""Signal Analysis functions below"""
 
-def auto_cascf(in_fs, out_fs):
-	'''
-	Gives the optimal cascadian decimation factors based on initial sampling frequency and final sampling frequency.
-	:Params(type):
-		- data(type:numpy): matrix data (2D) of the DAS Class.
-		- in_fs(type:int or float): original (input) sampling frequency.
-		- out_fs(type:int or float): desired (output) sampling frequency.
-	:Return(type):
-		- factors(type:list): list of factors to use to get from input to output frequencies.
-	'''
+def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
+	"""Gives the optimal cascadian decimation factors based on initial sampling
+	frequency and desired final sampling frequency.
+
+	Parameters
+	----------
+	in_fs : int, float
+		Original (input) sampling frequency.
+	out_fs: int, float:
+		Desired (output) sampling frequency.
+
+	Returns
+	-------
+	factors: list
+		List of factors to use to get from input to output frequency.
+	"""
 
 	factors = []
 	pref_factors = [2, 3, 4, 5] # prefered decimation factors in order of preference.
@@ -323,81 +307,87 @@ def auto_cascf(in_fs, out_fs):
 
 	return factors
 
-def spatial_upsampling(das_class):
-	'''
-	Co-authors: --
-	Description:
-		Tool for upscaling spatialy the DDSS (DAS) data by double. Creates an interpolation between consecutive
-	channels to simulate an increase spatial resolution.
-	:Params:
-		- das_class(type:DAS): an initialized DAS Class with data.
-	:Return:
-		- new_data(type:numpy): 2D matrix containing the new spatial upsampled data.
-		- new_channels_num(type_numpy): a list containing the new numbers of the channels, including the intermediate ones.
-	'''
-
-	new_channels_num = [das_class.channels_num[0]]
-	shape = (len(das_class.data[:,0]),1)
-	new_data = das_class.data[:,0].reshape(shape) #reshaping is important to not affect the original dimensionality.
-
-	for i in range(das_class.total_channels-1):
-
-		first, second = new_data[:,-1].reshape(shape), das_class.data[:,i+1].reshape(shape)
-		inter = (first + second) / 2
-		new_data = np.concatenate((new_data, inter), axis=1)
-		new_data = np.concatenate((new_data, second), axis=1)
-
-		inter_num = (new_channels_num[-1] + das_class.channels_num[i+1]) / 2
-		new_channels_num += ([inter_num, das_class.channels_num[i+1]])
-
-	return new_data, new_channels_num
-
-
-def spatial_downsampling(das_class):
-	'''
-	Co-authors: --
-	Description:
-		Tool for downscaling spatialy the DDSS (DAS) data by half. Erase one channel between consecutive
-		channels to simulate a decrease spatial resolution.
-	:Params:
-		- das_class(type:DAS): an initialized DAS Class with data.
-	:Return:
-		- new_data(type:numpy): 2D matrix containing the new spatial downsampled data.
-		- new_channels_num(type: numpy): a list containing the new numbers of the channels, where the inermediate ones are eliminated.
-	'''
-
-	new_data = das_class.data[:,::2]
-	new_channels_num = das_class.channels_num[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
-	#new_channels_num = [i for i in range(0,int(len(das_class.channels_num)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
-	#new_channels_num = das_class.channels_num[:int(len(das_class.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
-
-	return new_data, new_channels_num
-
-def to_traces(Fiber, t_type: str)-> Stream:
-	'''
-	Creates an obpsy/pyrocko Stream object and fill it with Traces in it. Each Trace
-	would represent each channel of the DAS Class, including the metadata which
-	are attributes of the Trace Class. This is mainly done so users can have access
-	to obspy tools with this data. However, it can be slower and memory demanding.
+def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
+	"""Function for spatially upsampling the DAS, doubling the number of channels.
+	Creates an interpolation between consecutive channels to simulate an increase
+	in spatial resolution.
 
 	Parameters
 	----------
 	Fiber : fobench.Fiber object
-		Fiber class object
-	t_type : str
-		type of stream to return, 'obspy' or 'pyrocko'
+		Fiber class object.
 
 	Returns
 	-------
-	Stream
-		Stream object
+	new_data : np.ndarray
+		2D matrix containing the new spatial upsampled data.
+	new_channels_num : list
+		List containing the new numbers of the channels, with newly created intermediary ones.
+	"""
 
-	'''
+	new_channels_num = [Fiber.channels_num[0]]
+	shape = (len(Fiber.data[:,0]),1)
+	new_data = Fiber.data[:,0].reshape(shape) #reshaping to not affect original dimensionality.
+
+	for i in range(Fiber.total_channels-1):
+		first, second = new_data[:,-1].reshape(shape), Fiber.data[:,i+1].reshape(shape)
+		inter = (first + second) / 2
+		new_data = np.concatenate((new_data, inter), axis=1)
+		new_data = np.concatenate((new_data, second), axis=1)
+		inter_num = (new_channels_num[-1] + Fiber.channels_num[i+1]) / 2
+		new_channels_num += ([inter_num, Fiber.channels_num[i+1]])
+
+	return new_data, new_channels_num
+
+
+def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
+	"""Function for spatially downsampling DAS data by half. Erases one channel between consecutive
+		channels to simulate a decrease of the spatial resolution.
+
+	Parameters
+	----------
+	Fiber : fobench.Fiber object
+		Fiber class object.
+
+	Returns
+	-------
+	new_data : np.ndarray
+		2D matrix containing the new spatial downsampled data.
+	new_channels_num : list
+		List containing the new numbers of the channels, with the inermediate ones eliminated.
+	"""
+
+	new_data = Fiber.data[:,::2]
+	new_channels_num = Fiber.channels_num[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
+	#new_channels_num = [i for i in range(0,int(len(Fiber.channels_num)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
+	#new_channels_num = Fiber.channels_num[:int(len(Fiber.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
+
+	return new_data, new_channels_num
+
+def to_traces(Fiber, t_type: str)-> Stream:
+	"""Creates an obpsy or pyrocko Stream object and fills it with Traces. Each Trace
+	represents a channel of the DAS Class, including the metadata which
+	from the attributes of the Trace Class. This is mainly done so users can have access
+	to obspy tools with their data. However, it can be slow and memory demanding.
+
+	Parameters
+	----------
+	Fiber : fobench.Fiber object
+		Fiber class object.
+	t_type : str
+		type of stream to return, ``'obspy'`` or ``'pyrocko'``.
+
+	Returns
+	-------
+	stream
+		Stream object.
+
+	"""
+
 	stream = Stream() if t_type == 'obspy' else []
 
-	for i in trange(Fiber.total_channels, desc='Creating Stream'):
-
-		if t_type == 'obspy':
+	for i in trange(Fiber.total_channels, desc="Creating Stream"):
+		if t_type == "obspy":
 			trace = oTrace(data=Fiber.data[:,i])
 			trace.stats.network = Fiber.fiber
 			trace.stats.station = str(Fiber.channels_num[i]).zfill(5)
@@ -406,97 +396,95 @@ def to_traces(Fiber, t_type: str)-> Stream:
 			trace.stats.delta = Fiber.dt
 			trace.stats.starttime = Fiber.start_time
 			trace.stats.calib = instr_corr(np.array(1), attributes=vars(Fiber))
-			trace.stats.channel = 'H'
+			trace.stats.channel = "H"
 			#trace.stats.endtime = self.end_time
 			stream.append(trace)
 # 			print(stream)
 
-		if t_type == 'pyrocko':
+		elif t_type == "pyrocko":
 			trace = pTrace(ydata=Fiber.data[:,i])
 			trace.network = Fiber.fiber
 			trace.station = str(Fiber.channels_num[i]).zfill(5)
 			trace.deltat = Fiber.dt
-			trace.tmin = str_to_time(Fiber.start_time.isoformat().replace('T',' '))
-			trace.tmax = str_to_time(Fiber.end_time.isoformat().replace('T',' '))
+			trace.tmin = str_to_time(Fiber.start_time.isoformat().replace("T"," "))
+			trace.tmax = str_to_time(Fiber.end_time.isoformat().replace("T"," "))
 			stream.append(trace)
 
 	return stream
 
+
 def return_times(Fiber, time_type: str)-> np.ndarray:
-	'''
-	returns 1D array containing time-steps of data in the specified format
+	"""Returns a 1D array containing time-steps of data in the specified format.
 
 	Parameters
 	----------
 	Fiber : fobench.Fiber object
-		Fiber class object
+		``Fiber`` class object.
 	time_type : str
-		time format to return. options are 'UTCDateTime', 'isoformat', 'matplotlib'
-		or 'unix´'
+		time format to return. options are ``'UTCDateTime'``, ``'isoformat'``,
+		``'matplotlib'`` or ``'unix'``
 
 	Raises
 	------
 	ValueError
-		unrecognized time format.
+		Unrecognized time format.
 
 	Returns
 	-------
-	t : TYPE
+	t : np.array
 		1D array containing time-steps of data in the specified format.
 
-	'''
-	converters = {
-		'UTCDateTime': lambda t: t,
-		'isoformat': lambda t: t.isoformat(),
-		'matplotlib': lambda t: t.matplotlib_date,
-		'unix': lambda t: t.timestamp,
-	}
+	"""
+	converters = {"UTCDateTime": lambda t: t,
+				  "isoformat": lambda t: t.isoformat(),
+				  "matplotlib": lambda t: t.matplotlib_date,
+				  "unix": lambda t: t.timestamp}
 
 	if time_type not in converters:
 		raise ValueError(
-			f'Unrecognized time format "{time_type}"! Please choose one of:\n'
-			  ' -"UTCDateTime"\n -"isoformat"\n -"matplotlib"\n -"unix"'
-		)
+			f"\n⚠️ Unrecognized time format '{time_type}'! Please choose one of:\n"
+			" -'UTCDateTime'\n -'isoformat'\n -'matplotlib'\n -'unix'")
 
 	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.data.shape[0])]
+
 	return np.array([converters[time_type](t) for t in times])
 
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 			  start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
-	'''
-	trims data in Fiber class in time dimension between given start and end times
+	"""Trims data in Fiber class in time dimension between given start and end times
 
 	Parameters
 	----------
 	t0, tf : UTC datetime object or str
-		new desired start and end timea of data
+		New desired start and end timea of data.
 	data : np.ndarray
-		original data to trim
+		Original data to trim.
 	times : np.ndarray
-		timestamps of Fiber class
+		Timestamps of Fiber class.
 	start_time, end_time : UTC datetime
-		original start and end time of data
+		Original start and end time of data.
 
 	Raises
 	------
 	ValueError
-		t0 > tf
+		``t0 > tf``.
 
 	Returns
 	-------
 	data : np.ndarray
-		trimmed data
+		Trimmed data.
 	start_time, end_time : UTC datetime
-		new start and end time of data
-	'''
+		New start and end time of data.
+
+	"""
 	t0, tf = UTC(t0), UTC(tf)
 
 	t0 = max(t0, start_time)
 	tf = min(tf, end_time)
 
-	if tf < t0: raise ValueError("End time (tf) must be after start time (t0).")
-	t0_pos = max(0, np.searchsorted(times, t0, side='right') - 1)
-	tf_pos = max(0, np.searchsorted(times, tf, side='right') - 1)
+	if tf < t0: raise ValueError("\n⚠️ End time (tf) must be after start time (t0).")
+	t0_pos = max(0, np.searchsorted(times, t0, side="right") - 1)
+	tf_pos = max(0, np.searchsorted(times, tf, side="right") - 1)
 
 	data = data[t0_pos:tf_pos, :]
 	start_time = times[t0_pos]

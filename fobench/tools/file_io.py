@@ -170,6 +170,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         gauge_length = float(properties['gauge_length'])
         channel_offset = round(properties['sensing_range_start']/spatial_interval)
         units = 'strain-rate' if properties['data_product'] == 'strainrate' else properties['data_product']
+        units = "m/s" if "velocity" in units else units # for (local) velocity output
         conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
