@@ -1,7 +1,6 @@
-'''
-Contains all functionality related to plotting using PyQtGraph, i.e.
-whenever plot_mode is set to 'pyqt'
-'''
+"""Contains all functionality related to plotting using PyQtGraph, i.e.
+whenever plot_mode is set to 'pyqt'"""
+
 import sys
 import datetime
 from pathlib import Path

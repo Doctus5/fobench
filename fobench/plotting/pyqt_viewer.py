@@ -1,4 +1,4 @@
-'''Contains the Viewer class'''
+"""Contains the Viewer class"""
 
 import datetime
 import functools
