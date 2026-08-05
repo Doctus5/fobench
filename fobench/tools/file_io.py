@@ -26,7 +26,10 @@ from obspy.core import UTCDateTime as UTC
 
 
 
-def read_data(filepath=None, company=None, range_ch=None, format=None, load_data=True):
+
+
+def read_data(filepath=None, company=None, range_ch=None, format=None, load_data=True,
+              show_progress=True, storage_opts=None):
     '''
     Co-authors: --
     Description:
@@ -47,12 +50,19 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     :Return:
         - variables(type:tuple): tuple of the variable that are attributed of class Fiber.
     '''
+    
     # modify range_ch variable
     if isinstance(range_ch, int): # check if it is single value
         range_ch = [range_ch]
 
     elif isinstance(range_ch, np.ndarray): # check if is array
         range_ch = list(range_ch)
+        
+    # option for reading S3 stored files. The check of instance is necessary because the remote file not necessary starts with...
+    if isinstance(filepath, str) and filepath.startswith("s3://"):
+        
+        return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data, 
+                        show_progress=show_progress, storage_opts=storage_opts)
     
     template = None
 
@@ -480,6 +490,47 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
     return values.astype('float')
 
+
+
+def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_progress=True, storage_opts=None):
+    """s3_file Reads a fibre optic sensing file stored in a S3-compatible filesystem.
+
+    Parameters
+    ----------
+    filepath : str
+        Complete S3 URI of the file
+    company : str
+        Manufacturer of the fibre optic sensing unit that produce the data (check read_data())
+    range_ch : int or list, optional
+        Channels range to load
+    format : str, optional
+        Format of the file to read (suffix)
+    load_data : bool, optional
+        Load the data when variable is ``True``. else it's only the metadata
+    show_progress : bool, optional
+        Shows the file-reading progress bar
+    storage_opts : dict, optional
+        Options to be passed to the S3 filesystem. Needed as credentials and temporal file handling, by default None
+
+    Returns
+    -------
+    dict
+        Fibre data and metadata attributes
+    """
+
+        
+    import s3fs
+    s3 = s3fs.S3FileSystem(**(storage_opts or {}))
+        
+    with s3.open(filepath,"rb") as remote_file:
+        
+        attributes = read_data(filepath=remote_file, company=company, range_ch=range_ch, 
+                                format=format, load_data=load_data, show_progress=show_progress)
+    attributes["basefile"] = filepath
+    
+    return attributes
+        
+        
 
 
     

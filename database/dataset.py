@@ -36,7 +36,7 @@ class Dataset(object):
     '''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-    def __init__(self, folder_path, company='silixa', sensing='das', database=None, metadata_file=None):
+    def __init__(self, folder_path, company='silixa', sensing="das", database=None, metadata_file=None, storage_opts=None):
         '''
         Co-authors: --
         Description: 
@@ -52,6 +52,7 @@ class Dataset(object):
         # internal attributed.
         self.__filepath__ = folder_path # filepath where the data is located (a folder).
         self.__builded__ = False # is there a metadata file for it.
+        self.__storage_opts__ = storage_opts
         
         # This variable might be redundant with the variables in metadata. Check this to reduce memory!
         self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the curent Dataset.
@@ -324,13 +325,13 @@ class Dataset(object):
             - NA.
         '''
 
-        files = manager.scan_folder(self.__folder_path__, format=format) # remove the limitations.
+        files = manager.scan_folder(self.__folder_path__, format=format, storage_opts=self.__storage_opts__) # remove the limitations.
 
         # calculate in parallel mode
         if parallels != None:
 
             hpc = Parallel(params=parallels) # initialize parallel process.
-            results = hpc.submit(manager.files2database, files, self.company) # run.
+            results = hpc.submit(manager.files2database, files, (self.company, self.__storage_opts__)) # run.
             
             # now lets joint the results
             database_files = pd.concat(results, ignore_index=True)
@@ -338,7 +339,7 @@ class Dataset(object):
         # in serial mode
         else:
 
-            database_files = manager.files2database(files, self.company) # organize it as a Dataframe. Use Fiber Class.
+            database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Fiber Class.
 
         database_files = manager.chrono_order(database_files) # aranges in a chronological order.
         

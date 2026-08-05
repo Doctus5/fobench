@@ -38,7 +38,7 @@ class Unit(object):
 	'''
 	
 	#Creates the basic variables of the DAS object with its characteristics
-	def __init__(self, folder_path=None, metadata_file=None, sensing='das', company="", format=""):
+	def __init__(self, folder_path=None, metadata_file=None, sensing="das", company="", format="", storage_opts=None):
 		'''
 		Co-authors: --
 		Description: 
@@ -57,6 +57,7 @@ class Unit(object):
 		# Private attributes
 		self.__folder_path__ = folder_path # central folder path of files
 		self.__builded__ = False # is there a metadata file for it.
+		self.__storage_opts__ = storage_opts # credentials of S3 to look at the bucket
 
 		# Public attributes
 		self.sensing = sensing
@@ -307,19 +308,19 @@ class Unit(object):
 			- NA.
 		'''
 
-		files = manager.scan_folder(self.__folder_path__, format=self.format)#[:400] # remove the limitations.
+		files = manager.scan_folder(self.__folder_path__, format=self.format, storage_opts=self.__storage_opts__)#[:400] # remove the limitations.
 
 		# calculate in parallel mode
 		if parallels != None:
 
 			hpc = Parallel(params=parallels) # initialize parallel process.
-			results = hpc.submit(manager.files2database, files, self.company) # run.
+			results = hpc.submit(manager.files2database, files, (self.company, self.__storage_opts__)) # run.
 			database_files = pd.concat(results, ignore_index=True) # joint the results
 
 		# calculate in serial mode
 		else:
 
-			database_files = manager.files2database(files, self.company) # organize it as a Dataframe. Use Fiber Class.
+			database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Fiber Class.
 
 		database_files = manager.chrono_order(database_files) # aranges in a chronological order.
 		chunks = manager.database_discontinuities(database_files, split=True) # splits based on discontinuities.
@@ -327,7 +328,7 @@ class Unit(object):
 		# loop over the found chunks to initialize them as Datasets
 		for chunk in chunks:
 
-			self.datasets.append( Dataset(folder_path=self.__folder_path__, company=self.company, sensing=self.sensing, database=chunk) )
+			self.datasets.append( Dataset(folder_path=self.__folder_path__, company=self.company, sensing=self.sensing, database=chunk, storage_opts=self.__storage_opts__) )
 
 		if self.datasets:
 

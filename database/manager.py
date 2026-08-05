@@ -30,29 +30,48 @@ except ModuleNotFoundError:
     from ..fobench.fiber import Fiber
 
 
-def scan_folder(folder_path, format=None):
+def scan_folder(folder_path, format=None, storage_opts=None):
     '''
-    Co-authors: --
-    Description: 
-        Function that scans all within a folder to find all files inside.
-    :Params:
-        - folder_path(type:String): complete folder path where files will be searched.
-        - format(type:String, Optional): if a format extension is specified (without the point), only the files with such an extension will be returned.
-    :Return:
-        - files(type:List): list of paths of each of the files.  
-	'''
+    Function that scans all within a folder to find all files inside.
+
+    Parameters
+    ----------
+    folder_path : str
+        Global folder path where files will be searched.
+    format : str, optional
+        If a format extension is specified (without the point), only the files with such an extension will be returned.
+    storage_opts : dict, optional
+        Options passed to the S3 filesystems (profile, endpoint, anonymous access settings, etc.).
+    
+    Returns
+    -------
+    list of str
+        Sorted local paths or S3 UIRs.
+    '''
     
     # Old method of scanning. No recursivity though.
     # format = '*' if format == None else '*.' + format
     # files = glob.glob(folder_path + format)
     
-    if not format.startswith("."):
+    format = "." + format if not format.startswith(".") else format
+    storage_opts = {} if storage_opts is None else dict(storage_opts)
         
-        format = "." + format
+    if str(folder_path).startswith("s3://"): # s3 storage fyle systems
         
-    # Use glob to recursively match files ending with the given extension
-    search_pattern = os.path.join(folder_path, '**', f'*{format}')
-    files = glob.glob(search_pattern, recursive=True)
+        try:
+            import s3fs
+        except ImportError:
+            raise ImportError("S3 scanning library needed (s3fs).")
+        
+        s3 = s3fs.S3FileSystem(**storage_opts) # pass the credentials if you have them localy
+        files = s3.glob(folder_path.removeprefix("s3://") + f"**/*{format}")
+        files = ["s3://"+file for file in files]
+        
+    else: # for the local files
+        
+        # Use glob to recursively match files ending with the given extension
+        search_pattern = os.path.join(folder_path, '**', f'*{format}')
+        files = glob.glob(search_pattern, recursive=True)
     
     if not files:
         
@@ -61,7 +80,7 @@ def scan_folder(folder_path, format=None):
     return files
 
 
-def files2database(files, company):
+def files2database(files, company, storage_opts=None):
     '''
     Co-authors: --
     Description: 
@@ -86,7 +105,7 @@ def files2database(files, company):
         file = files[i] # select file
         # by checking the start and end times in the files
         print('File: ' + file)
-        d_file = Fiber(file, company=company, load_data=False)
+        d_file = Fiber(file, company=company, load_data=False, storage_opts=storage_opts)
         
         info = d_file.metadata(meta_dict=True) # getting public relevant attributes.
         info = {key: info[key] for key in filtered_keys if key in info}  # Filter
