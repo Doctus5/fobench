@@ -76,7 +76,7 @@ def scan_folder(folder_path, format=None, storage_opts=None):
     
     if not files:
         
-        warnings.warn(f'No files with the specified format .{format} or files at all were found.', category=UserWarning)
+        warnings.warn(f'No files with the specified format {format} or files at all were found.', category=UserWarning)
                 
     return files
 

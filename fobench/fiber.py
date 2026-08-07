@@ -606,6 +606,7 @@ class Fiber(object):
 		f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_frequency, mode=mode,
 				norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg,
 				axis=axis)
+		spec = spec[:,0] if spec.ndim > 1 else spec  # reduced dimensionality of single spectrum
 
 		if plot_mode=='pyqt':
 			units = self.units if mode == 'spectrum' else f'{self.units.split(" ")[-1]}²/Hz'
