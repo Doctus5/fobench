@@ -276,7 +276,7 @@ class Fiber(object):
 		'''
 		return utils.to_traces(self, t_type)
 
-	def to_xarray(self):
+	def to_xarray(self, name=None, use_distance=True):
 		"""Converts the Fiber class and data as xarray object.
 
 		Returns:
@@ -284,7 +284,7 @@ class Fiber(object):
 						Can be useful for Xdas 
 		"""
   
-		return utils.to_xarray(self)
+		return utils.to_xarray(self. name, use_distance)
 
 
 	def write(self, save_path=None):
