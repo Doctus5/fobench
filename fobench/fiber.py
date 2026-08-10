@@ -280,9 +280,9 @@ class Fiber(object):
 		"""Converts the Fiber class and data as xarray object.
 
 		Returns:
-			_type_: _description_
+			DataArray: DataArray of xarray containing the Fiber data and metadata.
+						Can be useful for Xdas 
 		"""
-
   
 		return utils.to_xarray(self)
 
