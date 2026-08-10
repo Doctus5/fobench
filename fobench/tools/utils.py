@@ -445,7 +445,7 @@ def clean_metadata(Fiber) -> dict:
 	"""Returns a clean metadata of Fiber
 
 	Args:
-		Fiber (_type_): _description_
+		Fiber : _description_
 
 	Returns:
 		dict: clean metadata dicitonary of Fiber class
