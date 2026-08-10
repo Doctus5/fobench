@@ -244,7 +244,7 @@ class Fiber(object):
 
 	def times(self, time_type='UTCDateTime'):
 		'''
-		returns array of sample times, can be 'UTCDateTime', 'isoformat', 'matplotlib'
+		returns array of sample times, can be 'UTCDateTime', 'isoformat', 'datetime64', 'matplotlib'
 		or 'unix'
 		'''
 		return utils.return_times(self, time_type)
@@ -275,6 +275,17 @@ class Fiber(object):
 		fobench.tools.utils.to_traces for more details
 		'''
 		return utils.to_traces(self, t_type)
+
+	def to_xarray(self):
+		"""Converts the Fiber class and data as xarray object.
+
+		Returns:
+			_type_: _description_
+		"""
+
+  
+		return utils.to_xarray(self)
+
 
 	def write(self, save_path=None):
 		"""

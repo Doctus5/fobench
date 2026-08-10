@@ -413,6 +413,68 @@ def to_traces(Fiber, t_type: str)-> Stream:
 	return stream
 
 
+def to_xarray(Fiber, name=None, use_distance=False):
+    
+    try:
+        import xarray as xr
+    except ImportError as exc:
+        raise ImportError("xarray package is required, but no module is found.")
+    
+    # create the different labels and coordinates
+    data_label = name or Fiber.units or "data"
+    times = Fiber.times("datetime64")
+    channels = np.asarray(Fiber.channels_num)
+    distances = np.asarray(Fiber.distances, dtype=float)
+    
+    if use_distance:
+        dims = ("time", "distance")
+        coords = {"time": ("time",times),
+                  "distance": ("distance",distances),
+                  "channel": ("channel",channels)}
+    else:
+        dims = ("time", "distance")
+        coords = {"time": ("time",times),
+                "channel": ("channel",channels),
+				"distance": ("distance",distances)}
+        
+    attrs = clean_metadata(Fiber)
+    return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
+        
+    
+def clean_metadata(Fiber) -> dict:
+	"""Returns a clean metadata of Fiber
+
+	Args:
+		Fiber (_type_): _description_
+
+	Returns:
+		dict: clean metadata dicitonary of Fiber class
+	"""
+    
+	attrs = {"fiber": Fiber.fiber,
+			"company": Fiber.company,
+			"format": Fiber.format,
+			"units": Fiber.units,
+			"sampling_frequency": Fiber.sampling_frequency,
+			"o_sampling_frequency": Fiber.o_sampling_frequency,
+			"dt": Fiber.dt,
+			"spatial_interval": Fiber.spatial_interval,
+			"gauge_length": Fiber.gauge_length,
+			"channel_offset": Fiber.channel_offset,
+			"start_time": Fiber.start_time.isoformat(),
+			"end_time": Fiber.end_time.isoformat(),
+			"time_length": Fiber.time_length,
+			"total_channels": Fiber.total_channels,
+			"conv_factor": Fiber.conv_factor,
+			"sensing": Fiber.sensing,
+			"basefile": getattr(Fiber, "__basefile__", None),
+			"source_files": getattr(Fiber, "__filepath__", None),
+			"processing": Fiber.processing,
+			"properties": Fiber.properties}
+    
+	return attrs
+
+
 def return_times(Fiber, time_type: str)-> np.ndarray:
 	"""Returns a 1D array containing time-steps of data in the specified format.
 
@@ -422,7 +484,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 		``Fiber`` class object.
 	time_type : str
 		time format to return. options are ``'UTCDateTime'``, ``'isoformat'``,
-		``'matplotlib'`` or ``'unix'``
+		``datetime64``, ``'matplotlib'`` or ``'unix'``
 
 	Raises
 	------
@@ -437,6 +499,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 	"""
 	converters = {"UTCDateTime": lambda t: t,
 				  "isoformat": lambda t: t.isoformat(),
+				  "datetime64": lambda t: np.datetime64(t.datetime, "ns"),
 				  "matplotlib": lambda t: t.matplotlib_date,
 				  "unix": lambda t: t.timestamp}
 
