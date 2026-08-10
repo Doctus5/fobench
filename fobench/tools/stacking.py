@@ -1,14 +1,11 @@
-'''
-Functions for stacking arrays
-'''
+"""Functions for stacking arrays"""
 
 import numpy as np
 from scipy.signal import hilbert
 from obspy.signal.util import stack
 
 def stack_2D(data: np.ndarray, stack_type: str | tuple[str, int]) -> np.ndarray:
-    '''
-    Stacks data given as 2D array with dimensions ``(n_signals, n_samples)``.
+    """Stacks data given as 2D array with dimensions ``(n_signals, n_samples)``.
     Calls ``obspy.signal.util.stack``. Ideal for stacking channel data
 
     Parameters
@@ -31,13 +28,12 @@ def stack_2D(data: np.ndarray, stack_type: str | tuple[str, int]) -> np.ndarray:
     --------
     `obspy.signal.util.stack <https://docs.obspy.org/_modules/obspy/signal/util.html#stack>`_
 
-    '''
+    """
 
     return stack(data, stack_type)
 
 def stack_3D(data: np.ndarray, stack_type: str | tuple[str, int])-> np.ndarray:
-    '''
-    Stacks data given as a 3D array ``(n_signals, n_samples, n_windows)``.
+    """Stacks data given as a 3D array ``(n_signals, n_samples, n_windows)``.
     Implements linear (mean), sum, and phase-weighted stacking (PWS). Adapted
     from ``obspy.signal.util.stack``.
 
@@ -65,7 +61,7 @@ def stack_3D(data: np.ndarray, stack_type: str | tuple[str, int])-> np.ndarray:
     --------
     `obspy.signal.util.stack <https://docs.obspy.org/_modules/obspy/signal/util.html#stack>`_
 
-    '''
+    """
 
     if stack_type == "linear":
         return np.mean(data, axis=2)
