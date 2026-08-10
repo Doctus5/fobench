@@ -360,13 +360,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = None
         conv_factor = None # conversion factor if given explicitly
 
-    elif (format == 'h5' or format == 'hdf5') and company == 'michelle': # .h5 format for Michelle INGV's decimated files from Silixa.
+    elif (format == "h5" or format == "hdf5") and (company == "michelle" or company == "michele"): # .h5 format for Michelle INGV's decimated files from Silixa.
 
         pbar = tqdm(total=1, leave=True, desc='Reading Michelle INGV decimated HDF5 file')
         
         with h5.File(filepath, 'r') as file_file:
             
-            properties = file_file.attrs
+            properties = dict(file_file.attrs)
             dataset = file_file['Fiber']
             chans_nums = list(file_file['ChannelMap']) if range_ch == None else range_ch
             chans = np.array(chans_nums)

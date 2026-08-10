@@ -61,7 +61,7 @@ class Fiber(object):
 		self.company = company
 		self.format = filepath.split('.')[-1]
 
-		self.attributes = file_io.read_data(self.__filepath__, self.company, range_ch,
+		self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch,
 						self.format, load_data=load_data, show_progress=show_progress, storage_opts=storage_opts)
 
 		self.__basefile__ = self.attributes['basefile'] # changed to the structure of the file
