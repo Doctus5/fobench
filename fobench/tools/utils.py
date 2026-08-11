@@ -26,11 +26,11 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 """TOOLS USED EXCLUSIVE FOR Fiber CLASS"""
 
 STRAIN_UNIT_MAP = {	  # mapping for strain(rate) data
-                   -1: "integrated strain",
-                   0: "strain",
-                   1: "strain-rate",
-                   2: "strain-acceleration",
-                   3: "strain-jerk"}
+					-1: "integrated strain",
+					0: "strain",
+					1: "strain-rate",
+					2: "strain-acceleration",
+					3: "strain-jerk"}
 
 VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
                 -1: "m",
@@ -39,10 +39,16 @@ VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
                 2: "m/s^3"}
 
 TEMP_UNIT_MAP = {		# mapping for temperature data
-                 -1: "integrated temperature",
-                 0: "temperature",
-                 1: "temperature rate",
-                 2: "temperature acceleration"}
+				-1: "integrated temperature",
+				0: "temperature",
+				1: "temperature rate",
+				2: "temperature acceleration"}
+
+COUNT_UNIT_MAP = {
+				-1: "integrated counts",
+				0: "counts",
+				1: "d/dt counts",
+				2: "d/dt^2 counts"}
 
 UNKNOW_UNIT_MAP = {      # mapping for data with unknow unit
                    -1: "integrated units",
@@ -80,7 +86,8 @@ def _update_processing(func):
 				unit_map = STRAIN_UNIT_MAP
 				if fiber.company == "terra15" and "strain" not in fiber.units:
 					if fiber.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
-				if fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
+				if fiber.units == "counts": unit_map = COUNT_UNIT_MAP
+				elif fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
 			elif fiber.sensing == "dts":
 				unit_map = TEMP_UNIT_MAP
 
@@ -182,7 +189,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			factor = 1E-6 / 18.4 # strain per count (WEIRD!)
 			data = np.multiply(data,factor)
 
-	elif (format == "h5" or format == "hdf5") and company == "michelle": # Michelle HDF5 decimated from Silixa
+	elif (format == "h5" or format == "hdf5") and company == "michele": # Michelle HDF5 decimated from Silixa
 		if units == "counts" and target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
