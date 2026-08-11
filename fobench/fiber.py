@@ -284,7 +284,7 @@ class Fiber(object):
 						Can be useful for Xdas 
 		"""
   
-		return utils.to_xarray(self. name, use_distance)
+		return utils.to_xarray(self, name, use_distance)
 
 
 	def write(self, save_path=None):
