@@ -360,9 +360,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         units = None
         conv_factor = None # conversion factor if given explicitly
 
-    elif (format == "h5" or format == "hdf5") and (company == "michelle" or company == "michele"): # .h5 format for Michelle INGV's decimated files from Silixa.
+    elif (format == "h5" or format == "hdf5") and (company == "michele"): # .h5 format for Michele INGV's decimated files from Silixa.
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Michelle INGV decimated HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Michele INGV decimated HDF5 file')
         
         with h5.File(filepath, 'r') as file_file:
             
@@ -488,7 +488,10 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     elif format == 'npz' and company == 'bam':
         values = np.load(extract_point)['ph'][:, range_ch]
 
-    return values.astype('float')
+    if not np.issubdtype(values.dtype, np.floating):
+        values = values.astype(float, copy=False)
+
+    return values
 
 
 

@@ -58,7 +58,7 @@ class Fiber(object):
 
 		self.__filepath__ = [filepath]
 
-		self.company = company
+		self.company = company.lower()
 		self.format = filepath.split('.')[-1]
 
 		self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch,
