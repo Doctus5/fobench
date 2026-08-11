@@ -425,19 +425,19 @@ def to_xarray(Fiber, name=None, use_distance=False):
     times = Fiber.times("datetime64")
     channels = np.asarray(Fiber.channels_num)
     distances = np.asarray(Fiber.distances, dtype=float)
+    attrs = clean_metadata(Fiber)
     
     if use_distance:
         dims = ("time", "distance")
         coords = {"time": ("time",times),
                   "distance": ("distance",distances),
-                  "channel": ("channel",channels)}
+                  "channel": ("distance",channels)}
     else:
-        dims = ("time", "distance")
+        dims = ("time", "channel")
         coords = {"time": ("time",times),
                 "channel": ("channel",channels),
-				"distance": ("distance",distances)}
-        
-    attrs = clean_metadata(Fiber)
+				"distance": ("channel",distances)}
+    
     return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
         
     
@@ -467,10 +467,11 @@ def clean_metadata(Fiber) -> dict:
 			"total_channels": Fiber.total_channels,
 			"conv_factor": Fiber.conv_factor,
 			"sensing": Fiber.sensing,
-			"basefile": getattr(Fiber, "__basefile__", None),
+			# "basefile": getattr(Fiber, "__basefile__", None),
 			"source_files": getattr(Fiber, "__filepath__", None),
-			"processing": Fiber.processing,
-			"properties": Fiber.properties}
+			# "processing": Fiber.processing,
+			# "properties": Fiber.properties
+   			}
     
 	return attrs
 

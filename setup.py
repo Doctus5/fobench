@@ -38,12 +38,15 @@ setup(
         'PyQt5',
         'tqdm',
         'zarr',
+        'xarray',
         'rich' # dependency of zarr
     ],
     extras_require={
         # Here goes the optional dependencies, usually for paralle runinng.
         "mpi":["mpi4py"],
         "dask":["dask[distributed]"],
-        "hpc":["mpi4py","dask[distributed]"]
+        "hpc":["mpi4py","dask[distributed]"],
+        # other dependencies that are optional
+        "s3":["s3fs"],
     }
 )
