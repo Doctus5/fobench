@@ -1,5 +1,5 @@
-"""Contains all functionality related to plotting using matplotlib, i.e. 
-whenever plot_mode is set to 'mpl'"""
+"""Contains all functionality related to plotting using matplotlib, i.e.
+whenever plot_mode is set to 'mpl'""
 
 import numpy as np
 import datetime as datetime
@@ -10,8 +10,7 @@ from matplotlib.dates import num2date
 """Helper Functions"""
 
 class PrecisionDateFormatter(ticker.Formatter):
-    """
-    Extend the `matplotlib.ticker.Formatter` class to allow for millisecond
+    """Extends the `matplotlib.ticker.Formatter` class to allow for millisecond
     precision when formatting a tick (in days since the epoch) with a
     `~datetime.datetime.strftime` format string. Adapted from StackOverflow.
     """
@@ -53,7 +52,7 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
                  title: str = None, cmap:str = "seismic", file_name: str = None,
                  add_data: np.ndarray = None, show: bool = True, **kwargs)-> plt.Figure:
 
-    """Plots FOS data
+    """Generic FOS data plot.
 
     Parameters
     ----------
@@ -97,7 +96,7 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
         ax.imshow(add_data, cmap="binary", extent=extent, aspect="auto", alpha=add_data)
 
     ax.yaxis_date()
-    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
+    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find(".")
     ax.yaxis.set_major_formatter(PrecisionDateFormatter("%H:%M:%S.{ms}", precision))
     ax.set_ylabel("Time", fontsize=15)
     ax.set_xlabel("Channel", fontsize=15)
@@ -113,11 +112,12 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
     return fig
 
 
-def simple_plot(data: np.ndarray, t: np.ndarray, channel: list[str | int | float] = [''],
+def simple_plot(data: np.ndarray, t: np.ndarray, channel: list[str | int | float] = [""],
                 units_y: str = None, max_value: float = None,
                 figsize: list[float, float] | tuple[float, float] = None, title: str = None,
                 file_name: str = None, show: bool = True, **kwargs) -> plt.Figure:
-    """Plots a simple timeseries
+
+    """Plots a simple timeseries.
 
     Parameters
     ----------
@@ -149,7 +149,7 @@ def simple_plot(data: np.ndarray, t: np.ndarray, channel: list[str | int | float
         Figure instance.
     """
 
-    fig, ax = plt.subplots(1, 1, sharex=True, gridspec_kw={'hspace': 0.3},
+    fig, ax = plt.subplots(1, 1, sharex=True, gridspec_kw={"hspace": 0.3},
                            figsize=figsize)
     fig.autofmt_xdate()
 
@@ -159,8 +159,8 @@ def simple_plot(data: np.ndarray, t: np.ndarray, channel: list[str | int | float
     ax.set_ylim(min_val * 1.2, max_val * 1.2)
 
     ax.xaxis_date()
-    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
-    ax.xaxis.set_major_formatter(PrecisionDateFormatter('%H:%M:%S.{ms}', precision))
+    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find(".")
+    ax.xaxis.set_major_formatter(PrecisionDateFormatter("%H:%M:%S.{ms}", precision))
     ax.set_xlim(t[0],t[-1])
     ax.legend(loc=1)
     ax.set_ylabel(units_y.title(), fontsize=15)
@@ -181,8 +181,8 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
                 figsize: list[float, float] | tuple[float, float] = None,
                 cmap:str = "viridis", title: str = None, file_name: str = None,
                 show: bool = True, **kwargs) -> None:
-    """
-    Plots the fx-plot, i.e. frequency content over distance.
+
+    """Plots the fx-plot, i.e. frequency content over distance.
 
     Parameters
     ----------
@@ -211,6 +211,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
     -------
     fig : plt.Figure
         Figure instance.
+
     """
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -220,12 +221,12 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
     ax.set_title(title, fontsize=20)
 
     extent = (x[0], x[-1]+1, freqs[0], freqs[-1])
-    cm = ax.imshow(spec_matrix, cmap=cmap, extent=extent, aspect='auto',
-                   interpolation='none', **kwargs)
+    cm = ax.imshow(spec_matrix, cmap=cmap, extent=extent, aspect="auto",
+                   interpolation="none", **kwargs)
     plt.colorbar(cm, ax=ax, label=units_y)
     ax.tick_params(axis="x", bottom=True, top=True, labelbottom=True, labelleft=True, labeltop=True, rotation=0)
     if file_name is not None:
-        fig.savefig(file_name, transparent=False, bbox_inches='tight', pad_inches=0)
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
     if show:
         plt.show()
 
@@ -235,12 +236,12 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
 def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
                        t: np.ndarray = None, units_y: str = None,
                        figsize: list[float, float] | tuple[float, float] = None,
-                       trace: bool = False, cmap: str = "viridis", title: str = '',
+                       trace: bool = False, cmap: str = "viridis", title: str = "",
                        file_name: str = None, show: bool = True,
                        freq_lim: list[float, float] | tuple[float, float] = None,
                        **kwargs) -> plt.Figure:
-    """
-    Plots a simple spectrogram, optionally together with the time domain data.
+
+    """Plots a simple spectrogram, optionally together with the time domain data.
 
     Parameters
     ----------
@@ -273,10 +274,11 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
     -------
     fig : plt.Figure
         Figure instance.
+
     """
 
     extent = (t[0], t[-1], freq[0], freq[-1])
-    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find('.')
+    precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find(".")
 
     if trace is not None:
         fig, ax = plt.subplots(2,1, sharex=True,
@@ -330,7 +332,8 @@ def simple_spectrum(spectra: np.ndarray = None, freqs: np.ndarray = None,
                     channels: list = None, y_units: str = None, legend: bool = True,
                     figsize: tuple[float, float] = None, file_name: str = None,
                     title: str = None, show: bool = True, **kwargs) -> plt.Figure:
-    """Plots a simple spectrum for one or multiple channels
+
+    """Plots a simple spectrum for one or multiple channels.
 
     Parameters
     ----------
@@ -359,6 +362,7 @@ def simple_spectrum(spectra: np.ndarray = None, freqs: np.ndarray = None,
     -------
     fig : plt.Figure
         Figure instance.
+
     """
 
     fig, ax = plt.subplots(figsize=figsize)
@@ -385,7 +389,8 @@ def simple_spectrum(spectra: np.ndarray = None, freqs: np.ndarray = None,
 
 def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray,
                         date: str, show: bool = True) -> plt.Figure:
-    """Plots a record section for selected channels
+
+    """Plots a record section for selected channels.
 
     Parameters
     ----------
@@ -404,6 +409,7 @@ def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray
     -------
     fig : plt.Figure
         Figure instance.
+
     """
 
     num_stations = len(channels)
@@ -436,6 +442,7 @@ def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray
 
 def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
               max_shift: int, **imshow_kwargs) -> None:
+
     """Plots the autocorrelation profile
 
     Parameters
@@ -454,6 +461,7 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
     Returns
     -------
     None
+        -
     """
 
     extent = [distances[0], distances[-1], max_shift/fs, 0]
