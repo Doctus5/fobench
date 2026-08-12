@@ -5,6 +5,7 @@ database/__init__.py
 database/dataset.py
 database/manager.py
 database/parallel.py
+database/processing.py
 database/project.py
 database/unit.py
 fobench/__init__.py

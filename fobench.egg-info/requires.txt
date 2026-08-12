@@ -9,6 +9,9 @@ pyrocko
 pyqtgraph
 PyQt5
 tqdm
+zarr
+xarray
+rich
 
 [dask]
 dask[distributed]
@@ -19,3 +22,6 @@ dask[distributed]
 
 [mpi]
 mpi4py
+
+[s3]
+s3fs
