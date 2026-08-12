@@ -35,10 +35,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     Description:
         Manages the import of the data in the best way it can be done according to the format.
         Format and company availables (format, company)...
-        - 'tmds':'silixa'
-        - 'hdf5':'silixa'
+        - 'tmds' or 'hdf5':'silixa'
         - 'hdf5':'febus'
         - 'hfd5':'terra15'
+        - 'hdf5':'sintela'
         - 'hdf5':'asn'
         - 'npy':'bam' (non-commercial. Errors can be present during reading).
         - 'hdf5':'quantx'
@@ -94,7 +94,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Silixa HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Silixa HDF5 file', disable=not show_progress)
         
         with h5.File(filepath,'r') as file_file:
             
@@ -141,7 +141,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     # Required checking! Contact providers! TEST!
     elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Febus HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Febus HDF5 file', disable=not show_progress)
         
         with h5.File(filepath,'r') as file_file:
             
@@ -172,7 +172,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Terra15 HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Terra15 HDF5 file', disable=not show_progress)
         
         with h5.File(filepath,'r') as file_file:
             
@@ -199,11 +199,12 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
 
-        pbar = tqdm(total=1, leave=True, desc='Reading ASN HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading ASN HDF5 file', disable=not show_progress)
         
         with h5.File(filepath,'r') as file_file:
             
-            template = __scan_template__(core_file=file_file, company=company, format=format)
+            # template = __scan_template__(core_file=file_file, company=company, format=format)
+            template = None
             properties = h5_to_dict(file_file['acqSpec'])
             dataset = file_file['data']
             chans_nums = [i for i in range(int(file_file['header']['dimensionRanges']['dimension1']['size'][()]))] if range_ch == None else range_ch
@@ -227,7 +228,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptaSense HDF5
 
-        pbar = tqdm(total=1, leave=True, desc='Reading QuantX HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading QuantX HDF5 file', disable=not show_progress)
         
         with h5.File(filepath,'r') as file_file:
             
@@ -253,7 +254,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Aragon Photonics HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Aragon Photonics HDF5 file', disable=not show_progress)
         
         with h5.File(filepath,'r') as file_file:
             
@@ -282,7 +283,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF5
         print('Data units (strain, strain-rate...) can not be extracted from Sintela files\n'
              'you can set it manually by editing Fiber.units')
-        pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file', disable=not show_progress)
         
         with h5.File(filepath, 'r') as file_file:
             
@@ -362,7 +363,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
     elif (format == "h5" or format == "hdf5") and (company == "michele"): # .h5 format for Michele INGV's decimated files from Silixa.
 
-        pbar = tqdm(total=1, leave=True, desc='Reading Michele INGV decimated HDF5 file')
+        pbar = tqdm(total=1, leave=True, desc='Reading Michele INGV decimated HDF5 file', disable=not show_progress)
         
         with h5.File(filepath, 'r') as file_file:
             
@@ -467,29 +468,47 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     values = np.asarray([])
 
     if format == 'tdms' and company == 'silixa':
-        values = extract_point.as_dataframe().to_numpy()[:, range_ch]
+        
+        values = extract_point.as_dataframe().to_numpy()
+        if range_ch is not None:
+            values = values[:, range_ch]
+            return values
 
     elif format in ('h5', 'hdf5'):
+        
         if company == 'febus':
             dims = extract_point.shape
-            values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])[:, range_ch[0]:range_ch[1]]
+            values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])
+            if range_ch is not None:
+                values = values[:, range_ch]
+            return values 
+            
         elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'terra15', 'michele'):
-            values = np.array(extract_point[:, range_ch])
+            values = extract_point
+            if range_ch is not None:
+                values = values[:, range_ch]
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
+            return values
 
     # ####################################################
     # CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
     # ####################################################
 
     elif format == 'npy' and company == 'bam':
-        values = np.load(extract_point)[:, range_ch]
+        values = np.load(extract_point)
+        if range_ch is not None:
+            values = values[:, range_ch]
+        return values
 
     elif format == 'npz' and company == 'bam':
-        values = np.load(extract_point)['ph'][:, range_ch]
+        values = np.load(extract_point)['ph']
+        if range_ch is not None:
+            values = values[:, range_ch]
+        return values
 
-    if not np.issubdtype(values.dtype, np.floating):
-        values = values.astype(float, copy=False)
+    # if not np.issubdtype(values.dtype, np.floating):
+    #     values = values.astype(float, copy=False)
 
     return values
 
