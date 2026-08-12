@@ -382,7 +382,7 @@ class Fiber(object):
 		return self
 
 	@utils._update_processing
-	def normalize(self, method='absolute max', dim='d', ram_window=None):
+	def normalize(self, method='absolute max', dim='t', ram_window=None):
 		'''
 		normalize data, methods are 'absolute max', 'trace max', 'running mean' and '1bit'
 		see fiber.tools.signals.normalize_signal for more details
