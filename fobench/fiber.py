@@ -57,6 +57,7 @@ class Fiber(object):
 			)
 
 		self.__filepath__ = [filepath]
+		self.__storage_opts__ = storage_opts
 
 		self.company = company.lower()
 		self.format = filepath.split('.')[-1]
@@ -287,7 +288,7 @@ class Fiber(object):
 		return utils.to_xarray(self, name, use_distance)
 
 
-	def write(self, save_path=None):
+	def write(self, save_path=""):
 		"""
 		Save the data of fiber in a new file with the original format from where it was read.
 
@@ -296,6 +297,9 @@ class Fiber(object):
 		save_path : str, optional
 			Path to where to save the file including name of the file and the format.
 		"""
+
+		if isinstance(self.__basefile__, str): # if the template has been loaded once to Fiber then this is skipped :)
+			self.__basefile__ = file_io.scan_template(self.__basefile__, company=self.company, format=self.format, storage_opts=self.__storage_opts__)
 
 		file_io.write_data(self, filepath=save_path, company=self.company)
 

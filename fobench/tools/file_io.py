@@ -70,7 +70,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa TDMS file', disable=not show_progress)
         file_file = tdms.TdmsFile.read(filepath)
-        template = __scan_template__(core_file=file_file, company=company, format=format)
+        template = None
         properties = file_file.properties
         dataset = None
         measurement = file_file['Measurement']
@@ -98,7 +98,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         
         with h5.File(filepath,'r') as file_file:
             
-            template = __scan_template__(core_file=file_file, company=company, format=format)
+            template = None
             properties = {}
             instrument = file_file.keys()
             dataset = file_file['Acquisition']['Raw[0]']['RawData']
@@ -146,6 +146,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         with h5.File(filepath,'r') as file_file:
             
             instrument = list(file_file.keys())[0]
+            template = None
             properties = dict(file_file[instrument]['Source1']['Zone1'].attrs)
             fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
             measure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
@@ -177,6 +178,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         with h5.File(filepath,'r') as file_file:
             
             properties = dict(file_file.attrs)
+            template = None
             dataset = file_file['data_product']
             chans_nums = [i for i in range(properties['nx'])] if range_ch == None else range_ch
             chans = np.array(chans_nums)
@@ -203,7 +205,6 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         
         with h5.File(filepath,'r') as file_file:
             
-            # template = __scan_template__(core_file=file_file, company=company, format=format)
             template = None
             properties = h5_to_dict(file_file['acqSpec'])
             dataset = file_file['data']
@@ -233,6 +234,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         with h5.File(filepath,'r') as file_file:
             
             properties = dict(file_file['Acquisition'].attrs)
+            template = None
             dataset = file_file['Acquisition']['Raw[0]']
             chans_nums = [i for i in range(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']))] if range_ch == None else range_ch
             chans = np.array(chans_nums)
@@ -258,7 +260,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         
         with h5.File(filepath,'r') as file_file:
             
-            template = __scan_template__(core_file=file_file, company=company, format=format)
+            template = None
             properties = dict(file_file.attrs)
             dataset = file_file['strain']
             chans_nums = list(range(file_file['position'].size)) if range_ch is None else list(range(range_ch[0], range_ch[1] + 1))
@@ -287,7 +289,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         
         with h5.File(filepath, 'r') as file_file:
             
-            template = __scan_template__(core_file=file_file, company=company, format=format)
+            template = None
             properties = dict(file_file['Acquisition'].attrs)
             dataset = file_file['/Acquisition/Raw[0]/RawData']
             chans_nums = chans_nums = list(range(properties['NumberOfLoci'])) if range_ch == None else list(range(range_ch[0], range_ch[1] + 1))
@@ -368,6 +370,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         with h5.File(filepath, 'r') as file_file:
             
             properties = dict(file_file.attrs)
+            template = None
             dataset = file_file['Fiber']
             chans_nums = list(file_file['ChannelMap']) if range_ch == None else range_ch
             chans = np.array(chans_nums)
@@ -980,8 +983,31 @@ def __coerce_h5_dtype_and_data__(dtype_in, data):
         return h5.string_dtype(encoding="utf-8"), out
         
         
+def scan_template(filepath, company="", format="", storage_opts=None):
+    
+    
+    if isinstance(filepath, str) and filepath.startswith("s3://"):
+        import s3fs
+        s3 = s3fs.S3FileSystem(**(storage_opts or {}))
+        opener = s3.open(filepath, "rb")
+    else:
+        opener = open(filepath, "rb")
+        
+    with opener as raw_file:
+        
+        if format == "tdms":
+            opened_file = tdms.TdmsFile.read(raw_file)
+        
+            return __scan_template__(opened_file, company=company, format=format)
+        
+        if format in ("hdf5","h5"):
+            with h5.File(raw_file, "r") as opened_file:
+        
+                return __scan_template__(opened_file, company=company, format=format)
+        
+        
 # scanning the files as saving them as lightweight versions for later file writting.
-def __scan_template__(core_file, company=None, format=None):
+def __scan_template__(core_file, company="", format=""):
     """
     Scans the structure of the file and saves it as a lightweight version dictionary.
 
