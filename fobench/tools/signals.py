@@ -1,6 +1,4 @@
-'''
-signal processing functions except filtering
-'''
+"""Signal processing functions except filtering"""
 
 import numpy as np
 import scipy.signal as signal
@@ -9,120 +7,123 @@ import scipy.integrate as integrate
 from tqdm import tqdm, trange
 
 def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
-    '''
-    computes Hilbert transform for 2D array of signals
+
+    """Computes Hilbert transform for 2D array of signals.
+
     Parameters
     ----------
     data : np.ndarray
         2D array holding data.
     axis : int, optional
-        axis along which to operate. The default is 0.
+        Axis along which to operate.
 
     Returns
     -------
     ht : np.ndarray
-        array holding analytic signals.
+        Array holding analytic signals.
 
-    '''
+    """
 
     return signal.hilbert(data, axis=axis)
 
 def envelope(data: np.ndarray, axis: int = 0)-> np.ndarray:
-    '''
-    computes envelopes for 2D array of signals
+
+    """Computes envelopes for 2D array of signals
+
     Parameters
     ----------
     data : np.ndarray
         2D array holding data.
     axis : int, optional
-        axis along which to operate. The default is 0.
+        Axis along which to operate.
 
     Returns
     -------
     env : np.ndarray
-        array holding signal envelopes.
+        Array holding signal envelopes.
 
-    '''
+    """
 
     ht = hilbert(data, axis=axis)
-    env = np.sqrt(data**2 + np.real(np.conjugate(ht)*ht)) #version of Christopher Wollin
-	#env = (data**2 + ht**2)**0.5 #obspy version
+    env = np.sqrt(data**2 + np.real(np.conjugate(ht)*ht)) # version of Christopher Wollin
+	# env = (data**2 + ht**2)**0.5 # obspy version
 
     return env
 
 def integrate_signal(data: np.ndarray, dx: int, axis: int)-> np.ndarray:
-    '''
-    integrates data in space or time using the cumulative trapezoid method
+
+    """Integrates data in space or time using the cumulative trapezoid method.
 
     Parameters
     ----------
     data : np.ndarray
-        data to integrate
+        Data to integrate.
     dx : int
-        time or space sampling.
+        Time or space sampling.
     axis : int
-        axis along which to apply operation.
+        Axis along which to apply operation.
 
     Returns
     -------
     np.ndarray
-        integrated and detrended data
+        Integrated and detrended data.
 
-    '''
+    """
 
-    integ = integrate.cumulative_trapezoid(y=data, dx=dx, axis=axis, initial=0) #+ self.data[0,:]
+    integ = integrate.cumulative_trapezoid(y=data, dx=dx, axis=axis, initial=0)
     return signal.detrend(integ, axis=axis)
 
 
 def differentiate_signal(data: np.ndarray, method: str, axis: int, dt: int)-> np.ndarray:
-    '''
-	differentiates data in time or space
+
+    """Differentiates data in time or space.
 
     Parameters
     ----------
     data : np.ndarray
-        data to differentate.
+        Data to differentate.
     method : str
-        sets the prefered method for differentiation. can be 'gradient' or 'diff',
-        when using 'diff' data is prepended with inital value along specified axis.
+        Sets the prefered method for differentiation. can be "gradient" or "diff",
+        when using "diff" data is prepended with inital value along specified axis.
     axis : int
-        axis along which to apply operation.
+        Axis along which to apply operation.
     dt : int
-        sampling period of data.
+        Sampling period of data.
 
     Returns
     -------
     diff : np.ndarray
-        differentiated data.
+        Differentiated data.
 
-    '''
+    """
 
-    if method == 'gradient':
+    if method == "gradient":
         diff = np.gradient(data, dt, axis=axis)
-    elif method == 'diff':
+    elif method == "diff":
         padding = np.take(data, [0], axis=axis)
         diff = np.diff(data, axis=axis, prepend=padding) / dt
 
     return diff
 
 def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray:
-    '''
-    detrends signal(s)
+
+    """Detrends signal(s)
 
     Parameters
     ----------
     o_signal : np.ndarray
-        array containing the the signal(s)
+        Array containing the the signal(s).
     order : int
-        order number of the fitting curve used to apply the detrend.
+        Order number of the fitting polynomial curve used to detrend.
     axis : int, optional
-        axis  alogn which to apply the detrending. The default is -1.
+        Axis  along which to apply the detrending.
 
     Returns
     -------
     new_signal : np.ndarray
-        detrended signal(s).
-    '''
+        Detrended signal(s).
+
+    """
 
     o_signal = np.asarray(o_signal, dtype=float)
     new_signal = np.empty_like(o_signal)
@@ -137,7 +138,7 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
         n = o_signal.shape[axis]
         t = np.arange(n)
 
-    for i in trange(o_signal.shape[1-axis], desc='Detrending', leave=False):
+    for i in trange(o_signal.shape[1-axis], desc="Detrending", leave=False):
         if axis == 0:
             y = o_signal[:, i]
             trend = np.polyval(np.polyfit(t, y, order), t)
@@ -151,20 +152,21 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
 
 
 def demean_signal(o_signal: np.ndarray, axis: int = None)-> np.ndarray:
-    '''
-    removes mean from signal(s)
+
+    """Removes mean from signal(s),
 
     Parameters
     ----------
     o_signal : np.ndarray
-        signal(s) to demean.
+        Signal(s) to demean.
     axis : int, optional
-        axis along which to apply demeaning. The default is None.
+        Axis along which to apply demeaning.
 
     Returns
     -------
-    demeaned signal(s)
-    '''
+    Demeaned signal(s).
+
+    """
 
     o_signal = np.asarray(o_signal)
 
@@ -175,49 +177,51 @@ def demean_signal(o_signal: np.ndarray, axis: int = None)-> np.ndarray:
 
 
 def get_tukey_window(M: int, alpha: float, sym: bool)-> np.ndarray:
-    '''
-    returns Tukey window for filtering and tapering
+
+    """Returns Tukey window for filtering and tapering.
 
     Parameters
     ----------
     M : int
-        number of points of window.
+        Number of points of window.
     alpha : float
-        shape parameter, fraction of window inside tapered region, [0-1].
+        Shape parameter, fraction of window inside tapered region, [0-1].
     sym : bool
-        returns symmetric window when True.
+        Returns symmetric window when ``True``.
 
     Returns
     -------
     np.ndarray
         Tukey window array.
 
-    '''
+    """
     return signal.windows.tukey(M, alpha, sym)
 
 def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool = False,
                  sym: bool = True) -> np.ndarray:
-    '''
-    taper signal using Tukey window
+
+    """Taper signal using Tukey window
 
     Parameters
     ----------
     data : np.ndarray
-        data array on which to perform tapering.
+        Data array on which to perform tapering.
     alpha : float
-        shape parameter, fraction of window inside tapered region, [0-1].
+        Shape parameter, fraction of window inside tapered region, [0-1].
     axis : int
-        axis along which to perform tapering.
+        Axis along which to perform tapering.
     detaper : bool
-        option to remove taper from signal
+        Option to remove taper from signal
     sym : bool
-        symmetric window for tapering if True. The default is True.
+        Symmetric window for tapering if ``True``.
 
     Returns
     -------
     np.ndarray
-        tapered data array.
-    '''
+        Tapered data array.
+
+    """
+
     if axis is None: #1D case
         M = data.shape[0]
         taper = get_tukey_window(M, alpha, sym=sym)
@@ -230,6 +234,7 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
     taper = get_tukey_window(M, alpha, sym=True)
 
     taper = taper[:, None] if axis == 0 else taper[None, :]
+
     if not detaper:
         return np.multiply(data, taper)
     elif detaper:
@@ -238,32 +243,31 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
 def filt_preprocess(io_signal: np.ndarray, axis:int = None, order:int = 1,
                     sym: bool = True, alpha: float = 0.1,
                     steps: tuple[bool, bool, bool] = (True, True, True)) -> np.ndarray:
-    '''
-	performs pre-processing of the signal before filtering. Steps detrend, demean, and taper
-    with Tukey window
+
+    """Performs standard pre-processing of the signal before filtering.
+    The steps are: detrend, demean, and taper with Tukey window.
 
     Parameters
     ----------
     io_signal : np.ndarray
-        original input signal.
+        Original input signal.
     axis : int, optional
-        DESCRIPTION. The default is None.
+        Axis along which to apply operation(s).
     order : int, optional
-        order number of the fitting curve used to apply the detrend. The default is 1.
+        Order number of the fitting polynomial curve used to detrend.
     sym : bool, optional
-        symmetric window for tapering if True. The default is True.
+        Symmetric window for tapering if ``True``.
     alpha : float, optional
-        shape parameter of taper, fraction of window inside tapered region,
-        [0-1].The default is 0.1.
+        Shape parameter, fraction of window inside tapered region, [0-1].
     steps : tuple[bool, bool, bool], optional
-        defines which steps to perform. The default is True for all three steps.
+        Defines which steps to perform.
 
     Returns
     -------
     io_signal : np.ndarray
-        pre-processed signals.
+        Pre-processed signals.
 
-    '''
+    """
 
     do_detrend, do_demean, do_taper = steps
 
@@ -276,64 +280,65 @@ def filt_preprocess(io_signal: np.ndarray, axis:int = None, order:int = 1,
 
     return io_signal
 
-def normalize_signal(data: np.ndarray, method:str = 'absolute max',
+def normalize_signal(data: np.ndarray, method:str = "absolute max",
                      axis: int = None, ram_window: int = None, fs: int = None,
                      total_channels: int = None, num_points: int = None)-> np.ndarray:
-    '''
+    """Normalizes signal(s)
+
     Parameters
     ----------
     data : np.ndarray
-        data array to normalize_signal.
+        Data array to normalize.
     method : str, optional
-        normalization method, options are:
-			-'absolute max': with respect to the whole record (default)
-			-'trace max': for each channel/timestep individually
-			-'running mean': running absolute mean normalization
-			-'1bit': 1-bit normalization.
-        The default is 'absolute max'.
+        Normalization method, options are:
+			-"absolute max": with respect to the whole record (default)
+			-"trace max": for each channel/timestep individually
+			-"running mean": running absolute mean normalization
+			-"1bit": 1-bit normalization.
     axis : int, optional
-        axis along which to perform operation. The default is None.
+        Axis along which to perform operation.
     ram_window : int, optional
-        window length in seconds, only for running absolute mean normalization. The default is None.
+        Window length in seconds, only for running absolute mean normalization.
     fs : int, optional
-        sampling frequency of signal. The default is None.
+        Sampling frequency of signal.
     total_channels : int, optional
-        total number of channels, only for running absolute mean normalization. The default is None.
+        Total number of channels, only for running absolute mean normalization.
     num_points : int, optional
-        total number of time samples, only for running absolute mean normalization. The default is None.
+        Total number of time samples, only for running absolute mean normalization.
 
     Raises
     ------
     TypeError
-        running mean normalization chosen without window_length given.
+        Running mean normalization chosen without window_length given.
     ValueError
-        no valid normalization method chosen.
+        No valid normalization method chosen.
 
     Returns
     -------
     normalized_data : np.ndarray
-        normalized data array
-    '''
+        Normalized data array.
 
-    if method == 'absolute max':
+    """
+
+    if method == "absolute max":
         normalized_data = (data - data.min()) / (data.max() - data.min())
         normalized_data = normalized_data * 2 -1
 
-    elif method == 'trace max':
+    elif method == "trace max":
         channel_min = data.min(axis=axis, keepdims=True)
         channel_max = data.max(axis=axis, keepdims=True)
         normalized_data = (data - channel_min)/(channel_max - channel_min)
         normalized_data = normalized_data * 2 -1
 
-    elif method == 'running mean':
+    elif method == "running mean":
         if ram_window is None:
-            raise TypeError('please provide a window length for the running absolute mean normalization')
+            raise TypeError("⚠️ Please provide a window length for the running absolute mean normalization")
 
         normalized_data = data.copy()
 
         w_len = int(fs * ram_window)
 
-        for i in tqdm(range(total_channels), desc='Running mean normalization', leave=False):
+        for i in tqdm(range(total_channels), desc="Running mean normalization", leave=False):
             for segment_start in range(num_points - w_len + 1):
                 segment_end = segment_start + w_len
                 segment = normalized_data[:,i][segment_start:segment_end]
@@ -341,41 +346,41 @@ def normalize_signal(data: np.ndarray, method:str = 'absolute max',
 
                 normalized_data[segment_start:segment_end, i] /= weight
 
-    elif method == '1bit':
+    elif method == "1bit":
         normalized_data = np.sign(data).astype(np.float64)
 
     else:
-        raise ValueError(f'"{method}" is not a valid normalization method')
+        raise ValueError(f"⚠️ '{method}' is not a valid normalization method")
 
     return normalized_data
 
 def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels: int,
                   sampling_frequency: int)-> np.ndarray:
-    '''
-    adapted code from: https://github.com/seismo-live/seismo_live
-    performs spectral whitening of all channels
-    signals should be adequatly preprocessed
+
+    """Performs spectral whitening of all channels. Adapted code from: https://github.com/seismo-live/seismo_live
+    Signals should be adequatly pre-processed.
 
     Parameters
     ----------
     data : np.ndarray
-        data to spectrally whiten.
+        Data to spectrally whiten.
     freq_min,freq_max : int, int
-        minimum and maximum of frequency band in which to perform spectral whitening.
+        Minimum and maximum of frequency band in which to perform spectral whitening.
     total_channels : int
-        total number of channels.
+        Total number of channels.
     sampling_frequency : int
-        sampling frequency of data
+        Sampling frequency of data
 
     Returns
     -------
     whitened_matrix : np.ndarray
-        whitened data matrix
-    '''
+        Whitened data matrix
 
-    whitened_matrix = np.zeros_like(data, dtype='float32')
+    """
 
-    for i in tqdm(range(total_channels), desc='Whitening', leave=False):
+    whitened_matrix = np.zeros_like(data, dtype="float32")
+
+    for i in tqdm(range(total_channels), desc="Whitening", leave=False):
   	  	channel = data[:, i]
   	  	n = len(channel)
 
@@ -403,98 +408,100 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
 
   	  	# channel IFFT
   	  	whitedata = 2.0 * np.fft.ifft(FFTsW).real
-  	  	whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
+  	  	whitened_matrix[:, i] = np.require(whitedata, dtype="float32")
     return whitened_matrix
 
-def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_processing: bool = True,
+def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_processing: bool = True,
     norm: bool = False, order: int = 1, pad: int = 0, nfft: int | None = None,
     nperseg: int | None = None, axis: int = None) -> tuple[np.ndarray, np.ndarray]:
-    '''
-    computes the spectrum for a signal, can either be through FFT or Welch's method
+
+    """Computes the spectrum for a signal, either through FFT or Welch's method.
 
     Parameters
     ----------
     o_signal : np.ndarray
-        signal to process.
+        Signal to process.
     fs : int
-        sampling frequency of signal.
+        Sampling frequency of signal.
     mode : str, optional
-        'spectrum' or 'psd'. The default is 'spectrum'.
+        ``"spectrum"`` or ``"psd"``.
     pre_processing : bool, optional
-        signal is demeaned, detrended and tapered. The default is True.
+        Signal is demeaned, detrended and tapered.
     norm : bool, optional
-        if True, result is normalized by maximum value. The default is False.
+        If ``True``, result is normalized by maximum value.
     order : int, optional
-        order of polynomial to detrend. The default is 1.
+        Order of polynomial to detrend.
     pad : int, optional
-        mber of zeros to add to the signal before and after to increase num of points. The default is 0.
+        Number of zeros to add to the signal before and after to increase num of points.
     nfft : int | None, optional
-        number of samples in for FFT. The default is None.
+        Number of samples for FFT.
     nperseg : int | None, optional
-        DESCRIPTION. The default is None.
+        Length of each segment for Welch's method.
     axis : int
-        Axis along which to take the spectrum
+        Axis along which to compute the spectrum.
 
     Raises
     ------
     ValueError
-        not a valid mode chosen.
+        Not a valid mode chosen.
 
     Returns
     -------
     positive_freqs : np.ndarray
-        frequency vector.
+        Frequency vector.
     magnitude : np.ndarray
-        magnitude vector.
-    '''
+        Magnitude vector.
+
+    """
 
     if pre_processing:
         o_signal = filt_preprocess(io_signal=o_signal, order=order, axis=axis)
 
-    if mode == 'spectrum':
-        	o_signal = np.pad(o_signal, (pad-1, pad), mode='constant') if pad > 0 else o_signal
+    if mode == "spectrum":
+        	o_signal = np.pad(o_signal, (pad-1, pad), mode="constant") if pad > 0 else o_signal
         	n = o_signal.shape[axis] if nfft is None else o_signal.shape[axis]
         	fft = np.fft.fft(o_signal, n=n, axis=axis)
         	freq_axis = np.fft.fftfreq(n, 1 / fs)
         	positive_freqs = freq_axis[:n//2]
         	magnitude = 2/n * np.abs(fft)[:n//2]
 
-    elif mode == 'psd':
+    elif mode == "psd":
         positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis)
 
     else:
-        raise ValueError('Invalid mode. Choose one of:\n'
-                         ' - "spectrum"\n - "psd"')
+        raise ValueError("⚠️ Invalid mode. Choose one of:\n"
+                         " - 'spectrum'\n - 'psd'")
     if norm:
         magnitude = magnitude / magnitude.max()
+
     return positive_freqs, magnitude
 
 def signal_spectrogram(data: np.ndarray, sampling_frequency: int, axis: int,
                        norm: bool)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
-	'''
-    computes spectrogram of signal
+
+	"""Computes spectrogram of signal.
 
     Parameters
     ----------
     data : np.ndarray
-        signal to process.
+        Signal to process.
     sampling_frequency : int
-        sampling frequency of signal.
+        Sampling frequency of signal.
     axis : int
-        time axis index.
+        Time axis index.
     norm : bool
-        whther to normalize results by maximum value.
+        Toggles normalization of results by maximum value.
 
     Returns
     -------
     f : np.ndarray
-        frequency axis vector.
+        Frequency axis vector.
     t : np.ndarray
-        time axis vector.
+        Time axis vector.
     Sxx : np.ndarray
-        spectrogram image.
+        Spectrogram image.
 
-    '''
+    """
 	nyquist = sampling_frequency/2
 	nfft, nperseg = nyquist*2, int(sampling_frequency/5)
 	noverlap = int(nperseg/2)

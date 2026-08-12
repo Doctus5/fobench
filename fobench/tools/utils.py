@@ -101,6 +101,7 @@ def _update_processing(func):
 
 def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "strain-rate",
 				terra15_gl: float = None) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
+
 	"""Performs instrument correction and data conversion for various instrument types
 
 	Parameters
@@ -197,6 +198,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
                          z_ch: np.ndarray, system: str = "decimal", err: float = None,
                          spacing: int | float = None)-> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+
 	"""Do a linear interpolation between sections of georeferenced channels to
 	georeference the non-located channels. Inputs are the georeferenced channels
 	in ascending order.
@@ -278,6 +280,7 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 """Signal Analysis functions below"""
 
 def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
+
 	"""Gives the optimal cascadian decimation factors based on initial sampling
 	frequency and desired final sampling frequency.
 
@@ -292,6 +295,7 @@ def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
 	-------
 	factors: list
 		List of factors to use to get from input to output frequency.
+
 	"""
 
 	factors = []
@@ -308,6 +312,7 @@ def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
 	return factors
 
 def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
+
 	"""Function for spatially upsampling the DAS, doubling the number of channels.
 	Creates an interpolation between consecutive channels to simulate an increase
 	in spatial resolution.
@@ -323,6 +328,7 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 		2D matrix containing the new spatial upsampled data.
 	new_channels_num : list
 		List containing the new numbers of the channels, with newly created intermediary ones.
+
 	"""
 
 	new_channels_num = [Fiber.channels_num[0]]
@@ -341,6 +347,7 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 
 
 def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
+
 	"""Function for spatially downsampling DAS data by half. Erases one channel between consecutive
 		channels to simulate a decrease of the spatial resolution.
 
@@ -355,6 +362,7 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 		2D matrix containing the new spatial downsampled data.
 	new_channels_num : list
 		List containing the new numbers of the channels, with the inermediate ones eliminated.
+
 	"""
 
 	new_data = Fiber.data[:,::2]
@@ -365,6 +373,7 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 	return new_data, new_channels_num
 
 def to_traces(Fiber, t_type: str)-> Stream:
+
 	"""Creates an obpsy or pyrocko Stream object and fills it with Traces. Each Trace
 	represents a channel of the DAS Class, including the metadata which
 	from the attributes of the Trace Class. This is mainly done so users can have access
@@ -414,6 +423,7 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 
 def return_times(Fiber, time_type: str)-> np.ndarray:
+
 	"""Returns a 1D array containing time-steps of data in the specified format.
 
 	Parameters
@@ -451,6 +461,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 			  start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
+
 	"""Trims data in Fiber class in time dimension between given start and end times
 
 	Parameters
@@ -477,6 +488,7 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 		New start and end time of data.
 
 	"""
+
 	t0, tf = UTC(t0), UTC(tf)
 
 	t0 = max(t0, start_time)

@@ -19,7 +19,8 @@ from fobench.plotting import plotting_pyqt as pyqt
 
 def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
                  freq: float | tuple[float, float] = None, **options) -> np.ndarray:
-    """ Dispatcher for various filter functions
+
+    """Dispatcher for various filter functions
 
     Parameters
     ----------
@@ -30,7 +31,7 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
     df : float
         Sampling rate in Hz
     freq : float | tuple(float, float), optional
-        Filter corner frequencies
+        Filter corner frequencies.
     **options
         Other filter parameters passed to the individual filter functions.
 
@@ -93,7 +94,8 @@ modified from `here <https://docs.obspy.org/_modules/obspy/signal/filter.html>`_
 def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
              corners: int = 4, zerophase: bool = False, design: str = "butter",
              **options):
-    """ Bandpass Filter. Filters data from ``freqmin`` to ``freqmax`` using
+
+    """Bandpass Filter. Filters data from ``freqmin`` to ``freqmax`` using
     ``corners`` corners.
 
     Parameters
@@ -169,7 +171,8 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
 def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
              corners: int = 4, zerophase: bool = False, design: str = "butter",
              **options)-> np.ndarray:
-    """ Bandstop Filter. Filters data removing data between frequencies ``freqmin``
+
+    """Bandstop Filter. Filters data removing data between frequencies ``freqmin``
     and ``freqmax`` using ``corners`` corners.
 
     Parameters
@@ -246,7 +249,8 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 
 def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
             zerophase: bool = False, design: str = "butter", **options)-> np.ndarray:
-    """ Lowpass Filter. Filters data removing data over certain frequency ``freq``
+
+    """Lowpass Filter. Filters data removing data over certain frequency ``freq``
     using ``corners``
 
     Parameters
@@ -258,7 +262,7 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     df : float
         Sampling rate in Hz.
     corners : int, optional
-        Filter order/corners
+        Filter order/corners.
     zerophase : bool, optional
         If ``True`` applies the filter forward and backwards resulting in
         twice the filter order but zero phase shift in the filtered signal
@@ -300,8 +304,8 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         warn(f"Selected corner frequency ({freq} Hz) is at or above "
              f"Nyquist ({nyq} Hz). Setting corner at Nyquist")
 
-    z, p, k = iirfilter(corners, f, btype='lowpass', ftype=design,
-                        output='zpk', **options)
+    z, p, k = iirfilter(corners, f, btype="lowpass", ftype=design,
+                        output="zpk", **options)
     sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
@@ -311,7 +315,8 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
 def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
              zerophase: bool = False, design: str = "butter", **options)-> np.ndarray:
-    """ Highpass Filter. Filters data removing data below certain frequency
+
+    """Highpass Filter. Filters data removing data below certain frequency
     ``freq`` using ``corners`` corners.
 
     Parameters
@@ -323,10 +328,10 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     df : float
         Sampling rate in Hz.
     corners : int, optional
-        Filter order/corners
+        Filter order/corners.
     zerophase : bool, optional
         If ``True`` applies the filter forward and backwards resulting in
-        twice the filter order but zero phase shift in the filtered signal
+        twice the filter order but zero phase shift in the filtered signal.
     design : str, optional
         The filter design, options are:
             - Butterworth   : ``"butter"`` (default)
@@ -376,7 +381,8 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
 def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
               numtaps: int = 50, zerophase: bool = False)-> np.ndarray:
-    """ Finite impulse response (FIR) filter whose transfer function minimizes
+
+    """Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
     specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
     for more details.
@@ -427,7 +433,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
                 zerophase: bool = False) -> np.ndarray:
-    """ FIR-Lowpass filter. Filter data by passing data only below a certain frequency.
+    """FIR-Lowpass filter. Filter data by passing data only below a certain frequency.
     For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`_
 
     Warning
@@ -453,7 +459,7 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
     Returns
     -------
     np.ndarray
-        Filetered data.
+        Filtered data.
 
     """
 
@@ -472,8 +478,9 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
         return lfilter(kernel, 1.0, data, axis=0)
 
 def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
-    """ Downsampling by simple integer decimation. The new sampling rate is initial
-    sampling rate divided by ``decimation_factor``
+
+    """Downsampling by simple integer decimation. The new sampling rate is initial
+    sampling rate divided by ``decimation_factor``.
 
     Warning
     -------
@@ -493,7 +500,7 @@ def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
     TypeError
         Decimation factor not an integer.
     ValueError
-        Decimation factor < 2
+        Decimation factor < 2.
 
     Returns
     -------
@@ -512,7 +519,7 @@ def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
 
 def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12,
                     ba: bool = False, freq_passband: bool = False)-> np.ndarray:
-    """ Cheby2-Lowpass Filter. Filter data by passing data only below a certain frequency.
+    """Cheby2-Lowpass Filter. Filter data by passing data only below a certain frequency.
     The main purpose of this cheby2 filter is downsampling. This method will
     iteratively design a filter, whose pass band frequency is determined dynamically,
     such that the values above the stop band frequency are lower than -96dB.
@@ -526,12 +533,12 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     df : float
         Sampling rate in Hz.
     maxorder : int, optional
-        Maximal order of the designed cheby2 filter
+        Maximal order of the designed cheby2 filter.
     ba : bool, optional
-        If True return only the filter coefficients (b, a) instead of filtering
+        If True return only the filter coefficients (b, a) instead of filtering.
     freq_passband : bool, optional
         If True return additionally to the filtered data, the iteratively
-        determined pass band frequency
+        determined pass band frequency.
 
     Returns
     -------
@@ -565,15 +572,12 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
         return sosfilt(sos, data, axis=0), wp*nyquist
     return sosfilt(sos, data, axis=0)
 
-"""
------------------------------------------------------------------
-Other filter functions
------------------------------------------------------------------
-"""
+"""Other filter functions"""
 
 def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     exponent: float = 0.3, normalize_power: bool = False) -> np.ndarray:
-    """ Adaptive frequency-wavenumber filter for denoising. Adapted from pyrockos
+
+    """Adaptive frequency-wavenumber filter for denoising. Adapted from pyrockos
     `lightguide <https://github.com/pyrocko/lightguide/blob/main/lightguide/afk_filter_python.py>`_
     package
 
@@ -660,7 +664,8 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
 
 
 def lfir235()-> tuple[float, float, float]:
-    """ Calculate filter coefficients for FIR-235 filter based on a
+
+    """Calculate filter coefficients for FIR-235 filter based on a
     decimation factor.
 
     :Contributors: Javier Quinteros (GFZ-Potsdam)
@@ -677,7 +682,7 @@ def lfir235()-> tuple[float, float, float]:
 
     """
 
-    filename = Path(__file__).resolve().parent.parent / 'filter_coeffs/fir235_quinteros.txt'
+    filename = Path(__file__).resolve().parent.parent / "filter_coeffs/fir235_quinteros.txt"
     b = np.loadtxt(filename)
     a = np.array([1.0])
     n = len(b) - 1
@@ -686,7 +691,8 @@ def lfir235()-> tuple[float, float, float]:
 
 def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
              n: int = None, zero_phase: bool = True):
-    """ Decimates data with appropriate lowpass filtering before.
+
+    """Decimates data with appropriate lowpass filtering before.
     :Contributors: : Marius Isken (GFZ-Potsdam)
 
     Parameters
@@ -706,7 +712,7 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
     n : int, optional
         Filter Order.
     zero_phase : bool, optional
-        Prevents phase shift in decimated signal
+        Prevents phase shift in decimated signal.
 
     Raises
     ------
@@ -733,7 +739,8 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
 
 
 def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
-    """ Filters data using a 2 dimensional median filter
+
+    """Filters data using a 2 dimensional median filter.
 
     Parameters
     ----------
@@ -746,7 +753,7 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
     Returns
     -------
     filtered data : np.ndarray.
-        Filtered data
+        Filtered data.
 
     See also
     --------
@@ -759,7 +766,8 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
 def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               propagation: str | None = None, alpha: float = 0.3,
               plot_mode:str = "pyqt", verbose: bool = False, mode="pass"):
-    """ Frequency wavenumber filter
+
+    """Frequency wavenumber filter
     :Contributors: : Johannes Hart (GFZ-Potsdam)
 
     Parameters
@@ -775,12 +783,12 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
     propagation : str | None, optional
         Keep only ``"positive"`` or ``"negative"`` wavenumbers.
     alpha : float, optional
-        Tukey taper parameter
+        Tukey taper parameter.
     plot_mode : str
         If set to ``"pyqt"`` plot of initial wavefield, filtered wavefield, fk
-        spectrum and the fk mask will be generated
+        spectrum and the fk mask will be generated.
     verbose : bool
-        If ``True`` additionally returns the fk spectrum and fk mask
+        If ``True`` additionally returns the fk spectrum and fk mask.
     mode : str
         Either ``"pass"`` or ``"remove"`` the specified band(s).
 
@@ -794,10 +802,9 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
     data_filt : np.ndarray
         Filtered data.
     data_fk : np.ndarray
-        Initial data in fk domain
+        Initial data in fk domain.
     mask : np.ndarray
         The mask array.
-
 
     """
 
@@ -824,7 +831,8 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
 
 def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = None,
             alpha: float = 0.3, mode: str = "pass") -> np.ndarray:
-    """ Builds a Tukey-tapered fk-domain mask
+
+    """Builds a Tukey-tapered fk-domain mask
     :Contributors: : Johannes Hart (GFZ-Potsdam)
 
     Parameters
@@ -845,7 +853,7 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
     alpha : float
         Tukey taper parameter.
     mode : str
-        Either ``'pass'`` or ``'remove'`` the specified band(s).
+        Either ``"pass"`` or ``"remove"`` the specified band(s).
 
     Raises
     ------
@@ -863,15 +871,16 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
 
     def tukey_band(grid: np.ndarray, low: float = None, high: float = None,
                    alpha: float = 0.3)-> np.ndarray:
-        """ Builds a tapered band-pass mask using a Tukey window for given input grid
-        and limits
+
+        """Builds a tapered band-pass mask using a Tukey window for given input grid
+        and limits.
 
         Parameters
         ----------
         grid : np.ndarray
-            Input grid
+            Input grid.
         low, high : float | None
-            Band limits
+            Band limits.
         alpha : float
             Fraction of window used for tapering, 0 = boxcar, 1 = Hanning window.
 
@@ -911,9 +920,7 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
 
         return mask
 
-    #######
 
-    # initialize f, k, v grids and final mask
     if alpha < 0 or alpha > 1:
         raise ValueError(f"Alpha must be between 0 and 1, got {alpha} instead!")
 
@@ -929,7 +936,7 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
         kmin, kmax = band.get("kmin"), band.get("kmax")
         vmin, vmax = band.get("vmin"), band.get("vmax")
 
-        for param, lo, hi in [('f', fmin, fmax), ('k', kmin, kmax), ('v', vmin, vmax)]:
+        for param, lo, hi in [("f", fmin, fmax), ("k", kmin, kmax), ("v", vmin, vmax)]:
             if lo is not None and hi is not None and lo >= hi:
                 raise ValueError(f"{param}min must be < {param}max, got {lo} >= {hi}")
 

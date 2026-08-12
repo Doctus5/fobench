@@ -1,5 +1,5 @@
 """Contains all functionality related to plotting using matplotlib, i.e.
-whenever plot_mode is set to 'mpl'""
+whenever plot_mode is set to 'mpl'"""
 
 import numpy as np
 import datetime as datetime
