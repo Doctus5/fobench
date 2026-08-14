@@ -69,16 +69,21 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa TDMS file', disable=not show_progress)
-        file_file = tdms.TdmsFile.read(filepath)
+        file_file = tdms.TdmsFile.read_metadata(filepath) # before it was tdms.TdmsFile.read()
         template = None
         properties = file_file.properties
         dataset = None
         measurement = file_file['Measurement']
         chans = measurement.channels() if range_ch is None else [measurement.channels()[i] for i in range_ch]
         chans_nums = [int(chan.name) for chan in chans]
-        # loading of the data conditioned.
-        data_range = None if range_ch is None else list(chans_nums)
-        data = __data__(measurement, format, company, data_range) if load_data else None
+        
+        # loading of the data conditioned. Old way
+        # data_range = None if range_ch is None else list(chans_nums)
+        # data = __data__(measurement, format, company, data_range) if load_data else None
+        
+        # new way
+        data = __tdms_biReader__(filepath, file_file, range_ch) if load_data else None
+        
         fiber = properties['name'].split('_')[0]
         sampling_frequency = properties['SamplingFrequency[Hz]']
         o_sampling_frequency = sampling_frequency
@@ -442,8 +447,8 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         ]
     
     # coonvert the type of the data to floating, ready for processing
-    if not np.issubdtype(data.dtype, np.floating) and load_data is True:
-        data = data.astype(float, copy=False)
+    # if not np.issubdtype(data.dtype, np.floating) and load_data is True:
+    #     data = data.astype(float, copy=False)
 
     attributes = [template if template is not None else filepath,
                 format,
@@ -473,6 +478,14 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     pbar.set_description('Read File ✓')
     # pbar.close()
     return attributes
+
+
+
+'''
+-----------------------------------------------------------------
+Some core readers
+-----------------------------------------------------------------
+'''
 
 
 # Recurive method to convert all h5py Objects into dictionaries.
@@ -575,9 +588,49 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     return attributes
         
         
+def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
+    """Fast simple reader of TDMS as binary, superior to nptdms package, but only works for a certain specific layout.
+    Lets hope that dms stays like that. DAMN I HATE TDMS, so unceessary, so inconvenient.
+    Parameters
+    ----------
+    filepath : str
+        global or partial path where the data is located.
+    tdms_metadata : _type_
+        _description_
+    range_ch : array or list
+        range fo channels to slice the data
+    copy_data : bool, optional
+        load the data into memory, by default True
 
-
+    Returns
+    -------
+    np.array()
+        full data matrix of the sensing
+    """
     
+    segments = tdms_metadata._reader._segments
+    segment = segments[0]
+    
+    content = tdms_metadata["Measurement"]
+    channels = content.channels()
+    n_channels, n_samples, dtype = len(channels), len(channels[0]), np.dtype(channels[0].dtype)
+    n_bytes = segment.next_segment_pos -segment.data_position
+    
+    values = np.memmap(filepath, mode="r", dtype=dtype, offset=segment.data_position, shape=(n_samples, n_channels), order="C")
+    
+    if range_ch is not None:
+        values = values[:,range_ch]
+    if copy_data:
+        values = np.array(values, copy=True)
+        
+    return values
+
+
+'''
+-----------------------------------------------------------------
+Writting original format methods
+-----------------------------------------------------------------
+'''
 
 
 
