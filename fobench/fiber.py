@@ -69,8 +69,7 @@ class Fiber(object):
 		self.fiber = self.attributes['fiber']
 		self.properties = self.attributes['properties'] # all metadata of input file
 		self.channels = self.attributes['chans'] # list of channels as array
-		self.channels_num = self.attributes['chans_nums'] # list of channels as list
-		self.total_channels = self.attributes['list_chans_num']
+		self.total_channels = self.attributes['total_channels']
 		self.sampling_frequency = self.attributes['sampling_frequency'] # sampling rate of the data.
 		self.o_sampling_frequency = self.attributes['o_sampling_frequency'] if self.attributes['o_sampling_frequency'] != None else self.attributes['sampling_frequency'] # original sampling frequency. Important for conversion factor.
 		self.dt = 1 / self.sampling_frequency # calculated time step.
@@ -87,7 +86,7 @@ class Fiber(object):
 		self.units = self.attributes['units']
 		self.conv_factor = self.attributes['conv_factor'] # Extra variables (ONLY FOR ASN HDF5)
 		self.processing = [{'instance creation' : UTC.utcnow().ctime()}]
-		self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels_num]
+		self.distances = (self.channels - self.channel_offset) * self.spatial_interval
 
 		self.ch_coord = None # coordinates of channels, requires more input ot be filled
 
@@ -156,8 +155,8 @@ class Fiber(object):
 		exact conversion depends on manufacturer and data format
 		'''
 		if not self.corrected:
-			(self.data, self.units, self.channels, self.channels_num,
-					self.total_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
+			(self.data, self.units, self.channels,
+			self.total_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
 									target=target, terra15_gl=terra15_gl)
 			# self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels_num]
 			self.corrected = True
@@ -190,12 +189,12 @@ class Fiber(object):
 		'''
 
 		ch0, chf = int(min(ch0, chf)), int(max(ch0, chf)) # in case ch0 and chf not ordered
-		ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
+		channels_list = self.channels.tolist()
+		ch0, chf = channels_list.index(ch0), channels_list.index(chf)
 		self.data = self.data[:,ch0:chf+1]
 		self.channels = self.channels[ch0:chf+1]
-		self.channels_num = self.channels_num[ch0:chf+1]
 		self.distances = self.distances[ch0:chf+1]
-		self.total_channels = len(self.channels_num)
+		self.total_channels = len(self.channels)
 
 		return self
 
@@ -238,7 +237,7 @@ class Fiber(object):
 		returns data similar to Fiber.data but has option to return only a specified channel
 		'''
 		if channel is not None:
-			index = self.channels_num.index(int(channel))
+			index = self.channels.tolist().index(int(channel))
 			return self.data[:,index]
 
 		return self.data
@@ -318,15 +317,15 @@ class Fiber(object):
 		see fobench.tools.utils.spatial_upsampling and .spatial_downsample for details
 		'''
 		if rs_type in ['upsampling', 'upsample']:
-			self.data, self.channels_num = utils.spatial_upsampling(self)
+			self.data, self.channels = utils.spatial_upsampling(self)
 			self.spatial_interval /= 2
 		elif rs_type in ['downsampling', 'downsample']:
-			self.data, self.channels_num = utils.spatial_downsampling(self)
+			self.data, self.channels = utils.spatial_downsampling(self)
 			self.spatial_interval *= 2
 		else:
 			raise ValueError(f'\nInvalid resample type: "{rs_type}". Choose on of:\n'
 					' -"upsampling"\n -"downsampling"')
-		self.total_channels = len(self.channels_num)
+		self.total_channels = len(self.channels)
 
 		return self
 
@@ -516,7 +515,7 @@ class Fiber(object):
 			plot_mode = 'pyqt'
 
 		if plot_mode == 'pyqt':
-			plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
+			plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels,
 									   data=snr, y_label='SNR [-]', title='SNR Profile')
 		if results:
 			return snr
@@ -536,7 +535,7 @@ class Fiber(object):
 			plot_mode = 'pyqt'
 		rmsa = wavefield.rmsa(data=self.data, axis=axis, window=window, dim=dim,
 							times=self.times('unix'), distances = self.distances,
-							channels_num=self.channels_num, vmin=vmin, vmax=vmax,
+							channels_num=self.channels, vmin=vmin, vmax=vmax,
 							plot_mode=plot_mode)
 		if results:
 			return rmsa
@@ -550,7 +549,7 @@ class Fiber(object):
 		p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
 											 self.sampling_frequency, axis=axis)
 		if plot_mode=='pyqt' and dim=='t':
-				plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels_num,
+				plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels,
 							data=p2p_amplitude, y_label='P2P Amplitude', x_label='Channel',
 							  title='Peak-to-Peak Amplitude Profile')
 
@@ -584,13 +583,13 @@ class Fiber(object):
 		if vmin is None: vmin = 0
 		if vmax is None: vmax = p95
 		if plot_mode == 'pyqt':
-			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels_num),
+			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels),
 							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
 							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
 							  title='Frequency content', cbar_label=self.units)
 
 		elif plot_mode == 'mpl':
-			plot.mpl_fx_plot(spec_matrix=fx[::-1], freqs=freqs, x=self.channels_num,
+			plot.mpl_fx_plot(spec_matrix=fx[::-1], freqs=freqs, x=self.channels,
 					 units_y='Energy', figsize=figsize, title=str(self.start_time.date),
 					 cmap=cmap, file_name=file_name, vmin=vmin, vmax=vmax, **kwargs)
 
@@ -615,7 +614,7 @@ class Fiber(object):
 			channel = sorted(channel)
 		else:
 			channel = [channel]
-		ch_idx = np.array([self.channels_num.index(ch) for ch in channel])
+		ch_idx = np.array([self.channels.tolist().index(ch) for ch in channel])
 		o_signal = np.take(self.data, indices=ch_idx, axis=self.__axis__('d'))
 
 		f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_frequency, mode=mode,
@@ -650,7 +649,7 @@ class Fiber(object):
 		else:
 			channel = [channel]
 
-		ch_idx = np.array([self.channels_num.index(ch) for ch in channel])
+		ch_idx = np.array([self.channels.tolist().index(ch) for ch in channel])
 		selected = np.take(self.data, indices=ch_idx, axis=self.__axis__('d'))
 
 		if plot_mode=='pyqt':
@@ -675,14 +674,14 @@ class Fiber(object):
 			p95 = np.percentile(self.data, 95)
 			vmin = -p95 if vmin is None else vmin
 			vmax = p95 if vmax is None else vmax
-			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels_num),
+			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels),
 						data=self.data, y_label='Channel', dt=self.dt,
 						title='', vmin=vmin, vmax=vmax, cbar_label=self.units,
 						distances=self.distances)
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
-			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels_num,
+			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels,
 					 units_y=self.units, figsize=figsize, title=str(self.start_time.date),
 					 cmap=cmap, file_name=file_name, vmin=vmin, vmax=vmax, add_data=add_data,
 					 **kwargs)
@@ -698,7 +697,7 @@ class Fiber(object):
 
 		axis = self.__axis__('t')
 		channel = int(channel)
-		index = self.channels_num.index(channel)
+		index = self.channels.tolist().index(channel)
 		data = self.data[:, index]
 
 		f, t, Sxx = signals.signal_spectrogram(data=data, sampling_frequency=self.sampling_frequency,
@@ -735,16 +734,18 @@ class Fiber(object):
 
 		if isinstance(channels, tuple):
 			ch0, chf = sorted(map(int, channels))
-			ch0, chf = self.channels_num.index(ch0), self.channels_num.index(chf)
+			channel_list = self.channels.tolist()
+			ch0, chf = channel_list.index(ch0), channel_list.index(chf)
 			ch_idx = slice(ch0, chf + 1)
 		elif isinstance(channels, list):
 			channels = list(map(int, channels))
-			ch_idx = sorted(self.channels_num.index(ch) for ch in channels)
+			channel_list = self.channels.tolist()
+			ch_idx = sorted(channel_list.index(ch) for ch in channels)
 		else:
 			raise TypeError(f'Invalid type for channels: {type(channels).__name__}. Expected tuple, list, or np.ndarray.')
 
 		das_data = self.data[:, ch_idx]
-		das_channels = np.array(self.channels_num)[ch_idx]
+		das_channels = np.array(self.channels)[ch_idx]
 
 		if plot_mode=='pyqt':
 			plot_pyqt.plot_record_section(timestamps=self.times('unix'), data=das_data,
@@ -766,7 +767,7 @@ class Fiber(object):
 			raise ValueError('Selected max_shift is too large')
 		acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
 												deconvolve, self.total_channels,
-												self.distances, self.channels_num,
+												self.distances, self.channels,
 												self.sampling_frequency,
 												window_size=window_size, vmin=vmin,
 												vmax=vmax, **imshow_kwargs)
@@ -783,7 +784,7 @@ class Fiber(object):
 		coh = wavefield.spatial_coherence_matrix(data=self.data.T, max_lag=max_lag,
 										   distances=self.distances,
 										   fs=self.sampling_frequency,
-										   channel_nums=self.channels_num,
+										   channel_nums=self.channels,
 										   plot_mode=plot_mode, results=results,
 										   vmin=vmin, vmax=vmax)
 		if results:

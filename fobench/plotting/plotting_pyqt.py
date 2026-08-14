@@ -277,8 +277,9 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                 refresh(y_ticks)
         button.clicked.connect(switch_axis)
     refresh(y_ticks)
-    data_range = np.nanmax(data) - np.nanmin(data)
-    data_min, data_max = np.nanmin(data), np.nanmax(data)
+    data_min, data_max = float(np.nanmin(data)), float(np.nanmax(data))
+    data_range = data_max - data_min
+    
 
     cmap_obj = pg.colormap.get(cmap, source='matplotlib')
     _vmin = vmin if vmin is not None else data_min
@@ -379,7 +380,8 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
 
     button.clicked.connect(switch_axis)
     refresh(channels_num)
-    data_range = np.nanmax(data)-np.nanmin(data)
+    data_min, data_max = float(np.nanmin(data)), float(np.nanmax(data))
+    data_range = data_max - data_min
     cmap = pg.colormap.get(cmap, source='matplotlib')
     bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax), label=cbar_label,
                           interactive=True, rounding=0.0001*data_range)
@@ -605,7 +607,8 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
         else:
             vmax = np.percentile(abs(data), 95)
             vmin = 0 if title == '|fk| Spectrum' else -vmax
-        data_range = np.nanmax(data) - np.nanmin(data)
+        data_min, data_max = float(np.nanmin(data)), float(np.nanmax(data))
+        data_range = data_max - data_min
         bar = pg.ColorBarItem(colorMap=cmap, values=(vmin, vmax), interactive=True,
                               rounding=0.0001 * data_range)
         bar.setImageItem(img_item, insert_in=plot)

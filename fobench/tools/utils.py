@@ -130,8 +130,6 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 		(New) unit of measurement.
 	attributes["channels"] : np.ndarray
 		(New) channels.
-	attributes["channels_num"] : list
-		(New) channel_numbers.
 	attributes["gauge_length"] : float
 		(New) gauge length.
 
@@ -160,7 +158,6 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			n_right = gauge_samples - n_left
 			if gauge_samples != 0:
 				attributes["channels"] = attributes["channels"][n_left:-n_right]
-				attributes["channels_num"] = attributes["channels_num"][n_left:-n_right]
 				attributes["distances"] = attributes["distances"][n_left:-n_right]
 				attributes["total_channels"] = attributes["channels"].size
 			attributes["gauge_length"] = gl
@@ -198,7 +195,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
-	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
+	return data, target, attributes['channels'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
 
 
 def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
@@ -332,7 +329,7 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 		List containing the new numbers of the channels, with newly created intermediary ones.
 	"""
 
-	new_channels_num = [Fiber.channels_num[0]]
+	new_channels = [Fiber.channels[0]]
 	shape = (len(Fiber.data[:,0]),1)
 	new_data = Fiber.data[:,0].reshape(shape) #reshaping to not affect original dimensionality.
 
@@ -341,10 +338,10 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 		inter = (first + second) / 2
 		new_data = np.concatenate((new_data, inter), axis=1)
 		new_data = np.concatenate((new_data, second), axis=1)
-		inter_num = (new_channels_num[-1] + Fiber.channels_num[i+1]) / 2
-		new_channels_num += ([inter_num, Fiber.channels_num[i+1]])
+		inter_num = (new_channels[-1] + Fiber.channels[i+1]) / 2
+		new_channels += ([inter_num, Fiber.channels[i+1]])
 
-	return new_data, new_channels_num
+	return new_data, np.asarray(new_channels)
 
 
 def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
@@ -365,11 +362,11 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 	"""
 
 	new_data = Fiber.data[:,::2]
-	new_channels_num = Fiber.channels_num[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
+	new_channels = Fiber.channels[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
 	#new_channels_num = [i for i in range(0,int(len(Fiber.channels_num)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 	#new_channels_num = Fiber.channels_num[:int(len(Fiber.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 
-	return new_data, new_channels_num
+	return new_data, np.asarray(new_channels)
 
 def to_traces(Fiber, t_type: str)-> Stream:
 	"""Creates an obpsy or pyrocko Stream object and fills it with Traces. Each Trace
@@ -397,7 +394,7 @@ def to_traces(Fiber, t_type: str)-> Stream:
 		if t_type == "obspy":
 			trace = oTrace(data=Fiber.data[:,i])
 			trace.stats.network = Fiber.fiber
-			trace.stats.station = str(Fiber.channels_num[i]).zfill(5)
+			trace.stats.station = str(Fiber.channels[i]).zfill(5)
 # 			trace.stats.npts = self.num_points #+ 1
 			trace.stats.sampling_rate = Fiber.sampling_frequency
 			trace.stats.delta = Fiber.dt
@@ -411,7 +408,7 @@ def to_traces(Fiber, t_type: str)-> Stream:
 		elif t_type == "pyrocko":
 			trace = pTrace(ydata=Fiber.data[:,i])
 			trace.network = Fiber.fiber
-			trace.station = str(Fiber.channels_num[i]).zfill(5)
+			trace.station = str(Fiber.channels[i]).zfill(5)
 			trace.deltat = Fiber.dt
 			trace.tmin = str_to_time(Fiber.start_time.isoformat().replace("T"," "))
 			trace.tmax = str_to_time(Fiber.end_time.isoformat().replace("T"," "))
@@ -430,7 +427,7 @@ def to_xarray(Fiber, name=None, use_distance=False):
     # create the different labels and coordinates
     data_label = name or Fiber.units or "data"
     times = Fiber.times("datetime64")
-    channels = np.asarray(Fiber.channels_num)
+    channels = np.asarray(Fiber.channels)
     distances = np.asarray(Fiber.distances, dtype=float)
     attrs = clean_metadata(Fiber)
     

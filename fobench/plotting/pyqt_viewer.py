@@ -317,8 +317,9 @@ class Viewer(QtWidgets.QMainWindow):
         fx_image.setLookupTable(cmap.getLookupTable())
         fx_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
         fx_plot.addItem(fx_image)
+        fx_min, fx_max = float(np.nanmin(fx)), float(np.nanmax(fx))
         bar = pg.ColorBarItem(colorMap=cmap, values=(0, fx_abs_max),
-                              interactive=True, rounding=0.001*(np.nanmax(fx)-np.nanmin(fx)),
+                              interactive=True, rounding=0.001*(fx_max-fx_min),
                               label=self.Fiber.units.title())
         bar.setImageItem(fx_image, insert_in=fx_plot)
         fx_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)

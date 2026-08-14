@@ -74,8 +74,8 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         properties = file_file.properties
         dataset = None
         measurement = file_file['Measurement']
-        chans = measurement.channels() if range_ch is None else [measurement.channels()[i] for i in range_ch]
-        chans_nums = [int(chan.name) for chan in chans]
+        tdms_chann = measurement.channels() if range_ch is None else [measurement.channels()[i] for i in range_ch]
+        chans = np.asarray([int(chan.name) for chan in tdms_chann], dtype=int)
         
         # loading of the data conditioned. Old way
         # data_range = None if range_ch is None else list(chans_nums)
@@ -89,10 +89,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         o_sampling_frequency = sampling_frequency
         dt = 1/sampling_frequency
         start_time = UTC(properties['ISO8601 Timestamp'])
-        end_time = UTC(start_time + (len(chans[0])-1)*dt)
+        end_time = UTC(start_time + (len(tdms_chann[0])-1)*dt)
         spatial_interval = properties['SpatialResolution[m]']
         time_length = end_time - start_time
-        num_points = len(chans[0])
+        num_points = len(tdms_chann[0])
         gauge_length = properties['GaugeLength']
         channel_offset = properties['OffsetLength']
         units = 'counts'
@@ -126,10 +126,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             for vv in list(file_file['Acquisition']['Raw[0]']['RawData'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]']['RawData'].attrs[vv]  #optional
             for vv in list(file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs): properties[vv] = file_file['Acquisition']['Raw[0]']['RawDataTime'].attrs[vv]  #optional
 
-            chans = list(range(properties['NumberOfLoci'])) if range_ch is None else range_ch
-            chans_nums = np.array(chans)
+            chans = np.arange(properties['NumberOfLoci'], dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
-            data_range = None if range_ch is None else list(chans_nums)
+            data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties['FibreType']
             sampling_frequency = properties['OutputDataRate']
@@ -158,8 +157,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             fiber = 'febus' # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
             measure_type = list(file_file[instrument]['Source1']['Zone1'].keys())[0]
             dataset = file_file[instrument]['Source1']['Zone1'][measure_type]
-            chans_nums = list(range(dataset.shape[2])) if range_ch is None else range_ch
-            chans = np.array(chans_nums)
+            chans = np.arange(dataset.shape[2], dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
             #LAG = properties['BlockOverlap'][0] # 201 is standard. How much the data is repeated in batches.
             sampling_frequency = 1/(properties['Spacing'][1]*1e-3)
@@ -167,7 +165,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             dt = 1/sampling_frequency
             SEMILAG = properties['BlockRate'][0]*1e-3 if getattr(properties['BlockRate'], "size", 0) == 1 else properties['BlockRate']*1e-3 # unpacking value sif is inside list.
             SEMILAG = int(np.round((1/SEMILAG) / dt))
-            data_range = None if range_ch is None else list(chans_nums)
+            data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset, format, company, data_range, SEMILAG) if load_data else None
             start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
             end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * SEMILAG)
@@ -188,10 +186,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             properties = dict(file_file.attrs)
             template = None
             dataset = file_file['data_product']
-            chans_nums = list(range(properties['nx'])) if range_ch is None else range_ch
-            chans = np.array(chans_nums)
+            chans = np.arange(properties['nx'], dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
-            data_range = None if range_ch is None else list(chans_nums)
+            data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset['data'], format, company, data_range) if load_data else None
             fiber = 'standard'
             dt = float(properties['dt_computer'])
@@ -217,10 +214,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             properties = h5_to_dict(file_file['acqSpec'])
             dataset = file_file['data']
             n_channels = int(np.asarray(file_file['header']['dimensionRanges']['dimension1']['size'][()]).squeeze())
-            chans = np.arange(n_channels) if range_ch is None else range_ch
-            chans_nums = chans.tolist()
+            chans = np.arange(n_channels, dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
-            data_range = None if range_ch is None else list(chans_nums)
+            data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = 'standard'
             dt = float(file_file['header']['dt'][()])
@@ -249,10 +245,10 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             properties = dict(file_file['Acquisition'].attrs)
             template = None
             dataset = file_file['Acquisition']['Raw[0]']
-            chans_nums = list(range(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']))) if range_ch is None else range_ch
-            chans = np.array(chans_nums)
+            chans = np.arange(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']), dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
+            
             # loading the data conditioned
-            data_range = None if range_ch is None else list(chans_nums)
+            data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset['RawData'], format, company, data_range) if load_data else None
             fiber = 'standard'
             sampling_frequency = float(dataset.attrs['OutputDataRate'])
@@ -278,12 +274,11 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             properties = dict(file_file.attrs)
             dataset = file_file['strain']
             if range_ch is None:
-                chans_nums = list(range(file_file['position'].size))
+                chans = np.arange(file_file['position'].size, dtype=int)
                 data_range = None
             else:
-                chans_nums = list(range(range_ch[0], range_ch[1] + 1))
-                data_range = chans_nums
-            chans = np.array(chans_nums)
+                chans = np.arange(range_ch[0], range_ch[1] + 1, dtype=int)
+                data_range = chans.tolist()
             # loading the data conditioned
             data = __data__(dataset, format, company, data_range) if load_data else None
             pbar.set_description('Extracting Attributes')
@@ -312,12 +307,11 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             properties = dict(file_file['Acquisition'].attrs)
             dataset = file_file['/Acquisition/Raw[0]/RawData']
             if range_ch is None:
-                chans_nums = list(range(properties['NumberOfLoci']))
+                chans = np.arange(properties['NumberOfLoci'], dtype=int)
                 data_range = None
             else:
-                chans_nums = list(range(range_ch[0], range_ch[1] + 1))
-                data_range = chans_nums
-            chans = np.array(chans_nums)
+                chans = np.arange(range_ch[0], range_ch[1] + 1, dtype=int)
+                data_range = chans.tolist()
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties['FiberID']
             sampling_frequency = properties['PulseRate']
@@ -341,13 +335,12 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
         print('File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.')
         file_file = None
-        properties = None
+        properties = {}
         chans = None
         dataset = np.load(filepath)
-        chans_nums = list(range(dataset.shape[1])) if range_ch is None else range_ch
-        chans = np.array(chans_nums)
+        chans = np.arange(dataset.shape[1], dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
         # loading the data conditioned
-        data_range = None if range_ch is None else list(chans_nums)
+        data_range = None if range_ch is None else chans.tolist()
         data = __data__(filepath, format, company, data_range) if load_data else None
         fiber = 'La Chida'
         sampling_frequency = 100000
@@ -367,13 +360,12 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
         print('File format is a Numpy Zip Class. No Gauge Length specified. Do not attempt to convert to Strain-Rate.')
         file_file = None
-        properties = None
+        properties = {}
         chans = None
         dataset = np.load(filepath)
-        chans_nums = list(range(len(dataset['distance']))) if range_ch is None else range_ch
-        chans = np.array(chans_nums)
+        chans = np.arange(len(dataset['distance']), dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
         # loading the data conditioned
-        data_range = None if range_ch is None else list(chans_nums)
+        data_range = None if range_ch is None else chans.tolist()
         data = __data__(filepath, format, company, data_range) if load_data else None
         fiber = 'La Chida'
         sampling_frequency = dataset['freq']
@@ -398,10 +390,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             properties = dict(file_file.attrs)
             template = None
             dataset = file_file['Fiber']
-            chans_nums = list(file_file['ChannelMap']) if range_ch is None else range_ch
-            chans = np.array(chans_nums)
+            chans = np.asarray(file_file['ChannelMap']) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
-            data_range = None if range_ch is None else list(chans_nums)
+            data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties['Fibre Type'].decode('UTF-8')
             dt = float(properties['Sampletime'][0])
@@ -429,8 +420,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'fiber',
         'properties',
         'chans',
-        'chans_nums',
-        'list_chans_num',
+        'total_channels',
         'sampling_frequency',
         'o_sampling_frequency',
         'dt',
@@ -455,9 +445,8 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
                 company,
                 fiber,
                 h5_to_dict(properties),
-                chans,
-                chans_nums,
-                len(chans_nums),
+                np.array(chans),
+                len(chans),
                 sampling_frequency,
                 o_sampling_frequency,
                 dt,
@@ -687,7 +676,7 @@ def write_data(Fiber, filepath=None, company=None):
 
         # keep only current channels (supports crop)
         ch_map = {str(ch["name"]): ch for ch in channels_template}
-        selected = [ch_map[str(c)] for c in Fiber.channels_num]
+        selected = [ch_map[str(c)] for c in Fiber.channels]
 
         objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
         
@@ -793,8 +782,8 @@ def write_data(Fiber, filepath=None, company=None):
         time_node["shape"] = t_vals.shape
 
         # Rebuild position axis in meters from current channel selection.
-        if Fiber.channels_num is not None and len(Fiber.channels_num) == Fiber.data.shape[1]:
-            p_vals = np.asarray(Fiber.channels_num, dtype=np.float64) * float(Fiber.spatial_interval)
+        if Fiber.channels is not None and len(Fiber.channels) == Fiber.data.shape[1]:
+            p_vals = np.asarray(Fiber.channels, dtype=np.float64) * float(Fiber.spatial_interval)
         else:
             p_vals = np.arange(Fiber.data.shape[1], dtype=np.float64) * float(Fiber.spatial_interval)
         p_dtype = np.dtype(position_node["dtype"])
@@ -858,8 +847,8 @@ def write_data(Fiber, filepath=None, company=None):
         n1_node["data"], n1_node["shape"] = n1_val, n1_val.shape
 
         # Channels and spacing.
-        if Fiber.channels_num is not None and len(Fiber.channels_num) == Fiber.data.shape[1]:
-            channels = np.asarray(Fiber.channels_num, dtype=np.float64)
+        if Fiber.channels is not None and len(Fiber.channels) == Fiber.data.shape[1]:
+            channels = np.asarray(Fiber.channels, dtype=np.float64)
         else:
             channels = np.arange(Fiber.data.shape[1], dtype=np.float64) + float(Fiber.channel_offset)
         ch_dtype = np.dtype(ch_node["dtype"])
