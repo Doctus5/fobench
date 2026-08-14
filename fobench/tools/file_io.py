@@ -50,20 +50,20 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     :Return:
         - variables(type:tuple): tuple of the variable that are attributed of class Fiber.
     '''
-    
+
     # modify range_ch variable
     if isinstance(range_ch, int): # check if it is single value
         range_ch = [range_ch]
 
     elif isinstance(range_ch, np.ndarray): # check if is array
         range_ch = list(range_ch)
-        
+
     # option for reading S3 stored files. The check of instance is necessary because the remote file not necessary starts with...
     if isinstance(filepath, str) and filepath.startswith("s3://"):
-        
-        return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data, 
+
+        return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data,
                         show_progress=show_progress, storage_opts=storage_opts)
-    
+
     template = None
 
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
@@ -76,14 +76,14 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         measurement = file_file['Measurement']
         tdms_chann = measurement.channels() if range_ch is None else [measurement.channels()[i] for i in range_ch]
         chans = np.asarray([int(chan.name) for chan in tdms_chann], dtype=int)
-        
+
         # loading of the data conditioned. Old way
         # data_range = None if range_ch is None else list(chans_nums)
         # data = __data__(measurement, format, company, data_range) if load_data else None
-        
+
         # new way
         data = __tdms_biReader__(filepath, file_file, range_ch) if load_data else None
-        
+
         fiber = properties['name'].split('_')[0]
         sampling_frequency = properties['SamplingFrequency[Hz]']
         o_sampling_frequency = sampling_frequency
@@ -101,9 +101,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'silixa': # Silixa HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Silixa HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath,'r') as file_file:
-            
+
             template = None
             properties = {}
             instrument = file_file.keys()
@@ -148,9 +148,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'febus': # FEBUS HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Febus HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath,'r') as file_file:
-            
+
             instrument = list(file_file.keys())[0]
             template = None
             properties = dict(file_file[instrument]['Source1']['Zone1'].attrs)
@@ -180,9 +180,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'terra15': # Terra15 HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Terra15 HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath,'r') as file_file:
-            
+
             properties = dict(file_file.attrs)
             template = None
             dataset = file_file['data_product']
@@ -207,9 +207,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN OptoDAS HDF5 (It can be a bit more complex, so I'm trying to make it simple!)
 
         pbar = tqdm(total=1, leave=True, desc='Reading ASN HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath,'r') as file_file:
-            
+
             template = None
             properties = h5_to_dict(file_file['acqSpec'])
             dataset = file_file['data']
@@ -239,14 +239,14 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptaSense HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading QuantX HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath,'r') as file_file:
-            
+
             properties = dict(file_file['Acquisition'].attrs)
             template = None
             dataset = file_file['Acquisition']['Raw[0]']
             chans = np.arange(int(file_file['Acquisition']['Raw[0]'].attrs['NumberOfLoci']), dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
-            
+
             # loading the data conditioned
             data_range = None if range_ch is None else chans.tolist()
             data = __data__(dataset['RawData'], format, company, data_range) if load_data else None
@@ -267,9 +267,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon Photonics HDAS HDF5
 
         pbar = tqdm(total=1, leave=True, desc='Reading Aragon Photonics HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath,'r') as file_file:
-            
+
             template = None
             properties = dict(file_file.attrs)
             dataset = file_file['strain']
@@ -293,16 +293,16 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             time_length = end_time - start_time
             gauge_length = float(properties['Global_RAM_User_SET_Pulse_Width_(meter)'][0])
             channel_offset = int(properties['fiber_position_offset'][0]/spatial_interval)
-            units = [key for key in file_file.keys()][2]
+            units = list(file_file.keys())[2]
             conv_factor = None # conversion factor if given explicitly
 
     elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela Onyx HDF5
         print('Data units (strain, strain-rate...) can not be extracted from Sintela files\n'
              'you can set it manually by editing Fiber.units')
         pbar = tqdm(total=1, leave=True, desc='Reading Sintela HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath, 'r') as file_file:
-            
+
             template = None
             properties = dict(file_file['Acquisition'].attrs)
             dataset = file_file['/Acquisition/Raw[0]/RawData']
@@ -384,9 +384,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     elif (format == "h5" or format == "hdf5") and (company == "michele"): # .h5 format for Michele INGV's decimated files from Silixa.
 
         pbar = tqdm(total=1, leave=True, desc='Reading Michele INGV decimated HDF5 file', disable=not show_progress)
-        
+
         with h5.File(filepath, 'r') as file_file:
-            
+
             properties = dict(file_file.attrs)
             template = None
             dataset = file_file['Fiber']
@@ -435,7 +435,7 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
         'units',
         'conv_factor'
         ]
-    
+
     # coonvert the type of the data to floating, ready for processing
     # if not np.issubdtype(data.dtype, np.floating) and load_data is True:
     #     data = data.astype(float, copy=False)
@@ -497,21 +497,21 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     '''
 
     if format == 'tdms' and company == 'silixa':
-        
+
         values = extract_point.as_dataframe().to_numpy()
         if range_ch is not None:
             values = values[:, range_ch]
         return values
 
     elif format in ('h5', 'hdf5'):
-        
+
         if company == 'febus':
             dims = extract_point.shape
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])
             if range_ch is not None:
                 values = values[:, range_ch]
-            return values 
-            
+            return values
+
         elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'terra15', 'michele'):
             if range_ch is None:
                 values = extract_point[:,:]
@@ -564,19 +564,19 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
         Fibre data and metadata attributes
     """
 
-        
+
     import s3fs
     s3 = s3fs.S3FileSystem(**(storage_opts or {}))
-        
+
     with s3.open(filepath,"rb") as remote_file:
-        
-        attributes = read_data(filepath=remote_file, company=company, range_ch=range_ch, 
+
+        attributes = read_data(filepath=remote_file, company=company, range_ch=range_ch,
                                 format=format, load_data=load_data, show_progress=show_progress)
     attributes["basefile"] = filepath
-    
+
     return attributes
-        
-        
+
+
 def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
     """Fast simple reader of TDMS as binary, superior to nptdms package, but only works for a certain specific layout.
     Lets hope that dms stays like that. DAMN I HATE TDMS, so unceessary, so inconvenient.
@@ -596,22 +596,22 @@ def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
     np.array()
         full data matrix of the sensing
     """
-    
+
     segments = tdms_metadata._reader._segments
     segment = segments[0]
-    
+
     content = tdms_metadata["Measurement"]
     channels = content.channels()
     n_channels, n_samples, dtype = len(channels), len(channels[0]), np.dtype(channels[0].dtype)
     n_bytes = segment.next_segment_pos -segment.data_position
-    
+
     values = np.memmap(filepath, mode="r", dtype=dtype, offset=segment.data_position, shape=(n_samples, n_channels), order="C")
-    
+
     if range_ch is not None:
         values = values[:,range_ch]
     if copy_data:
         values = np.array(values, copy=True)
-        
+
     return values
 
 
@@ -645,13 +645,13 @@ def write_data(Fiber, filepath=None, company=None):
     ValueError
         filepath is required
     """
-    
+
     # warnings
     if filepath is None:
         raise ValueError("filepath is required")
-    
+
     format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
-    
+
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
 
         pbar = tqdm(total=1, leave=True, desc='Saving in Silixa TDMS file')
@@ -679,7 +679,7 @@ def write_data(Fiber, filepath=None, company=None):
         selected = [ch_map[str(c)] for c in Fiber.channels]
 
         objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
-        
+
         for i, ch in enumerate(selected):
             objects.append(
                 tdms.ChannelObject(
@@ -693,9 +693,9 @@ def write_data(Fiber, filepath=None, company=None):
 
         with tdms.TdmsWriter(filepath, mode="w") as w:
             w.write_segment(objects)
-            
+
     if (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
-        
+
         pbar = tqdm(total=1, leave=True, desc='Saving in Sintela HDF5 file')
         dataset_path = "/Acquisition/Raw[0]/RawData"
         acquisition_path = "/Acquisition"
@@ -893,7 +893,7 @@ def write_data(Fiber, filepath=None, company=None):
 
     pbar.update(1)
     pbar.set_description('File Saved ✓')
-    
+
 #########################################################
 ### H5/HDF5 explorers, templates, internals and writters
 #########################################################
@@ -1042,31 +1042,31 @@ def __coerce_h5_dtype_and_data__(dtype_in, data):
             return h5.string_dtype(encoding="utf-8"), "" if arr.item() is None else str(arr.item())
         out = np.vectorize(lambda x: "" if x is None else str(x), otypes=[object])(arr)
         return h5.string_dtype(encoding="utf-8"), out
-        
-        
+
+
 def scan_template(filepath, company="", format="", storage_opts=None):
-    
-    
+
+
     if isinstance(filepath, str) and filepath.startswith("s3://"):
         import s3fs
         s3 = s3fs.S3FileSystem(**(storage_opts or {}))
         opener = s3.open(filepath, "rb")
     else:
         opener = open(filepath, "rb")
-        
+
     with opener as raw_file:
-        
+
         if format == "tdms":
             opened_file = tdms.TdmsFile.read(raw_file)
-        
+
             return __scan_template__(opened_file, company=company, format=format)
-        
+
         if format in ("hdf5","h5"):
             with h5.File(raw_file, "r") as opened_file:
-        
+
                 return __scan_template__(opened_file, company=company, format=format)
-        
-        
+
+
 # scanning the files as saving them as lightweight versions for later file writting.
 def __scan_template__(core_file, company="", format=""):
     """
@@ -1086,11 +1086,11 @@ def __scan_template__(core_file, company="", format=""):
     dict
         lightweight version of the architecture of the file. Used for later recreate the file and save information in original format.
     """
-    
+
     native_template = None
 
     if format == 'tdms' and company == 'silixa': # Silixa TDMS
-        
+
         native_template = {
             "root_properties": dict(core_file.properties),  # unchanged
             "group_properties": {
@@ -1106,10 +1106,10 @@ def __scan_template__(core_file, company="", format=""):
                     ],
                 }
             },
-        }    
-    
+        }
+
     elif format in ('h5', 'hdf5'): # evaluate for HDF5 files. Company specification MIGHT not be needed.
-        
+
         native_template = __scan_hdf5__(core_file)
 
     return native_template
@@ -1130,7 +1130,7 @@ def __scan_hdf5__(obj):
     dict
         return a dictionary containing the structure of the scanned H5 file. No dataset.
     """
-    
+
     node = {
         "path": obj.name,
         "type": "group" if isinstance(obj, h5.Group) else "dataset",
@@ -1138,7 +1138,7 @@ def __scan_hdf5__(obj):
     }
 
     if isinstance(obj, h5.Dataset):
-        
+
         node.update({
             "shape": obj.shape,
             "dtype": obj.dtype.str,
@@ -1146,9 +1146,9 @@ def __scan_hdf5__(obj):
             "compression": obj.compression,
             "maxshape": obj.maxshape,
         })
-        
+
     else:
-        
+
         node["children"] = {
             key: __scan_hdf5__(obj[key])
             for key in obj.keys()
@@ -1241,7 +1241,7 @@ def __clone_template__(obj):
         are returned as-is.
 
     """
-    
+
     if isinstance(obj, dict):
         return {k: __clone_template__(v) for k, v in obj.items()}
     if isinstance(obj, list):
