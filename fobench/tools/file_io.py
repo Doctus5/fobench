@@ -35,14 +35,15 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
     Description:
         Manages the import of the data in the best way it can be done according to the format.
         Format and company availables (format, company)...
-        - 'tmds' or 'hdf5':'silixa'
-        - 'hdf5':'febus'
-        - 'hfd5':'terra15'
-        - 'hdf5':'sintela'
-        - 'hdf5':'asn'
-        - 'npy':'bam' (non-commercial. Errors can be present during reading).
-        - 'hdf5':'quantx'
-        - 'h5' : 'aragon'
+        - 'tmds' or 'h5/hdf5':'silixa'
+        - 'h5/hdf5':'febus'
+        - 'h5/hdf5':'terra15'
+        - 'h5/hdf5':'sintela'
+        - 'h5/hdf5':'asn'
+        - 'h5/hdf5':'optasense'
+        - 'h5/hdf5' : 'aragon'
+        - 'npy' or 'npz':'bam' (non-commercial. Errors can be present during reading).
+        - 'h5/hdf5':'michele' (non-commercial).
     :Params:
         - filepath(type:String): compelte path fot he file to be read.
         - company(type:String): manufacturer or the instrument that generates the data.
@@ -129,6 +130,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             chans = np.arange(properties['NumberOfLoci'], dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
             data_range = None if range_ch is None else chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties['FibreType']
             sampling_frequency = properties['OutputDataRate']
@@ -166,6 +174,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             SEMILAG = properties['BlockRate'][0]*1e-3 if getattr(properties['BlockRate'], "size", 0) == 1 else properties['BlockRate']*1e-3 # unpacking value sif is inside list.
             SEMILAG = int(np.round((1/SEMILAG) / dt))
             data_range = None if range_ch is None else chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range, SEMILAG) if load_data else None
             start_time = UTC(file_file[instrument]['Source1']['time'][0]) #Time is retaken to correct for LAG.
             end_time = UTC(file_file[instrument]['Source1']['time'][-1]) + (dt * SEMILAG)
@@ -189,6 +204,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             chans = np.arange(properties['nx'], dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
             data_range = None if range_ch is None else chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset["data"], data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset["data"], format, company, data_range)
             data = __data__(dataset['data'], format, company, data_range) if load_data else None
             fiber = 'standard'
             dt = float(properties['dt_computer'])
@@ -217,6 +239,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             chans = np.arange(n_channels, dtype=int) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
             data_range = None if range_ch is None else chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = 'standard'
             dt = float(file_file['header']['dt'][()])
@@ -236,9 +265,9 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             # units = str(file_file['header']['sensitivityUnits'][()])[3:-2]
             # conv_factor = file_file['header']['sensitivities'][0,0]
 
-    elif (format == 'h5' or format == 'hdf5') and company == 'quantx': # QuantX OptaSense HDF5
+    elif (format == 'h5' or format == 'hdf5') and company == 'optasense': # OptaSense HDF5
 
-        pbar = tqdm(total=1, leave=True, desc='Reading QuantX HDF5 file', disable=not show_progress)
+        pbar = tqdm(total=1, leave=True, desc='Reading OptaSense HDF5 file', disable=not show_progress)
 
         with h5.File(filepath,'r') as file_file:
 
@@ -249,6 +278,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
 
             # loading the data conditioned
             data_range = None if range_ch is None else chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset["RawData"], data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset["RawData"], format, company, data_range)
             data = __data__(dataset['RawData'], format, company, data_range) if load_data else None
             fiber = 'standard'
             sampling_frequency = float(dataset.attrs['OutputDataRate'])
@@ -277,9 +313,17 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
                 chans = np.arange(file_file['position'].size, dtype=int)
                 data_range = None
             else:
-                chans = np.arange(range_ch[0], range_ch[1] + 1, dtype=int)
+                chans = np.arange(range_ch, dtype=int)
                 data_range = chans.tolist()
             # loading the data conditioned
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
+            #     else:
+            #         data *= 1e-9
             data = __data__(dataset, format, company, data_range) if load_data else None
             pbar.set_description('Extracting Attributes')
             fiber = 'standard'
@@ -310,8 +354,15 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
                 chans = np.arange(properties['NumberOfLoci'], dtype=int)
                 data_range = None
             else:
-                chans = np.arange(range_ch[0], range_ch[1] + 1, dtype=int)
+                chans = np.asarray(range_ch, dtype=int)
                 data_range = chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties['FiberID']
             sampling_frequency = properties['PulseRate']
@@ -393,6 +444,13 @@ def read_data(filepath=None, company=None, range_ch=None, format=None, load_data
             chans = np.asarray(file_file['ChannelMap']) if range_ch is None else np.asarray(range_ch, dtype=int)
             # loading the data conditioned
             data_range = None if range_ch is None else chans.tolist()
+            
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties['Fibre Type'].decode('UTF-8')
             dt = float(properties['Sampletime'][0])
@@ -512,7 +570,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
                 values = values[:, range_ch]
             return values
 
-        elif company in ('silixa', 'asn', 'quantx', 'aragon', 'sintela', 'terra15', 'michele'):
+        elif company in ('silixa', 'asn', 'optasense', 'aragon', 'sintela', 'terra15', 'michele'):
             if range_ch is None:
                 values = extract_point[:,:]
             else:
@@ -609,6 +667,59 @@ def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
 
     if range_ch is not None:
         values = values[:,range_ch]
+    if copy_data:
+        values = np.array(values, copy=True)
+
+    return values
+
+
+def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
+    """Fast simple reader of H5 as binary, superior to h5py package, but only works for a certain specific layout.
+    Lets hope that dms stays like that.
+    Parameters
+    ----------
+    filepath : str
+        global or partial path where the data is located.
+    tdms_metadata : _type_
+        _description_
+    range_ch : array or list
+        range fo channels to slice the data
+    copy_data : bool, optional
+        load the data into memory, by default True
+
+    Returns
+    -------
+    np.array()
+        full data matrix of the sensing
+    """
+    
+    # if the dataset has the following complications, then the fast reader would not work, and so we must fall back to the old reader.
+    # still the old one is fast, but this one is muuuuch faster :)
+    if not isinstance(dataset, h5.Dataset):
+        return None
+
+    if not isinstance(filepath, str):
+        return None
+
+    if dataset.chunks is not None:
+        return None
+
+    if dataset.compression is not None:
+        return None
+
+    if dataset.shuffle or dataset.fletcher32:
+        return None
+
+    offset = dataset.id.get_offset()
+    
+    if offset is None:
+        return None
+
+    values = np.memmap(filepath, mode="r", dtype=dataset.dtype, offset=offset, shape=dataset.shape, order="C")
+
+    if range_ch is not None:
+        values = values[:, range_ch]
+
     if copy_data:
         values = np.array(values, copy=True)
 
