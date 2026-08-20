@@ -1,5 +1,5 @@
 """Contains all functionality related to plotting using PyQtGraph, i.e.
-whenever plot_mode is set to 'pyqt'"""
+whenever plot_mode is set to 'pyqt'."""
 
 import sys
 import datetime
@@ -35,7 +35,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
     Returns
     -------
     None
-        -
+
     """
 
     y_label = y_label.title()
@@ -88,7 +88,7 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     Returns
     -------
     None
-        -
+
     """
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title,
@@ -140,7 +140,7 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     Returns
     -------
     None
-        -
+
     """
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
@@ -202,7 +202,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
     Returns
     -------
     None
-        -
+
     """
 
     if isinstance(amplitudes, np.ndarray) and amplitudes.ndim == 1:
@@ -267,6 +267,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     Returns
     -------
     None
+
     """
 
     cbar_label = cbar_label.title()
@@ -365,7 +366,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     Returns
     -------
     None
-        -.
+
     """
 
     cbar_label=cbar_label.title()
@@ -434,7 +435,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
 def get_layout(size: tuple = (1200, 600), win_title: str = None,
                x_is_time: bool = False):
 
-    """Returns common basic layout of plots"""
+    """Returns common basic layout of plots."""
 
     app = QtWidgets.QApplication.instance()
     if app is None:
@@ -460,7 +461,7 @@ def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
                     dt: float = None, dx: float = None, dy: float = None,
                     item: pg.ImageItem = None):
 
-    """Factory that returns a function tracking the mouse position and displays it in data units"""
+    """Factory that returns a function tracking the mouse position and displays it in data units."""
 
     x_step = dt or dx
 
@@ -489,21 +490,21 @@ def tracker_factory(plot: pg.PlotItem, label: pg.LabelItem, label_text: str,
     return mouse_moved
 
 def get_axis_button() -> QtWidgets.QPushButton:
-    """Returns a button that can be used for switching axis between optical distance and channel number"""
+    """Returns a button that can be used for switching axis between optical distance and channel number."""
     button = QtWidgets.QPushButton("Distance")
     button.setToolTip("Switch x Axis between Channel Number and Optical Distance")
     button.setFixedWidth(70)
     return button
 
 def get_colorscale_button() -> QtWidgets.QPushButton:
-    """Returns a button that can be used for resetting colorscale"""
+    """Returns a button that can be used for resetting colorscale."""
     button = QtWidgets.QPushButton("Reset colorscale")
     button.setToolTip("Resets the colorscale to initial values")
     button.setFixedWidth(110)
     return button
 
 def get_vminmax_button(bar: pg.ColorBarItem) -> QtWidgets.QPushButton:
-    """Returns a button to open dialog to set vmin/vmax values"""
+    """Returns a button to open dialog to set vmin/vmax values."""
     button = QtWidgets.QPushButton("Set Range")
     button.setToolTip("Modify vmin and vmax of colorscale")
     button.setFixedWidth(70)
@@ -552,14 +553,15 @@ def get_vminmax_button(bar: pg.ColorBarItem) -> QtWidgets.QPushButton:
         btn_box.rejected.connect(on_cancel)
         dialog.exec_()
     button.clicked.connect(open_vminmax_dialog)
+
     return button
 
 def reset_scale(bar: pg.ColorBarItem, vmin: float, vmax: float) -> None:
-    """Function to resest the colorscale to original values"""
+    """Function to resest the colorscale to original values."""
     bar.setLevels(values=(vmin, vmax))
 
 def get_bottom_layout():
-    """Returns bottom layout that holds label for tracking mouse"""
+    """Returns bottom layout that holds label for tracking mouse."""
     container = QtWidgets.QWidget()
     h_layout = QtWidgets.QHBoxLayout(container)
     h_layout.setContentsMargins(5, 5, 5, 5)
@@ -569,7 +571,7 @@ def get_bottom_layout():
     return text_label, h_layout, container
 
 def get_colors(n: int, colormap:str = "tab10") -> list[tuple[int, int, int]]:
-    """Returns a set of n unique colors from a plt colormap"""
+    """Returns a set of n unique colors from a plt colormap."""
     cmap = plt.get_cmap(colormap, n)
     return [tuple(int(x*255) for x in cmap(i)[:3]) for i in range(n)]
 
@@ -579,8 +581,7 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
             mask: np.ndarray, f: np.ndarray, k: np.ndarray,
             dt: float) -> None:
 
-    """
-    Plots the in- and outputs of fk filter: initial and filtered wavefield,
+    """Plots the in- and outputs of fk filter: initial and filtered wavefield,
     the fk spectrum and the fk mask.
 
     Parameters
@@ -603,7 +604,6 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
     Returns
     -------
     None
-        -.
 
     """
 
@@ -611,7 +611,7 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
     win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle("Fobench: Frequency-Wavenumber Filter")
+    win.setWindowTitle("FoBench: Frequency-Wavenumber Filter")
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent / "logo.png")))
     win.setBackground("w")
     win.resize(1200, 600)

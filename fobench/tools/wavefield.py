@@ -1,4 +1,4 @@
-"""Functions to analyze wavefield characteristics"""
+"""Functions to analyze wavefield characteristics."""
 
 import numpy as np
 from warnings import warn

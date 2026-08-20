@@ -1,1 +1,1 @@
-"""Base module that holds the Fiber class and all related functionalities"""
+"""The base module that holds the Fiber class and all related functionalities"""

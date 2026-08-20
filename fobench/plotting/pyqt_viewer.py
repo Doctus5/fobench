@@ -1,4 +1,4 @@
-"""Contains the Viewer class"""
+"""Contains the Viewer class."""
 
 import datetime
 import functools
@@ -9,7 +9,7 @@ from pyqtgraph.Qt import QtWidgets, QtGui
 from pyqtgraph.dockarea import Dock, DockArea
 
 def _busy_cursor(func):
-    """"Decorator to call methods with pg.BusyCursor."""
+    """Decorator to call methods with pg.BusyCursor."""
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         with pg.BusyCursor():
@@ -18,7 +18,7 @@ def _busy_cursor(func):
 
 
 class Viewer(QtWidgets.QMainWindow):
-    """"Interactive GUI for exploring Fiber Optic Sensing data."""
+    """Interactive GUI for exploring Fiber Optic Sensing data."""
     def __init__(self, Fiber: object) -> None:
         super().__init__()
         pg.setConfigOptions(background="w", foreground="k")
@@ -191,7 +191,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.line_plot.setXRange(self.times[0], self.times[-1], padding=0)
 
     def refresh_y_axis(self, y_vals: np.ndarray) -> None:
-        """Handles the yaxis and repositions of matrix plot when changing between Distance and Channels."""
+        """Handles the y-axis and reposition of matrix plot when changing between Distance and Channels."""
         x_min, x_max = self.times[0], self.times[-1]
         dy = y_vals[1]-y_vals[0]
         y_min, y_max = y_vals[0], y_vals[-1]

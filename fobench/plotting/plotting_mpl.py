@@ -1,5 +1,5 @@
 """Contains all functionality related to plotting using matplotlib, i.e.
-whenever plot_mode is set to 'mpl'"""
+whenever plot_mode is set to 'mpl'."""
 
 import numpy as np
 import datetime as datetime
@@ -461,7 +461,7 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
     Returns
     -------
     None
-        -
+
     """
 
     extent = [distances[0], distances[-1], max_shift/fs, 0]

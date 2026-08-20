@@ -1,3 +1,5 @@
+"""Some utilities to handle units, time formats and intrument corrections."""
+
 import functools
 import inspect
 import numpy as np

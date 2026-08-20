@@ -1,0 +1,16 @@
+pages:
+  stage: deploy
+  image: python:3.11
+  variables:
+    GIT_DEPTH: 0
+  script:
+    - pip install sphinx sphinx_rtd_theme sphinx_last_updated_by_git sphinx_copybutton sphinx_togglebutton sphinx_autodoc_typehints
+    - pip install -e .             
+    - sphinx-build -b html docs/source docs/build/html
+    - mkdir -p public
+    - cp -r docs/build/html/* public/
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "dev"'

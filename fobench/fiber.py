@@ -2,13 +2,12 @@
 Class "Fiber" for creating, storing and manipulating fiber optic sensing data.
 Created on 2022-08-19 12:07:17
 
-:authors:
+:Authors:
 	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
 	- Jonas Pätzel (jonas.patzel@ulb.be)
 
-:contributors:
+:Contributors:
 	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
 
 """
 
