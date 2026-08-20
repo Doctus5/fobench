@@ -10,23 +10,22 @@ from matplotlib.dates import num2date
 """Helper Functions"""
 
 class PrecisionDateFormatter(ticker.Formatter):
-    """Extends the `matplotlib.ticker.Formatter` class to allow for millisecond
+    """Extends the :class:`~matplotlib.ticker.Formatter` class to allow for millisecond
     precision when formatting a tick (in days since the epoch) with a
-    `~datetime.datetime.strftime` format string. Adapted from StackOverflow.
+    :meth:`~python:datetime.datetime.strftime` format string. Adapted from StackOverflow.
+
+    Parameters
+    ----------
+    fmt : str
+        :meth:`~python:datetime.datetime.strftime` format string.
+    precision : int
+        Necessary precision.
+    tz : str
+        Timezone info.
+
     """
 
     def __init__(self, fmt: str, precision: int = 3, tz: str = None):
-        """
-        Parameters
-        ----------
-        fmt : str
-            `~datetime.datetime.strftime` format string.
-        precision : int
-            Necessary precision.
-        tz : str
-            Timezone info.
-        """
-
         self.num2date = num2date
         self.fmt = fmt
         self.tz = tz if tz is not None else datetime.timezone.utc
@@ -45,14 +44,14 @@ class PrecisionDateFormatter(ticker.Formatter):
         return dt.strftime(self.fmt).format(ms=ms)
 
 
-"""matplotlib plotting Functions"""
+"""matplotlib plotting functions"""
 
 def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list = None,
                  units_y: str = None, figsize: list[float, float] | tuple[float, float] = None,
                  title: str = None, cmap:str = "seismic", file_name: str = None,
                  add_data: np.ndarray = None, show: bool = True, **kwargs)-> plt.Figure:
 
-    """Generic FOS data plot.
+    """Generic fiber optic sensing data plot.
 
     Parameters
     ----------
@@ -77,11 +76,11 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
     show : bool
         Toggles display of figure.
     **kwargs:
-        Additional arguments passed to ``imshow``
+        Additional arguments passed to :func:`~matplotlib.pyplot.imshow`
 
     Returns
     -------
-    fig : plt.Figure
+    fig : :class:`~matplotlib.figure.Figure`
         Figure instance.
     """
 
@@ -141,11 +140,11 @@ def simple_plot(data: np.ndarray, t: np.ndarray, channel: list[str | int | float
     show : bool
         Toggles display of figure.
     **kwargs:
-        Additional arguments passed to ``plot``
+        Additional arguments passed to :func:`~matplotlib.pyplot.plot`
 
     Returns
     -------
-    fig : plt.Figure
+    fig : :class:`~matplotlib.figure.Figure`
         Figure instance.
     """
 
@@ -205,11 +204,12 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
     show : bool
         Toggles display of figure.
     **kwargs
-        Addtional arguments passed to ``imshow``, e.g. ``vmin``, ``vmax``.
+        Additional arguments passed to :func:`~matplotlib.pyplot.imshow`,
+        e.g. ``vmin``, ``vmax``.
 
     Returns
     -------
-    fig : plt.Figure
+    fig : :class:`~matplotlib.figure.Figure`
         Figure instance.
 
     """
@@ -268,11 +268,12 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
     show : bool
         Toggles display of figure.
     **kwargs
-        Addtional arguments passed to ``imshow``, e.g. ``vmin``, ``vmax``.
+        Additional arguments passed to :func:`~matplotlib.pyplot.imshow`,
+        e.g. ``vmin``, ``vmax``.
 
     Returns
     -------
-    fig : plt.Figure
+    fig : :class:`~matplotlib.figure.Figure`
         Figure instance.
 
     """
@@ -355,12 +356,11 @@ def simple_spectrum(spectra: np.ndarray = None, freqs: np.ndarray = None,
         Title of plot.
     show : bool
         Toggles display of figure.
-    **kwargs
-        Additional arguments passed to ``plot``.
+        Additional arguments passed to :func:`~matplotlib.pyplot.plot`.
 
     Returns
     -------
-    fig : plt.Figure
+    fig : :class:`~matplotlib.figure.Figure`
         Figure instance.
 
     """
@@ -407,7 +407,7 @@ def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray
 
     Returns
     -------
-    fig : plt.Figure
+    fig : :class:`~matplotlib.figure.Figure`
         Figure instance.
 
     """
@@ -443,7 +443,7 @@ def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray
 def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
               max_shift: int, **imshow_kwargs) -> None:
 
-    """Plots the autocorrelation profile
+    """Plots the autocorrelation profile.
 
     Parameters
     ----------
@@ -456,7 +456,8 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
     max_shift : int
         Maximum shift chosen.
     **imshow_kwargs :
-        Addtional arguments passed to ``imshow``, e.g. ``vmin``, ``vmax``.
+        Additional arguments passed to :func:`~matplotlib.pyplot.imshow`,
+        e.g. ``vmin``, ``vmax``.
 
     Returns
     -------

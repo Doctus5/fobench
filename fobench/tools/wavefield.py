@@ -104,7 +104,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     vmin, vmax : float, optional
         Minimum and maximum limits of colorbar.
     **imshow_kwargs :
-        Additional kwargs passed to imshow.
+        Additional arguments passed to :func:`~matplotlib.pyplot.imshow`
 
     Returns
     -------

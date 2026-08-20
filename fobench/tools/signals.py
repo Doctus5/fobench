@@ -1,9 +1,8 @@
-"""Signal processing functions except filtering"""
+"""Signal processing functions except filtering."""
 
 import numpy as np
 import scipy.signal as signal
 import scipy.integrate as integrate
-
 from tqdm import tqdm, trange
 
 def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
@@ -83,8 +82,8 @@ def differentiate_signal(data: np.ndarray, method: str, axis: int, dt: int)-> np
     data : np.ndarray
         Data to differentate.
     method : str
-        Sets the prefered method for differentiation. can be "gradient" or "diff",
-        when using "diff" data is prepended with inital value along specified axis.
+        Sets the prefered method for differentiation. can be ``"gradient"`` or ``"diff"``,
+        when using ``"diff"`` data is prepended with inital value along specified axis.
     axis : int
         Axis along which to apply operation.
     dt : int
@@ -211,7 +210,7 @@ def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool 
     axis : int
         Axis along which to perform tapering.
     detaper : bool
-        Option to remove taper from signal
+        Option to remove taper from signal.
     sym : bool
         Symmetric window for tapering if ``True``.
 
@@ -291,10 +290,10 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
         Data array to normalize.
     method : str, optional
         Normalization method, options are:
-			-"absolute max": with respect to the whole record (default)
-			-"trace max": for each channel/timestep individually
-			-"running mean": running absolute mean normalization
-			-"1bit": 1-bit normalization.
+			- ``"absolute max"``: with respect to the whole record (default)
+			- ``"trace max"``: for each channel/timestep individually
+			- ``"running mean"``: running absolute mean normalization
+			- ``"1bit"``: 1-bit normalization.
     axis : int, optional
         Axis along which to perform operation.
     ram_window : int, optional

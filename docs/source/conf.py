@@ -38,6 +38,9 @@ autosummary_imported_members = False
 intersphinx_mapping = {
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ('https://matplotlib.org/stable/', None),
+    "python": ('https://docs.python.org/3', None),
+    "obspy": ("https://docs.obspy.org/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
@@ -51,5 +54,5 @@ html_title = "FoBench Docs"
 
 html_theme_options = {
     "version_selector": True,
-    "style_external_links": True,
+    "style_external_links": False,
 }

@@ -183,7 +183,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
                   y_label: str = "Amplitude", x_label: str = "Frequency [Hz]",
                   title: str = "", labels: list[str] | None = None) -> None:
 
-    """Generate generic amplitude over frequency plot
+    """Generate generic amplitude over frequency plot.
 
     Parameters
     ----------

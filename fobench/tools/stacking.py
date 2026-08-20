@@ -6,7 +6,7 @@ from obspy.signal.util import stack
 
 def stack_2D(data: np.ndarray, stack_type: str | tuple[str, int]) -> np.ndarray:
     """Stacks data given as 2D array with dimensions ``(n_signals, n_samples)``.
-    Calls ``obspy.signal.util.stack``. Ideal for stacking channel data
+    Calls :func:`~obspy.signal.util.stack`. Ideal for stacking channel data.
 
     Parameters
     ----------
@@ -14,19 +14,17 @@ def stack_2D(data: np.ndarray, stack_type: str | tuple[str, int]) -> np.ndarray:
         Data to stack.
     stack_type : str | tuple[str, int]
         Stack type, options are:
-            - ``'linear'``
-            - ``('pw', order)``
-            - ``('root', order)``
-        linear stack refers to mean stack, not sum!
+            - ``'linear'``: mean stack
+            - ``('pw', order)``: phase-weighted stack with given order
+            - ``('root', order)``: root stack with given order
+    Note
+    ----
+    Linear stack refers to mean stack, not sum!
 
     Returns
     -------
     np.ndarray
         Stacked data.
-
-    See also
-    --------
-    `obspy.signal.util.stack <https://docs.obspy.org/_modules/obspy/signal/util.html#stack>`_
 
     """
 
@@ -35,7 +33,7 @@ def stack_2D(data: np.ndarray, stack_type: str | tuple[str, int]) -> np.ndarray:
 def stack_3D(data: np.ndarray, stack_type: str | tuple[str, int])-> np.ndarray:
     """Stacks data given as a 3D array ``(n_signals, n_samples, n_windows)``.
     Implements linear (mean), sum, and phase-weighted stacking (PWS). Adapted
-    from ``obspy.signal.util.stack``.
+    from :func:`~obspy.signal.util.stack`.
 
     Parameters
     ----------
@@ -43,9 +41,9 @@ def stack_3D(data: np.ndarray, stack_type: str | tuple[str, int])-> np.ndarray:
         3D array (n_signals, n_samples, n_windows).
     stack_type : str | tuple[str, int]
         Type of stack, options are:
-            - 'linear': mean stack
-            - 'sum': summation stack
-            - ('pw', order): phase-weighted stack with given order
+            - ``'linear'``: mean stack
+            - ``'sum'``: summation stack
+            - ``('pw', order)``: phase-weighted stack with given order
 
     Raises
     ------
@@ -56,10 +54,6 @@ def stack_3D(data: np.ndarray, stack_type: str | tuple[str, int])-> np.ndarray:
     -------
     np.ndarray
         Stacked data.
-
-    See also
-    --------
-    `obspy.signal.util.stack <https://docs.obspy.org/_modules/obspy/signal/util.html#stack>`_
 
     """
 

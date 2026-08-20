@@ -1,4 +1,4 @@
-"""Contains signal filtering and decimation functions"""
+"""Contains signal filtering and decimation functions."""
 
 import numpy as np
 from warnings import warn
@@ -27,9 +27,9 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
     f_type : str
         The filter type.
     data : np.ndarray
-        Data to filter
+        Data to filter.
     df : float
-        Sampling rate in Hz
+        Sampling rate in Hz.
     freq : float | tuple(float, float), optional
         Filter corner frequencies.
     **options
@@ -38,7 +38,7 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
     Raises
     ------
     ValueError
-        Unsopported filter type.
+        Unsupported filter type.
 
     Returns
     -------
@@ -114,8 +114,8 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
         If ``True`` applies the filter forward and backwards resulting in
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
-        The filter design, options are:
-            - Butterworth   : ``"butter"`` (default)
+        Filter design, options are:
+            - Butterworth   : ``"butter"``
             - Chebyshev I   : ``"cheby1"``
             - Chebyshev II  : ``"cheby2"``
             - Cauer/elliptic: ``"ellip"``
@@ -191,8 +191,8 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
         If ``True`` applies the filter forward and backwards resulting in
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
-        The filter design, options are:
-            - Butterworth   : ``"butter"`` (default)
+        Filter design, options are:
+            - Butterworth   : ``"butter"``
             - Chebyshev I   : ``"cheby1"``
             - Chebyshev II  : ``"cheby2"``
             - Cauer/elliptic: ``"ellip"``
@@ -251,7 +251,7 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
             zerophase: bool = False, design: str = "butter", **options)-> np.ndarray:
 
     """Lowpass Filter. Filters data removing data over certain frequency ``freq``
-    using ``corners``
+    using ``corners``.
 
     Parameters
     ----------
@@ -268,7 +268,7 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         twice the filter order but zero phase shift in the filtered signal
     design : str, optional
         The filter design, options are:
-            - Butterworth   : ``"butter"`` (default)
+            - Butterworth   : ``"butter"``
             - Chebyshev I   : ``"cheby1"``
             - Chebyshev II  : ``"cheby2"``
             - Cauer/elliptic: ``"ellip"``
@@ -334,7 +334,7 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
         twice the filter order but zero phase shift in the filtered signal.
     design : str, optional
         The filter design, options are:
-            - Butterworth   : ``"butter"`` (default)
+            - Butterworth   : ``"butter"``
             - Chebyshev I   : ``"cheby1"``
             - Chebyshev II  : ``"cheby2"``
             - Cauer/elliptic: ``"ellip"``
@@ -385,7 +385,8 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
     """Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
     specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
-    for more details.
+    for more details. Filter design calls :func:`~scipy.signal.remez`.
+
 
     Warning
     -------
@@ -414,10 +415,6 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
     np.ndarray
         Filtered data.
 
-    See also
-    --------
-    :func:`~scipy.signal.remez`
-
     """
 
     flt = freqmin - 0.1 * freqmin # take 10% of freqmin and freqmax as "corners"
@@ -433,7 +430,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
                 zerophase: bool = False) -> np.ndarray:
-    """FIR-Lowpass filter. Filter data by passing data only below a certain frequency.
+    """FIR-lowpass filter. Filter data by passing data only below ``freq``.
     For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`_
 
     Warning
@@ -445,7 +442,7 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
     data : np.ndarray
         Data to filter.
     freq : float
-        Data below this frequency pass.
+        The frequency above which signals are not passed.
     df : float
         Sampling rate in Hz.
     winlen : int, optional
@@ -519,9 +516,9 @@ def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
 
 def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12,
                     ba: bool = False, freq_passband: bool = False)-> np.ndarray:
-    """Cheby2-Lowpass Filter. Filter data by passing data only below a certain frequency.
-    The main purpose of this cheby2 filter is downsampling. This method will
-    iteratively design a filter, whose pass band frequency is determined dynamically,
+    """Chebyshev type II lowpass filter. Filters data by only passing data below ``freq``.
+    The main purpose of this filter is downsampling. This method will iteratively
+    design a filter, whose pass band frequency is determined dynamically,
     such that the values above the stop band frequency are lower than -96dB.
 
     Parameters
@@ -533,21 +530,21 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     df : float
         Sampling rate in Hz.
     maxorder : int, optional
-        Maximal order of the designed cheby2 filter.
+        Maximal order of the designed Cheby type II filter.
     ba : bool, optional
-        If True return only the filter coefficients (b, a) instead of filtering.
+        If ``True``, returns only the filter coefficients (b, a) instead of filtering.
     freq_passband : bool, optional
-        If True return additionally to the filtered data, the iteratively
+        If ``True``, returns filtered data and additionally the iteratively
         determined pass band frequency.
 
     Returns
     -------
     tuple[float, float]
-        Filter coefficients (b, a)
+        Filter coefficients (b, a).
     np.ndarray, float
-        Filtered data, determined pass band frequency
+        Filtered data, determined pass band frequency.
     np.ndarray
-        Filtered data
+        Filtered data.
 
     """
 
@@ -693,7 +690,8 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
              n: int = None, zero_phase: bool = True):
 
     """Decimates data with appropriate lowpass filtering before.
-    :Contributors: : Marius Isken (GFZ-Potsdam)
+
+    :Contributors: Marius Isken (GFZ-Potsdam)
 
     Parameters
     ----------
@@ -702,11 +700,11 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
     factor : int
         Downsampling factor.
     f_type : str
-        LP filter type. Options are:
+        LP filter type, options are:
             - ``"iir"``: Chebyshev type I of order 8
             - ``"fir"``: 30 point FIR with Hamming window
-            - ``"fir-remez"``:
-            - ``"fir235"``:
+            - ``"fir-remez"``: FIR Remez filter
+            - ``"fir235"``
     axis : int, optional
         Axis along which to perform decimation.
     n : int, optional
@@ -740,7 +738,7 @@ def decimate(data: np.ndarray, factor: int, f_type: str, axis: int = 0,
 
 def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
 
-    """Filters data using a 2 dimensional median filter.
+    """Filters data using a 2 dimensional median filter, calls :func:`~scipy.signal.medfilt2d`.
 
     Parameters
     ----------
@@ -748,16 +746,12 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
         Data to filter.
     kernel_size : int | list, optional
         Size of the filter kernel, must be odd. If a scalar then used as size in
-        each dimension, the default corresponds to 3x3 kernel.
+        each dimension, the default corresponds to a 3x3 kernel.
 
     Returns
     -------
     filtered data : np.ndarray.
         Filtered data.
-
-    See also
-    --------
-    :func:`~scipy.signal.medfilt2d`
 
     """
 
@@ -767,8 +761,9 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               propagation: str | None = None, alpha: float = 0.3,
               plot_mode:str = "pyqt", verbose: bool = False, mode="pass"):
 
-    """Frequency wavenumber filter
-    :Contributors: : Johannes Hart (GFZ-Potsdam)
+    """Frequency wavenumber filter.
+
+    :Contributors: Johannes Hart (GFZ-Potsdam)
 
     Parameters
     ----------
@@ -833,17 +828,18 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
             alpha: float = 0.3, mode: str = "pass") -> np.ndarray:
 
     """Builds a Tukey-tapered fk-domain mask
-    :Contributors: : Johannes Hart (GFZ-Potsdam)
+
+    :Contributors: Johannes Hart (GFZ-Potsdam)
 
     Parameters
     ----------
-    bands : list of dict
+    bands : list[dict]
         The limits of the fk-domain regions that will masked, i.e. the
         passband.
         Each dict can contain any of:
-            - fmin, fmax (frequency limits)
-            - kmin, kmax (wavenumber limits)
-            - vmin, vmax (velocity limits)
+            - ``"fmin"``, ``"fmax"`` (frequency limits)
+            - ``"kmin"``, ``"kmax"`` (wavenumber limits)
+            - ``"vmin"``, ``"vmax"`` (velocity limits)
     f : np.ndarray
         Frequency axis.
     k : np.ndarray

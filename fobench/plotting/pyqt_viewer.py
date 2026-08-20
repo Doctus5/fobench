@@ -18,7 +18,7 @@ def _busy_cursor(func):
 
 
 class Viewer(QtWidgets.QMainWindow):
-    """Interactive GUI for exploring Fiber Optic Sensing data."""
+    """Interactive GUI for exploring fiber optic sensing data."""
     def __init__(self, Fiber: object) -> None:
         super().__init__()
         pg.setConfigOptions(background="w", foreground="k")
@@ -191,7 +191,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.line_plot.setXRange(self.times[0], self.times[-1], padding=0)
 
     def refresh_y_axis(self, y_vals: np.ndarray) -> None:
-        """Handles the y-axis and reposition of matrix plot when changing between Distance and Channels."""
+        """Handles the y-axis and reposition of matrix plot when changing between distance and channels."""
         x_min, x_max = self.times[0], self.times[-1]
         dy = y_vals[1]-y_vals[0]
         y_min, y_max = y_vals[0], y_vals[-1]
@@ -328,7 +328,7 @@ class Viewer(QtWidgets.QMainWindow):
 
     def make_plot_dock(self, title: str, x_label: str, y_label: str,
                        dock_ref: Dock = None) -> tuple[pg.PlotItem, Dock]:
-        """Returns Dock with Plot widget."""
+        """Returns dock with plot widget."""
         widget = pg.GraphicsLayoutWidget()
         plot = widget.addPlot()
         plot.setLabel("bottom", x_label, color="k", font_size="10pt")
