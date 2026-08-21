@@ -442,7 +442,7 @@ def get_layout(size: tuple = (1200, 600), win_title: str = None,
         app = QtWidgets.QApplication(sys.argv)
 
     win = pg.GraphicsLayoutWidget(show=True)
-    win.setWindowTitle(f"Fobench: {win_title}")
+    win.setWindowTitle(f"FoBench: {win_title}")
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent/"logo.png")))
     win.setBackground("w")
     win.resize(*size)

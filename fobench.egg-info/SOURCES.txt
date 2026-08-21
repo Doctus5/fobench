@@ -11,7 +11,7 @@ fobench.egg-info/top_level.txt
 fobench/plotting/__init__.py
 fobench/plotting/plotting_mpl.py
 fobench/plotting/plotting_pyqt.py
-fobench/plotting/pyqt_explorer.py
+fobench/plotting/pyqt_viewer.py
 fobench/tools/__init__.py
 fobench/tools/file_io.py
 fobench/tools/filters.py

@@ -1,7 +1,7 @@
 Download and Installation
 =========================
 
-We will use Conda to create a virtual environment to safely manage the dependencies for Fobench. You can create and activate a minimal environment for Fobench with the following commands:
+We will use Conda to create a virtual environment to safely manage the dependencies for FoBench. You can create and activate a minimal environment for Fobench with the following commands:
 
 .. code-block:: bash
 
@@ -17,14 +17,15 @@ We will use Conda to create a virtual environment to safely manage the dependenc
 
        conda deactivate
 
-Installation via PyPi
-----------------------
 
-To install via PyPi, with your ennvironment activated, simply run:
+..
+   Installation via PyPi
+   ----------------------
 
-.. code-block:: bash
+   To install via PyPi, with your ennvironment activated, simply run:
 
-    pip install fobench
+   .. code-block:: bash
+   	pip install fobench
 
 Installation via Github
 -----------------------
