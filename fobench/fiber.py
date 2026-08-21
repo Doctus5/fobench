@@ -173,12 +173,13 @@ class Fiber(object):
 		or ISOformat style str
 		'''
 
+		t_axis = self.__axis__("t")
 		data, start_time, end_time = utils.trim_time(t0=t0, tf=tf, data=self.data,
 													 times=self.times(), start_time=self.start_time,
-													 end_time=self.end_time)
+													 end_time=self.end_time, axis=t_axis)
 
 		self.data, self.start_time, self.end_time, self.time_length, self.num_points = (data,
-				start_time, end_time, end_time-start_time, data.shape[0])
+				start_time, end_time, end_time-start_time, data.shape[t_axis])
 
 		return self
 
@@ -188,10 +189,11 @@ class Fiber(object):
 		when ch0 = chf, updates Fiber class attributes
 		'''
 
+		d_axis = self.__axis__("d")
 		ch0, chf = int(min(ch0, chf)), int(max(ch0, chf)) # in case ch0 and chf not ordered
 		channels_list = self.channels.tolist()
 		ch0, chf = channels_list.index(ch0), channels_list.index(chf)
-		self.data = self.data[:,ch0:chf+1]
+		self.data = self.data[:,ch0:chf+1] if d_axis == 1 else self.data[ch0:chf+1,:]
 		self.channels = self.channels[ch0:chf+1]
 		self.distances = self.distances[ch0:chf+1]
 		self.total_channels = len(self.channels)
@@ -238,7 +240,8 @@ class Fiber(object):
 		'''
 		if channel is not None:
 			index = self.channels.tolist().index(int(channel))
-			return self.data[:,index]
+			d_axis = self.__axis__("d")
+			return self.data[:,index] if d_axis == 1 else self.data[index,:]
 
 		return self.data
 
@@ -395,7 +398,7 @@ class Fiber(object):
 
 		self.sampling_frequency  = new_freq
 		self.dt = 1 / self.sampling_frequency
-		self.num_points = self.data.shape[0]
+		self.num_points = self.data.shape[axis]
 
 		return self
 

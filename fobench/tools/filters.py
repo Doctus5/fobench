@@ -52,7 +52,7 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
                         "highpass": highpass,
                         "median": median_filter,
                         "lp_fir": lowpass_fir,
-                        "lp_cheby22": lowpass_cheby_2,
+                        "lp_cheby2": lowpass_cheby_2,
                         "afk": afk_filter,
                         "remez_fir": remez_fir}
 
@@ -147,19 +147,20 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
     if freqmin >= freqmax:
         raise ValueError(f"freqmin ({freqmin}) must be less than freqmax ({freqmax}).")
 
+    # old design, but not needed anymore
     nyq = df/2
-    low, high = freqmin/nyq, freqmax/nyq
+    # low, high = freqmin/nyq, freqmax/nyq
 
-    if low >= 1:
+    if freqmin >= nyq:
         raise ValueError(f"Low corner frequency ({freqmin}) is at or above Nyquist ({nyq}).")
-    if high >= 1:
+    if freqmax >= nyq:
         warn(f"High corner frequency ({freqmax}) is at or above Nyquist ({nyq}). Applying highpass instead.")
         return highpass(data, freq=freqmin, df=df, corners=corners,
                         zerophase=zerophase)
 
-    z, p, k = iirfilter(corners, [low, high], btype="band", ftype=design,
-                        output="zpk", **options)
-    sos = zpk2sos(z, p, k)
+    sos = iirfilter(corners, [freqmin, freqmax], btype="bandpass", ftype=design,
+                        output="sos", fs=df, **options)
+    # sos = zpk2sos(z, p, k) # no needed. scipy can do it now.
 
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
@@ -226,18 +227,20 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
                          f"high corner ({freqmax} Hz).")
 
     nyq = df/2
-    low, high = freqmin/nyq, freqmax/nyq
+    # low, high = freqmin/nyq, freqmax/nyq
 
-    if low >= 1:
+    if freqmin >= nyq:
         raise ValueError(f"Low corner frequency ({freqmin} Hz) is at or above Nyquist ({nyq} Hz).")
-    if high >= 1:
-        high = 1.0
+    if freqmax >= nyq:
+        # freqmax = nyq # scipy can still fail at freqmax getting veeery close to the nyquist
         warn(f"High corner frequency ({freqmax} Hz) is at or above "
              f"Nyquist ({nyq} Hz). Setting Nyquist as high corner.")
+        return lowpass(data, freq=freqmin, df=df, corners=corners,
+                   zerophase=zerophase, design=design, **options)
 
-    z, p, k = iirfilter(corners, [low, high], btype="bandstop", ftype=design,
-                        output="zpk", **options)
-    sos = zpk2sos(z, p, k)
+    sos = iirfilter(corners, [freqmin, freqmax], btype="bandstop", ftype=design,
+                        output="sos", fs=df, **options)
+    # sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
     else:
@@ -292,17 +295,18 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
 
     nyq = df/2
-    f = freq / nyq
-    if f <= 0:
+    # f = freq / nyq
+    if freq <= 0:
         raise ValueError(f"Corner frequency ({freq} Hz) must be positive.")
-    if f > 1:
-        f = 1.0
+    if freq >= nyq:
+        freq = nyq
         warn(f"Selected corner frequency ({freq} Hz) is at or above "
-             f"Nyquist ({nyq} Hz). Setting corner at Nyquist")
+             f"Nyquist ({nyq} Hz). Setting corner at Nyquist. Scipy may fail.")
+        # return data.copy()
 
-    z, p, k = iirfilter(corners, f, btype='lowpass', ftype=design,
-                        output='zpk', **options)
-    sos = zpk2sos(z, p, k)
+    sos = iirfilter(corners, freq, btype='lowpass', ftype=design,
+                        output='sos', fs=df, **options)
+    # sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
     else:
@@ -359,16 +363,16 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     """
 
     nyq = df/2
-    f = freq / nyq
-    if f <= 0:
+    # f = freq / nyq
+    if freq <= 0:
         raise ValueError(f"Corner frequency ({freq} Hz) must be positive.")
-    if f >= 1:
+    if freq >= nyq:
         raise ValueError("Corner frequency ({freq} Hz) is at or above "
                          f"Nyquist ({nyq} Hz).")
 
-    z, p, k = iirfilter(corners, f, btype="highpass", ftype=design,
-                        output="zpk", **options)
-    sos = zpk2sos(z, p, k)
+    sos = iirfilter(corners, freq, btype="highpass", ftype=design,
+                        output="sos", fs=df, **options)
+    # sos = zpk2sos(z, p, k)
     if zerophase:
         return sosfiltfilt(sos, data, axis=0)
     else:

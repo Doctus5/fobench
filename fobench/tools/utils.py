@@ -329,19 +329,37 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 		List containing the new numbers of the channels, with newly created intermediary ones.
 	"""
 
+	d_axis, t_axis = Fiber.__axis__("d"), Fiber.__axis__("t")
+
 	new_channels = [Fiber.channels[0]]
-	shape = (len(Fiber.data[:,0]),1)
-	new_data = Fiber.data[:,0].reshape(shape) #reshaping to not affect original dimensionality.
+ 
+	if d_axis == 1:
 
-	for i in range(Fiber.total_channels-1):
-		first, second = new_data[:,-1].reshape(shape), Fiber.data[:,i+1].reshape(shape)
-		inter = (first + second) / 2
-		new_data = np.concatenate((new_data, inter), axis=1)
-		new_data = np.concatenate((new_data, second), axis=1)
-		inter_num = (new_channels[-1] + Fiber.channels[i+1]) / 2
-		new_channels += ([inter_num, Fiber.channels[i+1]])
+		shape = (Fiber.data.shape[t_axis],1)
+		new_data = Fiber.data[:,0].reshape(shape) #reshaping to not affect original dimensionality.
 
-	return new_data, np.asarray(new_channels)
+		for i in range(Fiber.total_channels-1):
+			first, second = new_data[:,-1].reshape(shape), Fiber.data[:,i+1].reshape(shape)
+			inter = (first + second) / 2
+			new_data = np.concatenate((new_data, inter, second), axis=d_axis)
+			inter_num = (new_channels[-1] + Fiber.channels[i+1]) / 2
+			new_channels += ([inter_num, Fiber.channels[i+1]])
+
+		return new_data, np.asarray(new_channels)
+
+	elif d_axis == 0:
+     
+		shape = (1,Fiber.data.shape[t_axis])
+		new_data = Fiber.data[0,:].reshape(shape) #reshaping to not affect original dimensionality.
+
+		for i in range(Fiber.total_channels-1):
+			first, second = new_data[-1,:].reshape(shape), Fiber.data[i+1,:].reshape(shape)
+			inter = (first + second) / 2
+			new_data = np.concatenate((new_data, inter, second), axis=d_axis)
+			inter_num = (new_channels[-1] + Fiber.channels[i+1]) / 2
+			new_channels += ([inter_num, Fiber.channels[i+1]])
+
+		return new_data, np.asarray(new_channels)
 
 
 def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
@@ -361,7 +379,8 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 		List containing the new numbers of the channels, with the inermediate ones eliminated.
 	"""
 
-	new_data = Fiber.data[:,::2]
+	d_axis = Fiber.__axis__("d")
+	new_data = Fiber.data[:,::2] if d_axis == 1 else Fiber.data[::2,:]
 	new_channels = Fiber.channels[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
 	#new_channels_num = [i for i in range(0,int(len(Fiber.channels_num)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 	#new_channels_num = Fiber.channels_num[:int(len(Fiber.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
@@ -864,7 +883,7 @@ def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: 
 
 
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
-			  start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
+			  start_time: UTC, end_time: UTC, axis: int=0) -> tuple[np.ndarray, UTC, UTC]:
 	"""Trims data in Fiber class in time dimension between given start and end times
 
 	Parameters
@@ -877,6 +896,8 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 		Timestamps of Fiber class.
 	start_time, end_time : UTC datetime
 		Original start and end time of data.
+	axis : int
+		Dimesion to where the trim is applied.
 
 	Raises
 	------
@@ -900,7 +921,7 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 	t0_pos = max(0, np.searchsorted(times, t0, side="right") - 1)
 	tf_pos = max(0, np.searchsorted(times, tf, side="right") - 1)
 
-	data = data[t0_pos:tf_pos, :]
+	data = data[t0_pos:tf_pos, :] if axis == 0 else data[:, t0_pos:tf_pos] # What if one day we have a 1D DAS?
 	start_time = times[t0_pos]
 	end_time = times[tf_pos]
 
