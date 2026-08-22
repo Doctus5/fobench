@@ -367,9 +367,9 @@ class Fiber(object):
 		return self
 
 	@utils._update_processing
-	def decimate(self, new_freq=None, f_type='fir-remez'):
+	def decimate(self, new_freq=None, dim="t", f_type='fir-remez'):
 		'''
-		decimates data to new sampling frequeny, target frequency should divide
+		decimates data to new sampling frequeny or spatial interval (with prefilter), target frequency should divide
 		original sampling frequency evenly
 
 		! careful when decimating using factors >= 13, it is then preferable to
@@ -380,25 +380,46 @@ class Fiber(object):
 			- 'fir235' (author: Javier Quinteros)
 			- 'None', scipy's default anti-aliasing order 8 Chebyshev Type I filter
 		'''
-		axis = self.__axis__('t')
+		axis = self.__axis__(dim)
+  
+		if dim == "t":
 
-		if new_freq is None:
-			raise ValueError('new_freq must be provided as a positive number in Hz')
-		if new_freq <= 0:
-			raise ValueError(f'new_freq must be > 0 Hz, got {new_freq}')
-		if new_freq > self.sampling_frequency:
-			raise ValueError(f'new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_frequency} Hz)')
+			if new_freq is None:
+				raise ValueError('new_freq (temporal) must be provided as a positive number in Hz')
+			if new_freq <= 0:
+				raise ValueError(f'new_freq must be > 0 Hz, got {new_freq}')
+			if new_freq > self.sampling_frequency:
+				raise ValueError(f'new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_frequency} Hz)')
 
-		if self.sampling_frequency % new_freq != 0:
-			warn(f'Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead')
-		down_factor = int(self.sampling_frequency / new_freq)
-		new_freq = self.sampling_frequency / down_factor
+			if self.sampling_frequency % new_freq != 0:
+				warn(f'Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead')
+			down_factor = int(self.sampling_frequency / new_freq)
+			new_freq = self.sampling_frequency / down_factor
 
-		self.data = filters.decimate(data=self.data, factor=down_factor, f_type=f_type, axis=axis)
+			self.data = filters.decimate(data=self.data, factor=down_factor, f_type=f_type, axis=axis)
 
-		self.sampling_frequency  = new_freq
-		self.dt = 1 / self.sampling_frequency
-		self.num_points = self.data.shape[axis]
+			self.sampling_frequency  = new_freq
+			self.dt = 1 / self.sampling_frequency
+			self.num_points = self.data.shape[axis]
+
+		elif dim == "d": # filtering and decimate spatially
+
+			new_dx = new_freq
+			if new_dx is None:
+				raise ValueError('new_freq (spatial) must be provided as a positive number in meters')
+			if new_dx <= self.spatial_interval:
+				raise ValueError(f"target spatial interval must be larger than {self.spatial_interval} meters")
+
+			factor = int(new_freq / self.spatial_interval)
+			if not np.isclose(self.spatial_interval * factor, new_dx):
+				warn(f"Spatial interval of {new_dx} not possible. Therefore, the new spatial interval would be of {self.spatial_interval*factor} meters")
+
+			self.data = filters.decimate(data=self.data, factor=factor, f_type=f_type, axis=axis)
+
+			self.spatial_interval *=  factor
+			self.channels = self.channels[::factor]
+			self.distances = (self.channels -self.channel_offset) * self.spatial_interval
+			self.total_channels = len(self.channels)
 
 		return self
 
@@ -417,11 +438,13 @@ class Fiber(object):
 		return self
 
 	@utils._update_processing
-	def whiten(self, freq_min=0.01, freq_max=100):
+	def whiten(self, freq_min=0.01, freq_max=100, dim="t"):
 		'''
 		spectral whitening of data
 		see fiber.tools.signals.whiten_signal for more details
 		'''
+
+		axis = self.__axis__(dim)
 
 		if not any('filter' in preprocessing for preprocessing in self.processing):
 					  warn('Data has possibly not been filtered before whitening! Check'
@@ -429,12 +452,12 @@ class Fiber(object):
 
 		self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
 									sampling_frequency=self.sampling_frequency,
-									total_channels=self.total_channels)
+									total_channels=self.total_channels, axis=axis)
 
 		return self
 
 	@utils._update_processing
-	def filter(self, f_type=None, freq=None, pre_process=True, alpha=0.05, order=1, sym=True,
+	def filter(self, f_type=None, freq=None, pre_process=True, alpha=0.05, order=1, sym=True, dim="t",
 			**options):
 		'''
 		filters data using specified filter, based on Obspy.signal.filter module
@@ -442,22 +465,28 @@ class Fiber(object):
 		filter types are bandpass', 'bandstop', 'lowpass', 'highpass' and 'median''
 		if 'bandpass' or 'bandstop', freq must be tuple(float, float)
 		'''
-		if pre_process and f_type != 'median':
-			self.preprocess(alpha=alpha, sym=sym, order=order, axis=0)
 
+		axis = self.__axis__(dim)
+		if pre_process and f_type != 'median':
+			self.preprocess(alpha=alpha, sym=sym, order=order, dim=dim)
+
+		df = self.sampling_frequency if dim == "t" else 1/self.spatial_interval
 		self.data = filters.point_filter(f_type=f_type, data=self.data,
-								  df=self.sampling_frequency, freq=freq, **options)
+								  df=df, freq=freq, axis=axis, **options)
 
 		return self
 
 	@utils._update_processing
-	def preprocess(self, alpha=0.05, order=1, sym=True, axis=0, steps=(True, True, True)):
+	def preprocess(self, alpha=0.05, order=1, sym=True, dim="t", steps=(True, True, True)):
 		'''
 		performs demeaning, detrending and tapering, see fobench.tools.signals.filt_preprocess
 		for more details
 		'''
+
+		axis = self.__axis__(dim)
 		self.data = signals.filt_preprocess(io_signal=self.data, order=order,
-									  alpha=alpha, sym=sym, axis=axis)
+									  alpha=alpha, sym=sym, axis=axis, steps=steps)
+		
 		return self
 
 	@utils._update_processing

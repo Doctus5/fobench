@@ -18,7 +18,7 @@ except ImportError:
 from fobench.plotting import plotting_pyqt as pyqt
 
 def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
-                 freq: float | tuple[float, float] = None, **options) -> np.ndarray:
+                 freq: float | tuple[float, float] = None, axis: int=0, **options) -> np.ndarray:
     """ Dispatcher for various filter functions
 
     Parameters
@@ -65,14 +65,15 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
         if not isinstance(freq, (tuple, list)) or len(freq) != 2:
             raise ValueError(f"For filter type '{f_type}' freq must be a tuple of "
                              f"(freqmin, freqmax), got: {freq=} instead!")
-        result = filter_func(data=data, df=df, freqmin=freq[0], freqmax=freq[1], **options)
+        result = filter_func(data=data, df=df, freqmin=freq[0], freqmax=freq[1], axis=axis, **options)
     elif f_type in {"lowpass", "highpass", "lp_fir", "lp_cheby2"}:
         if not isinstance(freq, (int, float)):
             raise ValueError(f"For filter type '{f_type}' freq must be a int or "
                              f"float, got: {type(freq).__name__} with {freq=} instead!")
-        result = filter_func(data=data, df=df, freq=freq, **options)
+        result = filter_func(data=data, df=df, freq=freq, axis=axis, **options)
     elif f_type in {"median", "afk"}:
         result = filter_func(data=data, **options)
+    
     return result
 
 """
@@ -91,7 +92,7 @@ modified from `here <https://docs.obspy.org/_modules/obspy/signal/filter.html>`_
 """
 
 def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
-             corners: int = 4, zerophase: bool = False, design: str = "butter",
+             corners: int = 4, zerophase: bool = False, design: str = "butter", axis: int=0,
              **options):
     """ Bandpass Filter. Filters data from ``freqmin`` to ``freqmax`` using
     ``corners`` corners.
@@ -156,19 +157,19 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
     if freqmax >= nyq:
         warn(f"High corner frequency ({freqmax}) is at or above Nyquist ({nyq}). Applying highpass instead.")
         return highpass(data, freq=freqmin, df=df, corners=corners,
-                        zerophase=zerophase)
+                        zerophase=zerophase, axis=axis)
 
     sos = iirfilter(corners, [freqmin, freqmax], btype="bandpass", ftype=design,
                         output="sos", fs=df, **options)
     # sos = zpk2sos(z, p, k) # no needed. scipy can do it now.
 
     if zerophase:
-        return sosfiltfilt(sos, data, axis=0)
+        return sosfiltfilt(sos, data, axis=axis)
     else:
-        return sosfilt(sos, data, axis=0)
+        return sosfilt(sos, data, axis=axis)
 
 def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
-             corners: int = 4, zerophase: bool = False, design: str = "butter",
+             corners: int = 4, zerophase: bool = False, design: str = "butter", axis: int=0,
              **options)-> np.ndarray:
     """ Bandstop Filter. Filters data removing data between frequencies ``freqmin``
     and ``freqmax`` using ``corners`` corners.
@@ -236,19 +237,19 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
         warn(f"High corner frequency ({freqmax} Hz) is at or above "
              f"Nyquist ({nyq} Hz). Setting Nyquist as high corner.")
         return lowpass(data, freq=freqmin, df=df, corners=corners,
-                   zerophase=zerophase, design=design, **options)
+                   zerophase=zerophase, design=design, axis=axis, **options)
 
     sos = iirfilter(corners, [freqmin, freqmax], btype="bandstop", ftype=design,
                         output="sos", fs=df, **options)
     # sos = zpk2sos(z, p, k)
     if zerophase:
-        return sosfiltfilt(sos, data, axis=0)
+        return sosfiltfilt(sos, data, axis=axis)
     else:
-        return sosfilt(sos, data, axis=0)
+        return sosfilt(sos, data, axis=axis)
 
 
 def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
-            zerophase: bool = False, design: str = "butter", **options)-> np.ndarray:
+            zerophase: bool = False, design: str = "butter", axis: int=0, **options)-> np.ndarray:
     """ Lowpass Filter. Filters data removing data over certain frequency ``freq``
     using ``corners``
 
@@ -308,13 +309,13 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
                         output='sos', fs=df, **options)
     # sos = zpk2sos(z, p, k)
     if zerophase:
-        return sosfiltfilt(sos, data, axis=0)
+        return sosfiltfilt(sos, data, axis=axis)
     else:
-        return sosfilt(sos, data, axis=0)
+        return sosfilt(sos, data, axis=axis)
 
 
 def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
-             zerophase: bool = False, design: str = "butter", **options)-> np.ndarray:
+             zerophase: bool = False, design: str = "butter", axis: int=0, **options)-> np.ndarray:
     """ Highpass Filter. Filters data removing data below certain frequency
     ``freq`` using ``corners`` corners.
 
@@ -374,12 +375,12 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
                         output="sos", fs=df, **options)
     # sos = zpk2sos(z, p, k)
     if zerophase:
-        return sosfiltfilt(sos, data, axis=0)
+        return sosfiltfilt(sos, data, axis=axis)
     else:
-        return sosfilt(sos, data, axis=0)
+        return sosfilt(sos, data, axis=axis)
 
 def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
-              numtaps: int = 50, zerophase: bool = False)-> np.ndarray:
+              numtaps: int = 50, zerophase: bool = False, axis: int=0)-> np.ndarray:
     """ Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
     specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
@@ -425,12 +426,12 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
                  np.array([0, 1, 0]), fs=df)
 
     if zerophase:
-        return filtfilt(filt, 1.0, data, axis=0)
+        return filtfilt(filt, 1.0, data, axis=axis)
     else:
-        return lfilter(filt, 1.0, data, axis=0)
+        return lfilter(filt, 1.0, data, axis=axis)
 
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
-                zerophase: bool = False) -> np.ndarray:
+                zerophase: bool = False, axis: int=0) -> np.ndarray:
     """ FIR-Lowpass filter. Filter data by passing data only below a certain frequency.
     For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`_
 
@@ -471,9 +472,9 @@ def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
     kernel = abs(myh)
 
     if zerophase:
-        return filtfilt(kernel, 1.0, data, axis=0)
+        return filtfilt(kernel, 1.0, data, axis=axis)
     else:
-        return lfilter(kernel, 1.0, data, axis=0)
+        return lfilter(kernel, 1.0, data, axis=axis)
 
 def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
     """ Downsampling by simple integer decimation. The new sampling rate is initial
@@ -515,7 +516,7 @@ def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
 
 
 def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12,
-                    ba: bool = False, freq_passband: bool = False)-> np.ndarray:
+                    ba: bool = False, freq_passband: bool = False, axis: int=0)-> np.ndarray:
     """ Cheby2-Lowpass Filter. Filter data by passing data only below a certain frequency.
     The main purpose of this cheby2 filter is downsampling. This method will
     iteratively design a filter, whose pass band frequency is determined dynamically,
@@ -566,8 +567,8 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     z, p, k = cheby2(order, rs, wn, btype="low", analog=0, output="zpk")
     sos = zpk2sos(z, p, k)
     if freq_passband:
-        return sosfilt(sos, data, axis=0), wp*nyquist
-    return sosfilt(sos, data, axis=0)
+        return sosfilt(sos, data, axis=axis), wp*nyquist
+    return sosfilt(sos, data, axis=axis)
 
 """
 -----------------------------------------------------------------
