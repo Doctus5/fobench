@@ -463,12 +463,25 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = 'spectrum', pre_p
         o_signal = filt_preprocess(io_signal=o_signal, order=order, axis=axis)
 
     if mode == 'spectrum':
-        	o_signal = np.pad(o_signal, (pad-1, pad), mode='constant') if pad > 0 else o_signal
-        	n = o_signal.shape[axis] if nfft is None else o_signal.shape[axis]
-        	fft = np.fft.fft(o_signal, n=n, axis=axis)
-        	freq_axis = np.fft.fftfreq(n, 1 / fs)
-        	positive_freqs = freq_axis[:n//2]
-        	magnitude = 2/n * np.abs(fft)[:n//2]
+        if pad > 0:
+            if o_signal.ndim == 1:
+                o_signal = np.pad(o_signal, (pad-1, pad), mode='constant')
+            elif axis == 0:
+                o_signal = np.pad(o_signal, ((pad-1, pad),(0, 0)), mode='constant')
+            else:
+                o_signal = np.pad(o_signal, ((0, 0),(pad-1, pad)), mode='constant')
+        
+        n = o_signal.shape[axis] if nfft is None else nfft
+        fft = np.fft.fft(o_signal, n=n, axis=axis)
+        freq_axis = np.fft.fftfreq(n, 1 / fs)
+        positive_freqs = freq_axis[:n//2]
+        
+        if o_signal.ndim == 1:
+            magnitude = 2/n * np.abs(fft)[:n//2]
+        elif axis == 0:
+            magnitude = 2/n * np.abs(fft)[:n//2, :]
+        else:
+            magnitude = 2/n * np.abs(fft)[:, :n//2]
 
     elif mode == 'psd':
         positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis)

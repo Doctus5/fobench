@@ -157,7 +157,7 @@ class Fiber(object):
 		if not self.corrected:
 			(self.data, self.units, self.channels,
 			self.total_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
-									target=target, terra15_gl=terra15_gl)
+									target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"))
 			# self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels_num]
 			self.corrected = True
 			return self
@@ -496,10 +496,12 @@ class Fiber(object):
 
 		out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
 								bands=bands, propagation=propagation, alpha=alpha,
-								plot_mode=plot_mode, verbose=verbose, mode=mode)
-		self.data = out[0] if len(out) == 3 else out
+								plot_mode=plot_mode, verbose=verbose, mode=mode, t_axis=self.__axis__("t"), d_axis=self.__axis__("d"))
+		
+		self.data = out[0] if verbose else out
 		if results:
 			return (out[0], out[1], out[2]) if verbose else (out[0])
+
 		return self
 
 
@@ -815,7 +817,9 @@ class Fiber(object):
 		computes sptial coherence matrix, see fiber.tools.wavefield.spatial_coherence_matrix
 		for more details
 		'''
-		coh = wavefield.spatial_coherence_matrix(data=self.data.T, max_lag=max_lag,
+
+		data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
+		coh = wavefield.spatial_coherence_matrix(data=data_input, max_lag=max_lag,
 										   distances=self.distances,
 										   fs=self.sampling_frequency,
 										   channel_nums=self.channels,

@@ -763,7 +763,8 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
 
 def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               propagation: str | None = None, alpha: float = 0.3,
-              plot_mode:str = "pyqt", verbose: bool = False, mode="pass"):
+              plot_mode:str = "pyqt", verbose: bool = False, mode="pass",
+              t_axis: int = 0, d_axis: int = 1):
     """ Frequency wavenumber filter
     :Contributors: : Johannes Hart (GFZ-Potsdam)
 
@@ -788,6 +789,10 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
         If ``True`` additionally returns the fk spectrum and fk mask
     mode : str
         Either ``"pass"`` or ``"remove"`` the specified band(s).
+    t_axis : int
+        Dimension where the time axis is located
+    d_axis : int
+        Dimension where the distance/channel axis is located
 
 
     See also
@@ -806,8 +811,9 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
 
     """
 
-    nt, nx = data.shape
-    data_fk = fftshift(fft(rfft(data, axis=0), axis=1), axes=1) # transform and shift data
+    data_td = np.moveaxis(data, (t_axis, d_axis), (0, 1))
+    nt, nx = data_td.shape
+    data_fk = fftshift(fft(rfft(data_td, axis=0), axis=1), axes=1) # transform and shift data
     f = rfftfreq(nt, d=dt) # frequency axis
     k = fftshift(fftfreq(nx, d=dx)) # wavenumber axis
     mask = fk_mask(bands=bands, f=f, k=k, propagation=propagation, alpha=alpha,
@@ -822,8 +828,10 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
         plot_mode = "pyqt"
 
     if plot_mode == "pyqt":
-        pyqt.plot_fk(wf_ini=data, wf_filt=data_filt, wf_fk=data_fk,
+        pyqt.plot_fk(wf_ini=data_td, wf_filt=data_filt, wf_fk=data_fk,
                      mask=mask, f=f, k=k, dt=dt)
+    
+    data_filt = np.moveaxis(data_filt, (0,1), (t_axis, d_axis))
 
     return (data_filt, data_fk, mask) if verbose else data_filt
 

@@ -107,7 +107,7 @@ def _update_processing(func):
 	return wrapper
 
 def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "strain-rate",
-				terra15_gl: float = None) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
+				terra15_gl: float = None, axis: int = 0) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
 	"""Performs instrument correction and data conversion for various instrument types
 
 	Parameters
@@ -121,6 +121,8 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 	terra15_gl : float, optional
 		Gauge length for velocity to strain-rate conversion for Terra15 data.
 		If not specified, original gauge length from Fiber.gauge_length is taken.
+	axis : int, optional
+		Axis to where the change must be applied (important just for terra15)
 
 	Returns
 	-------
@@ -153,7 +155,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			gauge_samples = 1 if gauge_samples < 1 else gauge_samples
 			gl = gauge_samples * attributes["spatial_interval"]
 			print(f"\n⚠️ Applying the nearest possible gauge length: {gl}m")
-			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl
+			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl if axis == 1 else (data[gauge_samples:, :] - data[:-gauge_samples, :]) / gl
 			n_left = gauge_samples // 2
 			n_right = gauge_samples - n_left
 			if gauge_samples != 0:
@@ -410,8 +412,9 @@ def to_traces(Fiber, t_type: str)-> Stream:
 	stream = Stream() if t_type == 'obspy' else []
 
 	for i in trange(Fiber.total_channels, desc="Creating Stream"):
+		data = Fiber.data[i,:] if Fiber.__axis__("d") == 0 else Fiber.data[:,i]
 		if t_type == "obspy":
-			trace = oTrace(data=Fiber.data[:,i])
+			trace = oTrace(data=data)
 			trace.stats.network = Fiber.fiber
 			trace.stats.station = str(Fiber.channels[i]).zfill(5)
 # 			trace.stats.npts = self.num_points #+ 1
@@ -425,7 +428,7 @@ def to_traces(Fiber, t_type: str)-> Stream:
 # 			print(stream)
 
 		elif t_type == "pyrocko":
-			trace = pTrace(ydata=Fiber.data[:,i])
+			trace = pTrace(ydata=data)
 			trace.network = Fiber.fiber
 			trace.station = str(Fiber.channels[i]).zfill(5)
 			trace.deltat = Fiber.dt
@@ -451,12 +454,14 @@ def to_xarray(Fiber, name=None, use_distance=False):
     attrs = clean_metadata(Fiber)
     
     if use_distance:
-        dims = ("time", "distance")
+        dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "distance"}
+        dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
         coords = {"time": ("time",times),
                   "distance": ("distance",distances),
                   "channel": ("distance",channels)}
     else:
-        dims = ("time", "channel")
+        dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "channel"}
+        dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
         coords = {"time": ("time",times),
                 "channel": ("channel",channels),
 				"distance": ("channel",distances)}
@@ -532,7 +537,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 			f"\n⚠️ Unrecognized time format '{time_type}'! Please choose one of:\n"
 			" -'UTCDateTime'\n -'isoformat'\n -'matplotlib'\n -'unix'")
 
-	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.data.shape[0])]
+	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.num_points)]
 
 	return np.array([converters[time_type](t) for t in times])
 
