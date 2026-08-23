@@ -125,6 +125,13 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     '''
 
     o_signal = np.asarray(o_signal, dtype=float)
+    
+    if order == 0:
+        return signal.detrend(o_signal, axis=axis, type="constant")
+    if order == 1:
+        return signal.detrend(o_signal, axis=axis, type="linear")
+    
+    # when order of detrned is higher than 1
     new_signal = np.empty_like(o_signal)
 
     if o_signal.ndim == 1:
@@ -330,9 +337,14 @@ def normalize_signal(data: np.ndarray, method:str = 'absolute max',
             raise TypeError('please provide a window length for the running absolute mean normalization')
 
         normalized_data = data.copy()
+        # from scipy.ndimage import uniform_filter1d
 
         w_len = int(fs * ram_window)
         t_axis = 0 if axis == 1 else 1
+        
+        # weight = uniform_filter1d(np.abs(data), size=w_len, axis=t_axis, mode="nearest")
+        # weight[weight == 0] = 1
+        # normalized_data = data / weight
 
         for i in tqdm(range(total_channels), desc='Running mean normalization', leave=False):
             for segment_start in range(num_points - w_len + 1):

@@ -332,36 +332,23 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 	"""
 
 	d_axis, t_axis = Fiber.__axis__("d"), Fiber.__axis__("t")
+	data = Fiber.data
+	channels = np.asarray(Fiber.channels)
 
-	new_channels = [Fiber.channels[0]]
- 
+	new_channels = np.empty(2 * Fiber.total_channels - 1, dtype=float)
+	new_channels[0::2] = channels
+	new_channels[1::2] = 0.5 * (channels[:-1] + channels[1:])
+
 	if d_axis == 1:
+		new_data = np.empty((data.shape[t_axis], 2*Fiber.total_channels - 1), dtype=np.result_type(data, float))
+		new_data[:, 0::2] = data
+		new_data[:, 1::2] = 0.5 * (data[:, :-1] + data[:, 1:])
+	else:
+		new_data = np.empty((2*Fiber.total_channels - 1, data.shape[t_axis]), dtype=np.result_type(data, float))
+		new_data[0::2, :] = data
+		new_data[1::2, :] = 0.5 * (data[:-1, :] + data[1:, :])
 
-		shape = (Fiber.data.shape[t_axis],1)
-		new_data = Fiber.data[:,0].reshape(shape) #reshaping to not affect original dimensionality.
-
-		for i in range(Fiber.total_channels-1):
-			first, second = new_data[:,-1].reshape(shape), Fiber.data[:,i+1].reshape(shape)
-			inter = (first + second) / 2
-			new_data = np.concatenate((new_data, inter, second), axis=d_axis)
-			inter_num = (new_channels[-1] + Fiber.channels[i+1]) / 2
-			new_channels += ([inter_num, Fiber.channels[i+1]])
-
-		return new_data, np.asarray(new_channels)
-
-	elif d_axis == 0:
-     
-		shape = (1,Fiber.data.shape[t_axis])
-		new_data = Fiber.data[0,:].reshape(shape) #reshaping to not affect original dimensionality.
-
-		for i in range(Fiber.total_channels-1):
-			first, second = new_data[-1,:].reshape(shape), Fiber.data[i+1,:].reshape(shape)
-			inter = (first + second) / 2
-			new_data = np.concatenate((new_data, inter, second), axis=d_axis)
-			inter_num = (new_channels[-1] + Fiber.channels[i+1]) / 2
-			new_channels += ([inter_num, Fiber.channels[i+1]])
-
-		return new_data, np.asarray(new_channels)
+	return new_data, new_channels
 
 
 def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
