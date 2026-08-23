@@ -29,6 +29,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.ch0, self.chf = Fiber.channels[0], Fiber.channels[-1]
         self.selected_channel = self.ch0
         self.selected_distance = Fiber.distances[0]
+        self.data = Fiber.data.T if Fiber.__axis__("t") else Fiber.data
 
         # set up window
         self.setWindowTitle('Fobench Data Viewer')
@@ -55,7 +56,7 @@ class Viewer(QtWidgets.QMainWindow):
         # main data plot
         self.matrix_plot_widget = pg.GraphicsLayoutWidget()
         self.matrix_plot = self.matrix_plot_widget.addPlot()
-        self.matrix_image = pg.ImageItem(image=Fiber.data)
+        self.matrix_image = pg.ImageItem(image=self.data)
         self.matrix_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
         self.matrix_plot.addItem(self.matrix_image)
         self.matrix_plot.setAspectLocked(False)
@@ -263,7 +264,7 @@ class Viewer(QtWidgets.QMainWindow):
             self.y_picker.setValue(float(self.selected_channel))
         else:
             self.y_picker.setValue(self.selected_distance)
-        row_data = self.Fiber.data[:, ind]
+        row_data = self.data[:, ind]
         self.line_curve.setData(x=self.times, y=row_data)
         self.line_plot.getViewBox().setLimits(
             xMin=self.times[0], xMax=self.times[-1],
@@ -381,7 +382,7 @@ class Viewer(QtWidgets.QMainWindow):
     def update_colorbar_levels(self) -> None:
         '''Updates the colorbar levels after change by user'''
         percentile = self.cbar_spinbox.value()
-        abs_percentile = np.percentile(np.abs(self.Fiber.data), percentile)
+        abs_percentile = np.percentile(np.abs(self.data), percentile)
         self.hist.setLevels(-abs_percentile, abs_percentile)
 
 
