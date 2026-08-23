@@ -620,12 +620,12 @@ class Fiber(object):
 		if vmax is None: vmax = p95
 		if plot_mode == 'pyqt':
 			plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels),
-							  y_ticks=freqs, data=np.flip(np.rot90(fx, k=1), axis=0),
+							  y_ticks=freqs, data=fx if axis else fx.T,
 							  cmap=cmap, vmin=vmin, vmax=vmax, y_label='Frequency [Hz]',
 							  title='Frequency content', cbar_label=self.units)
 
 		elif plot_mode == 'mpl':
-			plot.mpl_fx_plot(spec_matrix=fx[::-1], freqs=freqs, x=self.channels,
+			plot.mpl_fx_plot(spec_matrix=np.rot90(fx) if axis else fx[::-1], freqs=freqs, x=self.channels,
 					 units_y='Energy', figsize=figsize, title=str(self.start_time.date),
 					 cmap=cmap, file_name=file_name, vmin=vmin, vmax=vmax, **kwargs)
 

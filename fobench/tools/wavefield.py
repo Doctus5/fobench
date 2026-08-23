@@ -136,14 +136,14 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     if plot_mode == 'pyqt':
         if vmin is None: vmin = result.min()
         if vmax is None: vmax = result.max()
-        plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(result),
+        plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(result.T) if axis else np.rot90(result),
                          y_ticks=np.arange(0, max_shift)/fs, y_label = 'Lag/TWT [s]',
                          title = 'Autocorrelation Profile', cmap = 'viridis',
                          channels_num=channels_num, cbar_label = 'Correlation Coefficient',
                          invert_y=True, vmin=vmin, vmax=vmax)
 
     elif plot_mode == 'mpl':
-        plot_acfs(acfs=result, distances=distances, fs=fs,
+        plot_acfs(acfs=np.rot90(result, k=-1) if axis else np.fliplr(result), distances=distances, fs=fs,
                   max_shift=max_shift, **imshow_kwargs)
 
     return result
