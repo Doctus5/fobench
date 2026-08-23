@@ -28,11 +28,11 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 """TOOLS USED EXCLUSIVE FOR Fiber CLASS"""
 
 STRAIN_UNIT_MAP = {	  # mapping for strain(rate) data
-                   -1: "integrated strain",
-                   0: "strain",
-                   1: "strain-rate",
-                   2: "strain-acceleration",
-                   3: "strain-jerk"}
+					-1: "integrated strain",
+					0: "strain",
+					1: "strain-rate",
+					2: "strain-acceleration",
+					3: "strain-jerk"}
 
 VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
                 -1: "m",
@@ -41,10 +41,16 @@ VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
                 2: "m/s^3"}
 
 TEMP_UNIT_MAP = {		# mapping for temperature data
-                 -1: "integrated temperature",
-                 0: "temperature",
-                 1: "temperature rate",
-                 2: "temperature acceleration"}
+				-1: "integrated temperature",
+				0: "temperature",
+				1: "temperature rate",
+				2: "temperature acceleration"}
+
+COUNT_UNIT_MAP = {
+				-1: "integrated counts",
+				0: "counts",
+				1: "d/dt counts",
+				2: "d/dt^2 counts"}
 
 UNKNOW_UNIT_MAP = {      # mapping for data with unknow unit
                    -1: "integrated units",
@@ -82,7 +88,8 @@ def _update_processing(func):
 				unit_map = STRAIN_UNIT_MAP
 				if fiber.company == "terra15" and "strain" not in fiber.units:
 					if fiber.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
-				if fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
+				if fiber.units == "counts": unit_map = COUNT_UNIT_MAP
+				elif fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
 			elif fiber.sensing == "dts":
 				unit_map = TEMP_UNIT_MAP
 
@@ -102,8 +109,7 @@ def _update_processing(func):
 	return wrapper
 
 def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "strain-rate",
-				terra15_gl: float = None) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
-
+				terra15_gl: float = None, axis: int = 0) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
 	"""Performs instrument correction and data conversion for various instrument types
 
 	Parameters
@@ -117,6 +123,8 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 	terra15_gl : float, optional
 		Gauge length for velocity to strain-rate conversion for Terra15 data.
 		If not specified, original gauge length from Fiber.gauge_length is taken.
+	axis : int, optional
+		Axis to where the change must be applied (important just for terra15)
 
 	Returns
 	-------
@@ -126,8 +134,6 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 		(New) unit of measurement.
 	attributes["channels"] : np.ndarray
 		(New) channels.
-	attributes["channels_num"] : list
-		(New) channel_numbers.
 	attributes["gauge_length"] : float
 		(New) gauge length.
 
@@ -151,12 +157,11 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			gauge_samples = 1 if gauge_samples < 1 else gauge_samples
 			gl = gauge_samples * attributes["spatial_interval"]
 			print(f"\n⚠️ Applying the nearest possible gauge length: {gl}m")
-			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl
+			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl if axis == 1 else (data[gauge_samples:, :] - data[:-gauge_samples, :]) / gl
 			n_left = gauge_samples // 2
 			n_right = gauge_samples - n_left
 			if gauge_samples != 0:
 				attributes["channels"] = attributes["channels"][n_left:-n_right]
-				attributes["channels_num"] = attributes["channels_num"][n_left:-n_right]
 				attributes["distances"] = attributes["distances"][n_left:-n_right]
 				attributes["total_channels"] = attributes["channels"].size
 			attributes["gauge_length"] = gl
@@ -185,7 +190,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			factor = 1E-6 / 18.4 # strain per count (WEIRD!)
 			data = np.multiply(data,factor)
 
-	elif (format == "h5" or format == "hdf5") and company == "michelle": # Michelle HDF5 decimated from Silixa
+	elif (format == "h5" or format == "hdf5") and company == "michele": # Michelle HDF5 decimated from Silixa
 		if units == "counts" and target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
@@ -194,7 +199,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
-	return data, target, attributes['channels'], attributes['channels_num'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
+	return data, target, attributes['channels'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
 
 
 def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
@@ -333,19 +338,24 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 
 	"""
 
-	new_channels_num = [Fiber.channels_num[0]]
-	shape = (len(Fiber.data[:,0]),1)
-	new_data = Fiber.data[:,0].reshape(shape) #reshaping to not affect original dimensionality.
+	d_axis, t_axis = Fiber.__axis__("d"), Fiber.__axis__("t")
+	data = Fiber.data
+	channels = np.asarray(Fiber.channels)
 
-	for i in range(Fiber.total_channels-1):
-		first, second = new_data[:,-1].reshape(shape), Fiber.data[:,i+1].reshape(shape)
-		inter = (first + second) / 2
-		new_data = np.concatenate((new_data, inter), axis=1)
-		new_data = np.concatenate((new_data, second), axis=1)
-		inter_num = (new_channels_num[-1] + Fiber.channels_num[i+1]) / 2
-		new_channels_num += ([inter_num, Fiber.channels_num[i+1]])
+	new_channels = np.empty(2 * Fiber.total_channels - 1, dtype=float)
+	new_channels[0::2] = channels
+	new_channels[1::2] = 0.5 * (channels[:-1] + channels[1:])
 
-	return new_data, new_channels_num
+	if d_axis == 1:
+		new_data = np.empty((data.shape[t_axis], 2*Fiber.total_channels - 1), dtype=np.result_type(data, float))
+		new_data[:, 0::2] = data
+		new_data[:, 1::2] = 0.5 * (data[:, :-1] + data[:, 1:])
+	else:
+		new_data = np.empty((2*Fiber.total_channels - 1, data.shape[t_axis]), dtype=np.result_type(data, float))
+		new_data[0::2, :] = data
+		new_data[1::2, :] = 0.5 * (data[:-1, :] + data[1:, :])
+
+	return new_data, new_channels
 
 
 def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
@@ -367,12 +377,13 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 
 	"""
 
-	new_data = Fiber.data[:,::2]
-	new_channels_num = Fiber.channels_num[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
+	d_axis = Fiber.__axis__("d")
+	new_data = Fiber.data[:,::2] if d_axis == 1 else Fiber.data[::2,:]
+	new_channels = Fiber.channels[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
 	#new_channels_num = [i for i in range(0,int(len(Fiber.channels_num)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 	#new_channels_num = Fiber.channels_num[:int(len(Fiber.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 
-	return new_data, new_channels_num
+	return new_data, np.asarray(new_channels)
 
 def to_traces(Fiber, t_type: str)-> Stream:
 
@@ -398,10 +409,11 @@ def to_traces(Fiber, t_type: str)-> Stream:
 	stream = Stream() if t_type == 'obspy' else []
 
 	for i in trange(Fiber.total_channels, desc="Creating Stream"):
+		data = Fiber.data[i,:] if Fiber.__axis__("d") == 0 else Fiber.data[:,i]
 		if t_type == "obspy":
-			trace = oTrace(data=Fiber.data[:,i])
+			trace = oTrace(data=data)
 			trace.stats.network = Fiber.fiber
-			trace.stats.station = str(Fiber.channels_num[i]).zfill(5)
+			trace.stats.station = str(Fiber.channels[i]).zfill(5)
 # 			trace.stats.npts = self.num_points #+ 1
 			trace.stats.sampling_rate = Fiber.sampling_frequency
 			trace.stats.delta = Fiber.dt
@@ -413,15 +425,80 @@ def to_traces(Fiber, t_type: str)-> Stream:
 # 			print(stream)
 
 		elif t_type == "pyrocko":
-			trace = pTrace(ydata=Fiber.data[:,i])
+			trace = pTrace(ydata=data)
 			trace.network = Fiber.fiber
-			trace.station = str(Fiber.channels_num[i]).zfill(5)
+			trace.station = str(Fiber.channels[i]).zfill(5)
 			trace.deltat = Fiber.dt
 			trace.tmin = str_to_time(Fiber.start_time.isoformat().replace("T"," "))
 			trace.tmax = str_to_time(Fiber.end_time.isoformat().replace("T"," "))
 			stream.append(trace)
 
 	return stream
+
+
+def to_xarray(Fiber, name=None, use_distance=False):
+    
+    try:
+        import xarray as xr
+    except ImportError as exc:
+        raise ImportError("xarray package is required, but no module is found.")
+    
+    # create the different labels and coordinates
+    data_label = name or Fiber.units or "data"
+    times = Fiber.times("datetime64")
+    channels = np.asarray(Fiber.channels)
+    distances = np.asarray(Fiber.distances, dtype=float)
+    attrs = clean_metadata(Fiber)
+    
+    if use_distance:
+        dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "distance"}
+        dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
+        coords = {"time": ("time",times),
+                  "distance": ("distance",distances),
+                  "channel": ("distance",channels)}
+    else:
+        dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "channel"}
+        dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
+        coords = {"time": ("time",times),
+                "channel": ("channel",channels),
+				"distance": ("channel",distances)}
+    
+    return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
+        
+    
+def clean_metadata(Fiber) -> dict:
+	"""Returns a clean metadata of Fiber
+
+	Args:
+		Fiber : _description_
+
+	Returns:
+		dict: clean metadata dicitonary of Fiber class
+	"""
+    
+	attrs = {"fiber": Fiber.fiber,
+			"company": Fiber.company,
+			"format": Fiber.format,
+			"units": Fiber.units,
+			"sampling_frequency": Fiber.sampling_frequency,
+			"o_sampling_frequency": Fiber.o_sampling_frequency,
+			"dt": Fiber.dt,
+			"spatial_interval": Fiber.spatial_interval,
+			"gauge_length": Fiber.gauge_length,
+			"channel_offset": Fiber.channel_offset,
+			"start_time": Fiber.start_time.isoformat(),
+			"end_time": Fiber.end_time.isoformat(),
+			"time_length": Fiber.time_length,
+			"total_channels": Fiber.total_channels,
+			"conv_factor": Fiber.conv_factor,
+			"sensing": Fiber.sensing,
+			# "basefile": getattr(Fiber, "__basefile__", None),
+			"source_files": getattr(Fiber, "__filepath__", None),
+			# "processing": Fiber.processing,
+			# "properties": Fiber.properties
+   			}
+    
+	return attrs
 
 
 def return_times(Fiber, time_type: str)-> np.ndarray:
@@ -434,7 +511,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 		``Fiber`` class object.
 	time_type : str
 		time format to return. options are ``'UTCDateTime'``, ``'isoformat'``,
-		``'matplotlib'`` or ``'unix'``
+		``datetime64``, ``'matplotlib'`` or ``'unix'``
 
 	Raises
 	------
@@ -449,6 +526,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 	"""
 	converters = {"UTCDateTime": lambda t: t,
 				  "isoformat": lambda t: t.isoformat(),
+				  "datetime64": lambda t: np.datetime64(t.datetime, "ns"),
 				  "matplotlib": lambda t: t.matplotlib_date,
 				  "unix": lambda t: t.timestamp}
 
@@ -457,13 +535,358 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 			f"\n⚠️ Unrecognized time format '{time_type}'! Please choose one of:\n"
 			" -'UTCDateTime'\n -'isoformat'\n -'matplotlib'\n -'unix'")
 
-	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.data.shape[0])]
+	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.num_points)]
 
 	return np.array([converters[time_type](t) for t in times])
 
-def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
-			  start_time: UTC, end_time: UTC) -> tuple[np.ndarray, UTC, UTC]:
 
+def _to_seconds(value) -> float:
+    
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        
+        return float(value)
+    
+    return float(UTC(value))
+
+
+def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
+    
+    x = np.arange(data.shape[0])
+    
+    for j in range(data.shape[1]):
+        
+        y = data[:, j]
+        valid = np.isfinite(y)
+        
+        if np.any(valid) and not np.all(valid):
+            
+            y[~valid] = np.interp(x[~valid], x[valid], y[valid])
+    
+    return data
+
+
+def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2, 
+                      dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
+                      out: np.ndarray = None) -> np.ndarray:
+	"""2D concatenaiton of matrices with time series data.
+
+	Parameters
+	----------
+	data1 : np.ndarray
+		_description_
+	data2 : np.ndarray
+		_description_
+	start1 : _type_
+		_description_
+	end1 : _type_
+		_description_
+	dt1 : float
+		_description_
+	start2 : _type_
+		_description_
+	end2 : _type_
+		_description_
+	dt2 : float
+		_description_
+	axis : int, optional
+		_description_, by default 0
+	overlap : str, optional
+		_description_, by default 'data2'
+	gap : str, optional
+		_description_, by default 'nan'
+	tolerance : float, optional
+		_description_, by default 1.0
+	out : np.ndarray, optional
+		_description_, by default None
+
+	Returns
+	-------
+	np.ndarray
+		_description_
+
+	Raises
+	------
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	"""
+
+	if data1.ndim != 2 or data2.ndim != 2:
+		raise ValueError('Both inputs must be 2D matrices.')
+	if axis not in (0, 1):
+		raise ValueError('axis must be 0 or 1.')
+	if overlap not in ('data1', 'data2', 'mean'):
+		raise ValueError('overlap must be "data1", "data2", or "mean".')
+	if gap not in ('nan', 'zero', 'linear'):
+		raise ValueError('gap must be "nan", "zero", or "linear".')
+
+	a = np.moveaxis(data1, axis, 0)
+	b = np.moveaxis(data2, axis, 0)
+	if a.shape[1] != b.shape[1]:
+		raise ValueError('Input shapes are incompatible on non-concatenation axis.')
+
+	if not np.isclose(dt1, dt2):
+		raise ValueError(f'dt mismatch: dt1={dt1}, dt2={dt2}.')
+	dt = float(dt1)
+	if dt <= 0:
+		raise ValueError('dt must be positive.')
+
+	s1, e1 = _to_seconds(start1), _to_seconds(end1)
+	s2, e2 = _to_seconds(start2), _to_seconds(end2)
+	n1_exp = int(round((e1 - s1) / dt)) + 1
+	n2_exp = int(round((e2 - s2) / dt)) + 1
+	if abs(n1_exp - a.shape[0]) > 1 or abs(n2_exp - b.shape[0]) > 1:
+		raise ValueError('Start/end/dt are not consistent with input matrix length.')
+
+	# Snap data2 to data1 grid.
+	off = (s2 - s1) / dt
+	off_r = int(round(off))
+	adjust_sec = abs(off - off_r) * dt
+	if adjust_sec > (tolerance * dt):
+		raise ValueError(f'Time adjustment too large ({adjust_sec:.6f}s > {tolerance * dt:.6f}s).')
+
+	# Scalar arithmetic only (no large index arrays).
+	n1, n2 = a.shape[0], b.shape[0]
+	i0 = min(0, off_r)
+	a0 = -i0
+	b0 = off_r - i0
+	n_out = max(a0 + n1, b0 + n2)
+	sa = slice(a0, a0 + n1)
+	sb = slice(b0, b0 + n2)
+
+	out_dtype = float if (gap in ('nan', 'linear') or overlap == 'mean') else np.result_type(a.dtype, b.dtype)
+	shape_out = (n_out, a.shape[1])
+
+	if out is not None:
+		if out.shape != shape_out:
+			raise ValueError(f'Provided out has wrong shape {out.shape}, expected {shape_out}.')
+		if not np.can_cast(out_dtype, out.dtype, casting='safe'):
+			raise ValueError(f'Provided out dtype {out.dtype} is incompatible with required {out_dtype}.')
+		out_arr = out
+		out_arr[:] = np.nan if gap in ('nan', 'linear') else 0
+	else:
+		if gap in ('nan', 'linear'):
+			out_arr = np.full(shape_out, np.nan, dtype=out_dtype)
+		else:
+			out_arr = np.zeros(shape_out, dtype=out_dtype)
+
+	if overlap == 'data2':
+		out_arr[sa, :] = a
+		out_arr[sb, :] = b
+	elif overlap == 'data1':
+		out_arr[sb, :] = b
+		out_arr[sa, :] = a
+	else:  # overlap == 'mean'
+		out_arr[sa, :] = a
+		out_arr[sb, :] = b
+		ov0 = max(a0, b0)
+		ov1 = min(a0 + n1, b0 + n2)
+		if ov1 > ov0:
+			ia = ov0 - a0
+			ib = ov0 - b0
+			n_ov = ov1 - ov0
+			out_arr[ov0:ov1, :] = 0.5 * (a[ia:ia+n_ov, :] + b[ib:ib+n_ov, :])
+
+	if gap == 'linear':
+		_interp_nan_along_axis0_inplace(out_arr)
+
+	return np.moveaxis(out_arr, 0, axis)
+
+
+
+def _to_seconds(value) -> float:
+    
+    if isinstance(value, (int, float, np.integer, np.floating)):
+        
+        return float(value)
+    
+    return float(UTC(value))
+
+
+def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
+    
+    x = np.arange(data.shape[0])
+    
+    for j in range(data.shape[1]):
+        
+        y = data[:, j]
+        valid = np.isfinite(y)
+        
+        if np.any(valid) and not np.all(valid):
+            
+            y[~valid] = np.interp(x[~valid], x[valid], y[valid])
+    
+    return data
+
+
+def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2, 
+                      dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
+                      out: np.ndarray = None) -> np.ndarray:
+	"""2D concatenaiton of matrices with time series data.
+
+	Parameters
+	----------
+	data1 : np.ndarray
+		_description_
+	data2 : np.ndarray
+		_description_
+	start1 : _type_
+		_description_
+	end1 : _type_
+		_description_
+	dt1 : float
+		_description_
+	start2 : _type_
+		_description_
+	end2 : _type_
+		_description_
+	dt2 : float
+		_description_
+	axis : int, optional
+		_description_, by default 0
+	overlap : str, optional
+		_description_, by default 'data2'
+	gap : str, optional
+		_description_, by default 'nan'
+	tolerance : float, optional
+		_description_, by default 1.0
+	out : np.ndarray, optional
+		_description_, by default None
+
+	Returns
+	-------
+	np.ndarray
+		_description_
+
+	Raises
+	------
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	ValueError
+		_description_
+	"""
+
+	if data1.ndim != 2 or data2.ndim != 2:
+		raise ValueError('Both inputs must be 2D matrices.')
+	if axis not in (0, 1):
+		raise ValueError('axis must be 0 or 1.')
+	if overlap not in ('data1', 'data2', 'mean'):
+		raise ValueError('overlap must be "data1", "data2", or "mean".')
+	if gap not in ('nan', 'zero', 'linear'):
+		raise ValueError('gap must be "nan", "zero", or "linear".')
+
+	a = np.moveaxis(data1, axis, 0)
+	b = np.moveaxis(data2, axis, 0)
+	if a.shape[1] != b.shape[1]:
+		raise ValueError('Input shapes are incompatible on non-concatenation axis.')
+
+	if not np.isclose(dt1, dt2):
+		raise ValueError(f'dt mismatch: dt1={dt1}, dt2={dt2}.')
+	dt = float(dt1)
+	if dt <= 0:
+		raise ValueError('dt must be positive.')
+
+	s1, e1 = _to_seconds(start1), _to_seconds(end1)
+	s2, e2 = _to_seconds(start2), _to_seconds(end2)
+	n1_exp = int(round((e1 - s1) / dt)) + 1
+	n2_exp = int(round((e2 - s2) / dt)) + 1
+	if abs(n1_exp - a.shape[0]) > 1 or abs(n2_exp - b.shape[0]) > 1:
+		raise ValueError('Start/end/dt are not consistent with input matrix length.')
+
+	# Snap data2 to data1 grid.
+	off = (s2 - s1) / dt
+	off_r = int(round(off))
+	adjust_sec = abs(off - off_r) * dt
+	if adjust_sec > (tolerance * dt):
+		raise ValueError(f'Time adjustment too large ({adjust_sec:.6f}s > {tolerance * dt:.6f}s).')
+
+	# Scalar arithmetic only (no large index arrays).
+	n1, n2 = a.shape[0], b.shape[0]
+	i0 = min(0, off_r)
+	a0 = -i0
+	b0 = off_r - i0
+	n_out = max(a0 + n1, b0 + n2)
+	sa = slice(a0, a0 + n1)
+	sb = slice(b0, b0 + n2)
+
+	out_dtype = float if (gap in ('nan', 'linear') or overlap == 'mean') else np.result_type(a.dtype, b.dtype)
+	shape_out = (n_out, a.shape[1])
+
+	if out is not None:
+		if out.shape != shape_out:
+			raise ValueError(f'Provided out has wrong shape {out.shape}, expected {shape_out}.')
+		if not np.can_cast(out_dtype, out.dtype, casting='safe'):
+			raise ValueError(f'Provided out dtype {out.dtype} is incompatible with required {out_dtype}.')
+		out_arr = out
+		out_arr[:] = np.nan if gap in ('nan', 'linear') else 0
+	else:
+		if gap in ('nan', 'linear'):
+			out_arr = np.full(shape_out, np.nan, dtype=out_dtype)
+		else:
+			out_arr = np.zeros(shape_out, dtype=out_dtype)
+
+	if overlap == 'data2':
+		out_arr[sa, :] = a
+		out_arr[sb, :] = b
+	elif overlap == 'data1':
+		out_arr[sb, :] = b
+		out_arr[sa, :] = a
+	else:  # overlap == 'mean'
+		out_arr[sa, :] = a
+		out_arr[sb, :] = b
+		ov0 = max(a0, b0)
+		ov1 = min(a0 + n1, b0 + n2)
+		if ov1 > ov0:
+			ia = ov0 - a0
+			ib = ov0 - b0
+			n_ov = ov1 - ov0
+			out_arr[ov0:ov1, :] = 0.5 * (a[ia:ia+n_ov, :] + b[ib:ib+n_ov, :])
+
+	if gap == 'linear':
+		_interp_nan_along_axis0_inplace(out_arr)
+
+	return np.moveaxis(out_arr, 0, axis)
+
+
+def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
+			  start_time: UTC, end_time: UTC, axis: int=0) -> tuple[np.ndarray, UTC, UTC]:
 	"""Trims data in Fiber class in time dimension between given start and end times
 
 	Parameters
@@ -476,6 +899,8 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 		Timestamps of Fiber class.
 	start_time, end_time : UTC datetime
 		Original start and end time of data.
+	axis : int
+		Dimesion to where the trim is applied.
 
 	Raises
 	------
@@ -500,7 +925,7 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 	t0_pos = max(0, np.searchsorted(times, t0, side="right") - 1)
 	tf_pos = max(0, np.searchsorted(times, tf, side="right") - 1)
 
-	data = data[t0_pos:tf_pos, :]
+	data = data[t0_pos:tf_pos, :] if axis == 0 else data[:, t0_pos:tf_pos] # What if one day we have a 1D DAS?
 	start_time = times[t0_pos]
 	end_time = times[tf_pos]
 

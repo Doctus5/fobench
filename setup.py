@@ -19,10 +19,10 @@ from setuptools import setup, find_packages
 
 setup(
     name ='fobench',
-    author='Sergio Diaz-Meza',
-    author_email='sergioad@gfz-potsdam.de',
-    description='A fiber optic sensing toolbox',
-    version = '0.0.21',
+    author='Sergio Diaz-Meza, Jonas Pätzel',
+    author_email='sergioad@gfz.de, jonas.patzel@ulb.be',
+    description='A toolbox for basic signal processing of fibre optic sensing data, and data/file management.',
+    version = '0.0.31',
     packages = find_packages(),
     install_requires = [
         # Here goes the dependencies !!
@@ -36,6 +36,17 @@ setup(
         'pyrocko',
         'pyqtgraph',
         'PyQt5',
-        'tqdm'
-    ]
+        'tqdm',
+        'zarr',
+        'xarray',
+        'rich' # dependency of zarr
+    ],
+    extras_require={
+        # Here goes the optional dependencies, usually for paralle runinng.
+        "mpi":["mpi4py"],
+        "dask":["dask[distributed]"],
+        "hpc":["mpi4py","dask[distributed]"],
+        # other dependencies that are optional
+        "s3":["s3fs"],
+    }
 )

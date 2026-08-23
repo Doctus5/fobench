@@ -125,6 +125,13 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     """
 
     o_signal = np.asarray(o_signal, dtype=float)
+    
+    if order == 0:
+        return signal.detrend(o_signal, axis=axis, type="constant")
+    if order == 1:
+        return signal.detrend(o_signal, axis=axis, type="linear")
+    
+    # when order of detrned is higher than 1
     new_signal = np.empty_like(o_signal)
 
     if o_signal.ndim == 1:
@@ -334,16 +341,27 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
             raise TypeError("⚠️ Please provide a window length for the running absolute mean normalization")
 
         normalized_data = data.copy()
+        # from scipy.ndimage import uniform_filter1d
 
         w_len = int(fs * ram_window)
+        t_axis = 0 if axis == 1 else 1
+        
+        # weight = uniform_filter1d(np.abs(data), size=w_len, axis=t_axis, mode="nearest")
+        # weight[weight == 0] = 1
+        # normalized_data = data / weight
 
         for i in tqdm(range(total_channels), desc="Running mean normalization", leave=False):
             for segment_start in range(num_points - w_len + 1):
                 segment_end = segment_start + w_len
-                segment = normalized_data[:,i][segment_start:segment_end]
-                weight = np.mean(np.abs(segment))
-
-                normalized_data[segment_start:segment_end, i] /= weight
+                
+                if t_axis == 0:
+                    segment = normalized_data[segment_start:segment_end, i]
+                    weight = np.mean(np.abs(segment))
+                    normalized_data[segment_start:segment_end, i] /= weight
+                else:
+                    segment = normalized_data[i,segment_start:segment_end]
+                    weight = np.mean(np.abs(segment))
+                    normalized_data[i, segment_start:segment_end] /= weight
 
     elif method == "1bit":
         normalized_data = np.sign(data).astype(np.float64)
@@ -354,7 +372,7 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
     return normalized_data
 
 def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels: int,
-                  sampling_frequency: int)-> np.ndarray:
+                  sampling_frequency: int, axis: int)-> np.ndarray:
 
     """Performs spectral whitening of all channels. Adapted code from: https://github.com/seismo-live/seismo_live
     Signals should be adequatly pre-processed.
@@ -379,35 +397,40 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
 
     whitened_matrix = np.zeros_like(data, dtype="float32")
 
-    for i in tqdm(range(total_channels), desc="Whitening", leave=False):
-  	  	channel = data[:, i]
-  	  	n = len(channel)
+    for i in tqdm(range(total_channels), desc='Whitening', leave=False):
+        
+        channel = data[:, i] if axis == 0 else data[i, :]
+        n = len(channel)
+        f_range = float(freq_max) - float(freq_min)
+        nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / sampling_frequency))
+        f = np.arange(n) * sampling_frequency / (n - 1.0)
+        JJ = ((f > float(freq_min)) & (f < float(freq_max))).nonzero()[0]
 
-  	  	f_range = float(freq_max) - float(freq_min)
-  	  	nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / sampling_frequency))
-  	  	f = np.arange(n) * sampling_frequency / (n - 1.0)
-  	  	JJ = ((f > float(freq_min)) & (f < float(freq_max))).nonzero()[0]
+        # channel FFT
+        FFTs = np.fft.fft(channel)
+        FFTsW = np.zeros(n, dtype=complex)
 
-  	  	# channel FFT
-  	  	FFTs = np.fft.fft(channel)
-  	  	FFTsW = np.zeros(n, dtype=complex)
+        # apodization left
+        smo1 = (np.cos(np.linspace(np.pi / 2, np.pi, nsmo + 1)) ** 2)
+        FFTsW[JJ[0]:JJ[0] + nsmo + 1] = smo1 * np.exp(1j * np.angle(FFTs[JJ[0]:JJ[0] + nsmo + 1]))
 
-  	  	# apodization left
-  	  	smo1 = (np.cos(np.linspace(np.pi / 2, np.pi, nsmo + 1)) ** 2)
-  	  	FFTsW[JJ[0]:JJ[0] + nsmo + 1] = smo1 * np.exp(1j * np.angle(FFTs[JJ[0]:JJ[0] + nsmo + 1]))
+        # boxcar
+        FFTsW[JJ[0] + nsmo + 1:JJ[-1] - nsmo] = np.ones(len(JJ) - 2 * (nsmo + 1)) * \
+        np.exp(1j * np.angle(FFTs[JJ[0] + nsmo + 1:JJ[-1] - nsmo]))
 
-  	  	# boxcar
-  	  	FFTsW[JJ[0] + nsmo + 1:JJ[-1] - nsmo] = np.ones(len(JJ) - 2 * (nsmo + 1)) * \
-  	  	np.exp(1j * np.angle(FFTs[JJ[0] + nsmo + 1:JJ[-1] - nsmo]))
+        # apodization to the right
+        smo2 = (np.cos(np.linspace(0.0, np.pi / 2.0, nsmo + 1)) ** 2)
+        espo = np.exp(1j * np.angle(FFTs[JJ[-1] - nsmo:JJ[-1] + 1]))
+        FFTsW[JJ[-1] - nsmo:JJ[-1] + 1] = smo2 * espo
 
-  	  	# apodization to the right
-  	  	smo2 = (np.cos(np.linspace(0.0, np.pi / 2.0, nsmo + 1)) ** 2)
-  	  	espo = np.exp(1j * np.angle(FFTs[JJ[-1] - nsmo:JJ[-1] + 1]))
-  	  	FFTsW[JJ[-1] - nsmo:JJ[-1] + 1] = smo2 * espo
+        # channel IFFT
+        whitedata = 2.0 * np.fft.ifft(FFTsW).real
 
-  	  	# channel IFFT
-  	  	whitedata = 2.0 * np.fft.ifft(FFTsW).real
-  	  	whitened_matrix[:, i] = np.require(whitedata, dtype="float32")
+        if axis == 0:
+            whitened_matrix[:, i] = np.require(whitedata, dtype='float32')
+        else:
+            whitened_matrix[i, :] = np.require(whitedata, dtype='float32')
+
     return whitened_matrix
 
 def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_processing: bool = True,
@@ -457,12 +480,25 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
         o_signal = filt_preprocess(io_signal=o_signal, order=order, axis=axis)
 
     if mode == "spectrum":
-        	o_signal = np.pad(o_signal, (pad-1, pad), mode="constant") if pad > 0 else o_signal
-        	n = o_signal.shape[axis] if nfft is None else o_signal.shape[axis]
-        	fft = np.fft.fft(o_signal, n=n, axis=axis)
-        	freq_axis = np.fft.fftfreq(n, 1 / fs)
-        	positive_freqs = freq_axis[:n//2]
-        	magnitude = 2/n * np.abs(fft)[:n//2]
+        if pad > 0:
+            if o_signal.ndim == 1:
+                o_signal = np.pad(o_signal, (pad-1, pad), mode='constant')
+            elif axis == 0:
+                o_signal = np.pad(o_signal, ((pad-1, pad),(0, 0)), mode='constant')
+            else:
+                o_signal = np.pad(o_signal, ((0, 0),(pad-1, pad)), mode='constant')
+        
+        n = o_signal.shape[axis] if nfft is None else nfft
+        fft = np.fft.fft(o_signal, n=n, axis=axis)
+        freq_axis = np.fft.fftfreq(n, 1 / fs)
+        positive_freqs = freq_axis[:n//2]
+        
+        if o_signal.ndim == 1:
+            magnitude = 2/n * np.abs(fft)[:n//2]
+        elif axis == 0:
+            magnitude = 2/n * np.abs(fft)[:n//2, :]
+        else:
+            magnitude = 2/n * np.abs(fft)[:, :n//2]
 
     elif mode == "psd":
         positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis)
