@@ -284,9 +284,9 @@ class Fiber(object):
 
 		Returns:
 			DataArray: DataArray of xarray containing the Fiber data and metadata.
-						Can be useful for Xdas 
+						Can be useful for Xdas
 		"""
-  
+
 		return utils.to_xarray(self, name, use_distance)
 
 
@@ -381,7 +381,7 @@ class Fiber(object):
 			- 'None', scipy's default anti-aliasing order 8 Chebyshev Type I filter
 		'''
 		axis = self.__axis__(dim)
-  
+
 		if dim == "t":
 
 			if new_freq is None:
@@ -486,7 +486,7 @@ class Fiber(object):
 		axis = self.__axis__(dim)
 		self.data = signals.filt_preprocess(io_signal=self.data, order=order,
 									  alpha=alpha, sym=sym, axis=axis, steps=steps)
-		
+
 		return self
 
 	@utils._update_processing
@@ -497,7 +497,7 @@ class Fiber(object):
 		out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
 								bands=bands, propagation=propagation, alpha=alpha,
 								plot_mode=plot_mode, verbose=verbose, mode=mode, t_axis=self.__axis__("t"), d_axis=self.__axis__("d"))
-		
+
 		self.data = out[0] if verbose else out
 		if results:
 			return (out[0], out[1], out[2]) if verbose else (out[0])
@@ -515,7 +515,7 @@ class Fiber(object):
 		axis = self.__axis__(dim)
 		dx = self.dt if dim == "t" else self.spatial_interval
 
-		if taper: 
+		if taper:
 			self.taper(dim=dim)
 		self.data = signals.integrate_signal(data=self.data, dx=dx, axis=axis)
 
@@ -711,16 +711,16 @@ class Fiber(object):
 			vmin = -p95 if vmin is None else vmin
 			vmax = p95 if vmax is None else vmax
 			plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels),
-						data=self.data, y_label='Channel', dt=self.dt,
-						title='', vmin=vmin, vmax=vmax, cbar_label=self.units,
-						distances=self.distances)
+						data=self.data.T if self.__axis__("t") else self.data,
+						y_label="Channel", dt=self.dt, title="Data Plot", vmin=vmin,
+						vmax=vmax, cbar_label=self.units, distances=self.distances)
 
 		elif plot_mode == 'mpl':
 			t = self.times(time_type='matplotlib')
-			plot.gen_DAS_plot(data=self.data, t=t, channels=self.channels,
-					 units_y=self.units, figsize=figsize, title=str(self.start_time.date),
-					 cmap=cmap, file_name=file_name, vmin=vmin, vmax=vmax, add_data=add_data,
-					 **kwargs)
+			plot.gen_DAS_plot(data=self.data.T if self.__axis__("t") else self.data, t=t,
+						channels=self.channels,	 units_y=self.units, figsize=figsize,
+						title=str(self.start_time.date), cmap=cmap, file_name=file_name,
+						vmin=vmin, vmax=vmax, add_data=add_data, **kwargs)
 
 	def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
 						cmap='viridis', file_name=None, 	freq_lim=None,  results=False,
