@@ -15,7 +15,7 @@ except ImportError:
     from ._sosfilt import _sosfilt as sosfilt
     from ._sosfilt import _zpk2sos as zpk2sos
 
-from fobench.plotting import plotting_pyqt as pyqt
+from fobench.core.plotting import plotting_pyqt as pyqt
 
 def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
                  freq: float | tuple[float, float] = None, axis: int=0, **options) -> np.ndarray:
@@ -73,7 +73,7 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
         result = filter_func(data=data, df=df, freq=freq, axis=axis, **options)
     elif f_type in {"median", "afk"}:
         result = filter_func(data=data, **options)
-    
+
     return result
 
 """
@@ -826,7 +826,7 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
     if plot_mode == "pyqt":
         pyqt.plot_fk(wf_ini=data_td, wf_filt=data_filt, wf_fk=data_fk,
                      mask=mask, f=f, k=k, dt=dt)
-    
+
     data_filt = np.moveaxis(data_filt, (0,1), (t_axis, d_axis))
 
     return (data_filt, data_fk, mask) if verbose else data_filt

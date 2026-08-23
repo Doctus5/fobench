@@ -5,10 +5,9 @@ from warnings import warn
 from tqdm import trange
 from obspy.signal.cross_correlation import correlate
 from scipy.signal import correlate as scipy_correlate, correlation_lags
-from fobench.tools import signals
-from fobench.plotting import plotting_pyqt as plot_pyqt
-from fobench.plotting.plotting_mpl import plot_acfs
-
+from fobench.core.tools import signals
+from fobench.core.plotting import plotting_pyqt as plot_pyqt
+from fobench.core.plotting.plotting_mpl import plot_acfs
 
 def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
                              channel_nums: np.ndarray = None, plot_mode: str = "pyqt",

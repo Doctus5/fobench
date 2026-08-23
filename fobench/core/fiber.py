@@ -21,10 +21,10 @@ from obspy.core import UTCDateTime as UTC
 import pyqtgraph as pg
 from pyqtgraph.Qt import QtWidgets
 
-from .tools import file_io, utils, filters, signals, wavefield
-from .plotting import plotting_mpl as plot
-from .plotting import plotting_pyqt as plot_pyqt
-from .plotting.pyqt_viewer import Viewer
+from fobench.core.tools import file_io, utils, filters, signals, wavefield
+from fobench.core.plotting import plotting_mpl as plot
+from fobench.core.plotting import plotting_pyqt as plot_pyqt
+from fobench.core.plotting.pyqt_viewer import Viewer
 
 
 class Fiber(object):
