@@ -260,14 +260,15 @@ def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, n
         bad_picking = list(np.where(bad_picking)[0])
 
     if bad_picking:
-        windows = [j for j in range(0, data.shape[0], int(fs/4))]
+        windows = [j for j in range(0, data.shape[axis], int(fs/4))]
         pp =  np.zeros(len(bad_picking)) if data_dim > 1 else 0
 
         for i in range(len(windows)-1):         #for pos in bad_picking:
             index, index_1 = windows[i], windows[i+1]
 
             if data_dim > 1:
-                new_pp = np.ptp(data[index:index_1,bad_picking], axis=axis)
+                segment = data[index:index_1, bad_picking] if axis == 0 else data[bad_picking, index:index_1]
+                new_pp = np.ptp(segment, axis=axis)
                 pp[new_pp > pp] = new_pp[new_pp > pp]
             else:
                 new_pp = np.ptp(data[index:index_1], axis=axis)

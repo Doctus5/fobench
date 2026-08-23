@@ -511,9 +511,10 @@ class Fiber(object):
 		see fobench.fiber.stools.signals.integrate_signal for more details
 		'''
 		axis = self.__axis__(dim)
-		dx = self.dt if axis == 0 else self.spatial_interval
+		dx = self.dt if dim == "t" else self.spatial_interval
 
-		if taper: self.taper(dim=dim)
+		if taper: 
+			self.taper(dim=dim)
 		self.data = signals.integrate_signal(data=self.data, dx=dx, axis=axis)
 
 		return self
@@ -529,8 +530,9 @@ class Fiber(object):
 					' -"gradient"\n -"diff"')
 
 		axis = self.__axis__(dim)
+		dx = self.dt if dim == "t" else self.spatial_interval
 		self.data = signals.differentiate_signal(self.data, method=method,
-										   axis=axis, dt=self.dt)
+										   axis=axis, dt=dx)
 
 		return self
 
