@@ -553,12 +553,15 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     :Return:
         - values(type:Numpy): 2D numpy matrix with values in time per channel. Axis 0 (rows) is time and axis 1 (columns) are the channels.
     '''
-
+    
+    # it would be nice if manufacturer would save their data as (distance, time) shape initially.
+    # it woudl allow for fast processing.
     if format == 'tdms' and company == 'silixa':
 
         values = extract_point.as_dataframe().to_numpy()
         if range_ch is not None:
             values = values[:, range_ch]
+        # return np.ascontiguousarray(values.T)
         return values
 
     elif format in ('h5', 'hdf5'):
@@ -568,6 +571,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
             values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])
             if range_ch is not None:
                 values = values[:, range_ch]
+            # return np.ascontiguousarray(values.T)
             return values
 
         elif company in ('silixa', 'asn', 'optasense', 'aragon', 'sintela', 'terra15', 'michele'):
@@ -577,6 +581,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
                 values = extract_point[:, range_ch]
             if company == 'aragon':
                 values *= 1e-9  # Convert from nanostrain to strain
+            # return np.ascontiguousarray(values.T)
             return values
 
     # ####################################################
@@ -587,12 +592,14 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
         values = np.load(extract_point)
         if range_ch is not None:
             values = values[:, range_ch]
+        # return np.ascontiguousarray(values.T)
         return values
 
     elif format == 'npz' and company == 'bam':
         values = np.load(extract_point)['ph']
         if range_ch is not None:
             values = values[:, range_ch]
+        # return np.ascontiguousarray(values.T)
         return values
 
 
@@ -668,6 +675,7 @@ def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
     if range_ch is not None:
         values = values[:,range_ch]
     if copy_data:
+        # values = np.array(values.T, copy=True, order="C")
         values = np.array(values, copy=True)
 
     return values
