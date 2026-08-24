@@ -13,7 +13,7 @@ from obspy.core.stream import Stream
 from obspy.core import UTCDateTime as UTC
 
 def scan_hdf5(path, recursive=True, tab_step=2):
-	"""Function to sscan hdf5 file hierarchycally."""
+	"""Function to sscan hdf5 file hierarchically."""
 	def scan_node(g, tabs=0):
 		print(" " * tabs, g.name)
 		for k, v in g.items():
@@ -25,7 +25,7 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 		scan_node(f)
 
 
-"""TOOLS USED EXCLUSIVE FOR Fiber CLASS"""
+"""Tools used exclusively for Fiber class"""
 
 STRAIN_UNIT_MAP = {	  # mapping for strain(rate) data
 					-1: "integrated strain",
@@ -40,19 +40,19 @@ VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
                 1: "m/s^2",
                 2: "m/s^3"}
 
-TEMP_UNIT_MAP = {		# mapping for temperature data
+TEMP_UNIT_MAP = {	# mapping for temperature data
 				-1: "integrated temperature",
 				0: "temperature",
 				1: "temperature rate",
 				2: "temperature acceleration"}
 
-COUNT_UNIT_MAP = {
+COUNT_UNIT_MAP = {  # mapping of count data
 				-1: "integrated counts",
 				0: "counts",
 				1: "d/dt counts",
 				2: "d/dt^2 counts"}
 
-UNKNOW_UNIT_MAP = {      # mapping for data with unknow unit
+UNKNOW_UNIT_MAP = {  # mapping for data with unknow unit
                    -1: "integrated units",
                    0: "units",
                    1: "d/dt units",
@@ -62,7 +62,7 @@ UNKNOW_UNIT_MAP = {      # mapping for data with unknow unit
 def _update_processing(func):
 	"""Decorator function that updates the Fiber.processing attribute after each
 	processing step, in case of integration or differentiation of the data
-	also updates Fiber.units
+	also updates ``Fiber.units``.
 	"""
 
 	@functools.wraps(func)
@@ -230,14 +230,14 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 
 	Returns
 	-------
-    new_ch : np.ndarray
-        -
-    new_x : np.ndarray
-        X coordinates.
-    new_y : np.ndarray
-        Y coordinates.
-    new_z : np.ndarray
-        Z coordinates.
+	new_ch : np.ndarray
+		-
+	new_x : np.ndarray
+		X coordinates.
+	new_y : np.ndarray
+		Y coordinates.
+	new_z : np.ndarray
+		Z coordinates.
 
 	"""
 
@@ -361,7 +361,7 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 
 	"""Function for spatially downsampling DAS data by half. Erases one channel between consecutive
-		channels to simulate a decrease of the spatial resolution.
+	channels to simulate a decrease of the spatial resolution.
 
 	Parameters
 	----------
@@ -387,10 +387,10 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 
 def to_traces(Fiber, t_type: str)-> Stream:
 
-	"""Creates an obpsy or pyrocko Stream object and fills it with Traces. Each Trace
-	represents a channel of the DAS Class, including the metadata which
+	"""Creates an ObsPy or pyrocko Stream object and fills it with Traces. Each Trace
+	represents a channel of the Fiber class, including the metadata which
 	from the attributes of the Trace Class. This is mainly done so users can have access
-	to obspy tools with their data. However, it can be slow and memory demanding.
+	to ObsPy tools with their data. However, it can be slow and memory demanding.
 
 	Parameters
 	----------
@@ -436,45 +436,63 @@ def to_traces(Fiber, t_type: str)-> Stream:
 	return stream
 
 
-def to_xarray(Fiber, name=None, use_distance=False):
-    """Converts to xarray"""
+def to_xarray(Fiber, name: str = None, use_distance: bool = False):
 
-    try:
-        import xarray as xr
-    except ImportError as exc:
-        raise ImportError("xarray package is required, but no module is found.")
+	"""Converts ``Fiber`` to Xarray.DataArray.
 
-    # create the different labels and coordinates
-    data_label = name or Fiber.units or "data"
-    times = Fiber.times("datetime64")
-    channels = np.asarray(Fiber.channels)
-    distances = np.asarray(Fiber.distances, dtype=float)
-    attrs = clean_metadata(Fiber)
+	Parameters
+	----------
+	Fiber : fobench.Fiber object
+		``Fiber`` class object.
+	name : str
+		Filename.
+	use_distace : bool
+		Toggles writing distance dimension as optical distance instead of
+		channel numbers.
 
-    if use_distance:
-        dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "distance"}
-        dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
-        coords = {"time": ("time",times),
-                  "distance": ("distance",distances),
-                  "channel": ("distance",channels)}
-    else:
-        dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "channel"}
-        dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
-        coords = {"time": ("time",times),
-                "channel": ("channel",channels),
+	"""
+
+	try:
+		import xarray as xr
+	except ImportError as exc:
+		raise ImportError("xarray package is required, but no module is found.")
+
+	# create the different labels and coordinates
+	data_label = name or Fiber.units or "data"
+	times = Fiber.times("datetime64")
+	channels = np.asarray(Fiber.channels)
+	distances = np.asarray(Fiber.distances, dtype=float)
+	attrs = clean_metadata(Fiber)
+
+	if use_distance:
+		dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "distance"}
+		dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
+		coords = {"time": ("time",times),
+				  "distance": ("distance",distances),
+				  "channel": ("distance",channels)}
+	else:
+		dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "channel"}
+		dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
+		coords = {"time": ("time",times),
+				"channel": ("channel",channels),
 				"distance": ("channel",distances)}
 
-    return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
+	return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
 
 
 def clean_metadata(Fiber) -> dict:
-	"""Returns a clean metadata of Fiber
+	"""Returns cleaned metadata of ``Fiber``.
 
-	Args:
-		Fiber : _description_
+	Parameters
+	----------
+	Fiber : fobench.Fiber object
+		``Fiber`` class object.
 
-	Returns:
-		dict: clean metadata dicitonary of Fiber class
+	Returns
+	-------
+	attrs : dict
+		Cleaned metadata dictionary.
+
 	"""
 
 	attrs = {"fiber": Fiber.fiber,
@@ -542,25 +560,19 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 
 
 def _to_seconds(value) -> float:
-
+    """Converts time to seconds float value"""
     if isinstance(value, (int, float, np.integer, np.floating)):
-
         return float(value)
-
     return float(UTC(value))
 
 
 def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
-
+    """Linearly interpolates non-finite values along axis 0, in place"""
     x = np.arange(data.shape[0])
-
     for j in range(data.shape[1]):
-
         y = data[:, j]
         valid = np.isfinite(y)
-
         if np.any(valid) and not np.all(valid):
-
             y[~valid] = np.interp(x[~valid], x[valid], y[valid])
 
     return data
@@ -711,180 +723,6 @@ def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: 
 		_interp_nan_along_axis0_inplace(out_arr)
 
 	return np.moveaxis(out_arr, 0, axis)
-
-
-
-def _to_seconds(value) -> float:
-
-    if isinstance(value, (int, float, np.integer, np.floating)):
-
-        return float(value)
-
-    return float(UTC(value))
-
-
-def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
-
-    x = np.arange(data.shape[0])
-
-    for j in range(data.shape[1]):
-
-        y = data[:, j]
-        valid = np.isfinite(y)
-
-        if np.any(valid) and not np.all(valid):
-
-            y[~valid] = np.interp(x[~valid], x[valid], y[valid])
-
-    return data
-
-
-def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2,
-                      dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
-                      out: np.ndarray = None) -> np.ndarray:
-	"""2D concatenaiton of matrices with time series data.
-
-	Parameters
-	----------
-	data1 : np.ndarray
-		_description_
-	data2 : np.ndarray
-		_description_
-	start1 : _type_
-		_description_
-	end1 : _type_
-		_description_
-	dt1 : float
-		_description_
-	start2 : _type_
-		_description_
-	end2 : _type_
-		_description_
-	dt2 : float
-		_description_
-	axis : int, optional
-		_description_, by default 0
-	overlap : str, optional
-		_description_, by default 'data2'
-	gap : str, optional
-		_description_, by default 'nan'
-	tolerance : float, optional
-		_description_, by default 1.0
-	out : np.ndarray, optional
-		_description_, by default None
-
-	Returns
-	-------
-	np.ndarray
-		_description_
-
-	Raises
-	------
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	ValueError
-		_description_
-	"""
-
-	if data1.ndim != 2 or data2.ndim != 2:
-		raise ValueError('Both inputs must be 2D matrices.')
-	if axis not in (0, 1):
-		raise ValueError('axis must be 0 or 1.')
-	if overlap not in ('data1', 'data2', 'mean'):
-		raise ValueError('overlap must be "data1", "data2", or "mean".')
-	if gap not in ('nan', 'zero', 'linear'):
-		raise ValueError('gap must be "nan", "zero", or "linear".')
-
-	a = np.moveaxis(data1, axis, 0)
-	b = np.moveaxis(data2, axis, 0)
-	if a.shape[1] != b.shape[1]:
-		raise ValueError('Input shapes are incompatible on non-concatenation axis.')
-
-	if not np.isclose(dt1, dt2):
-		raise ValueError(f'dt mismatch: dt1={dt1}, dt2={dt2}.')
-	dt = float(dt1)
-	if dt <= 0:
-		raise ValueError('dt must be positive.')
-
-	s1, e1 = _to_seconds(start1), _to_seconds(end1)
-	s2, e2 = _to_seconds(start2), _to_seconds(end2)
-	n1_exp = int(round((e1 - s1) / dt)) + 1
-	n2_exp = int(round((e2 - s2) / dt)) + 1
-	if abs(n1_exp - a.shape[0]) > 1 or abs(n2_exp - b.shape[0]) > 1:
-		raise ValueError('Start/end/dt are not consistent with input matrix length.')
-
-	# Snap data2 to data1 grid.
-	off = (s2 - s1) / dt
-	off_r = int(round(off))
-	adjust_sec = abs(off - off_r) * dt
-	if adjust_sec > (tolerance * dt):
-		raise ValueError(f'Time adjustment too large ({adjust_sec:.6f}s > {tolerance * dt:.6f}s).')
-
-	# Scalar arithmetic only (no large index arrays).
-	n1, n2 = a.shape[0], b.shape[0]
-	i0 = min(0, off_r)
-	a0 = -i0
-	b0 = off_r - i0
-	n_out = max(a0 + n1, b0 + n2)
-	sa = slice(a0, a0 + n1)
-	sb = slice(b0, b0 + n2)
-
-	out_dtype = float if (gap in ('nan', 'linear') or overlap == 'mean') else np.result_type(a.dtype, b.dtype)
-	shape_out = (n_out, a.shape[1])
-
-	if out is not None:
-		if out.shape != shape_out:
-			raise ValueError(f'Provided out has wrong shape {out.shape}, expected {shape_out}.')
-		if not np.can_cast(out_dtype, out.dtype, casting='safe'):
-			raise ValueError(f'Provided out dtype {out.dtype} is incompatible with required {out_dtype}.')
-		out_arr = out
-		out_arr[:] = np.nan if gap in ('nan', 'linear') else 0
-	else:
-		if gap in ('nan', 'linear'):
-			out_arr = np.full(shape_out, np.nan, dtype=out_dtype)
-		else:
-			out_arr = np.zeros(shape_out, dtype=out_dtype)
-
-	if overlap == 'data2':
-		out_arr[sa, :] = a
-		out_arr[sb, :] = b
-	elif overlap == 'data1':
-		out_arr[sb, :] = b
-		out_arr[sa, :] = a
-	else:  # overlap == 'mean'
-		out_arr[sa, :] = a
-		out_arr[sb, :] = b
-		ov0 = max(a0, b0)
-		ov1 = min(a0 + n1, b0 + n2)
-		if ov1 > ov0:
-			ia = ov0 - a0
-			ib = ov0 - b0
-			n_ov = ov1 - ov0
-			out_arr[ov0:ov1, :] = 0.5 * (a[ia:ia+n_ov, :] + b[ib:ib+n_ov, :])
-
-	if gap == 'linear':
-		_interp_nan_along_axis0_inplace(out_arr)
-
-	return np.moveaxis(out_arr, 0, axis)
-
 
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 			  start_time: UTC, end_time: UTC, axis: int=0) -> tuple[np.ndarray, UTC, UTC]:

@@ -841,12 +841,13 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
     Parameters
     ----------
     bands : list[dict]
-        The limits of the fk-domain regions that will masked, i.e. the
-        passband.
+        The limits of the fk-domain regions that will masked, i.e. the passband.
         Each dict can contain any of:
-            - ``"fmin"``, ``"fmax"`` (frequency limits)
-            - ``"kmin"``, ``"kmax"`` (wavenumber limits)
-            - ``"vmin"``, ``"vmax"`` (velocity limits)
+
+        - ``"fmin"``, ``"fmax"`` (frequency limits)
+        - ``"kmin"``, ``"kmax"`` (wavenumber limits)
+        - ``"vmin"``, ``"vmax"`` (velocity limits)
+
     f : np.ndarray
         Frequency axis.
     k : np.ndarray

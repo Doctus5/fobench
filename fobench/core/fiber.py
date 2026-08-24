@@ -5,7 +5,7 @@
     - Jonas Pätzel
 
 :Contributors:
-    - Christopher Wollin (wollin@gfz-potsdam.de)
+    - Christopher Wollin
 
 """
 
@@ -284,11 +284,10 @@ class Fiber(object):
 
     @utils._update_processing
     def spatial_resample(self, rs_type=None):
-        """
-        modifies spatial sampling of the data by adding or removing channels,
-        for "upsampling" adds a channel between each channel pair by interpolating the values,
-        for "downsampling" removes every second channel, first channel is always unaltered
-        see fobench.tools.utils.spatial_upsampling and .spatial_downsample for details
+        """Modifies spatial sampling of the data by adding or removing channels.
+        ``"upsampling"`` adds a channel between each channel pair by interpolating the values.
+        ``"downsampling"`` removes every second channel.
+        See :func:`~fobench.core.tools.utils.spatial_upsampling` and .:func:`~fobench.core.tools.utils.spatial_downsampling`
         """
         if rs_type in ["upsampling", "upsample"]:
             self.data, self.channels = utils.spatial_upsampling(self)
@@ -333,17 +332,15 @@ class Fiber(object):
 
     @utils._update_processing
     def decimate(self, new_freq=None, dim="t", f_type="fir-remez"):
-        """
-        decimates data to new sampling frequeny or spatial interval (with prefilter), target frequency should divide
-        original sampling frequency evenly
+        """Decimates data to new sampling frequeny or spatial interval (with prefilter).
+        Target frequency should divide original sampling frequency evenly. Filter options
+        are ``"fir-remez"`` or ``None`` for SciPys default anti-aliasing order 8
+        Chebyshev Type I filter. See :func:`~fobench.core.tools.filters.decimate`.
 
-        ! careful when decimating using factors >= 13, it is then preferable to
-        call decimation twice (see scipy.signal.decimate for more info) !
-
-        options for filters are
-            - "fir-remez", an adaptative antialiasing filter (author: Marius Isken)
-            - "fir235" (author: Javier Quinteros)
-            - "None", scipy"s default anti-aliasing order 8 Chebyshev Type I filter
+        Warning
+        -------
+        Careful when decimating using factors >= 13, it is preferable to call
+        decimation twice instead! (See :func:`~scipy.signal.decimate`)
         """
         axis = self.__axis__(dim)
 
@@ -417,11 +414,10 @@ class Fiber(object):
     @utils._update_processing
     def filter(self, f_type=None, freq=None, pre_process=True, alpha=0.05, order=1, sym=True, dim="t",
             **options):
-        """
-        filters data using specified filter, based on Obspy.signal.filter module
-        for frequency filters, data is optionally pre-processed
-        filter types are bandpass", "bandstop", "lowpass", "highpass" and "median""
-        if "bandpass" or "bandstop", freq must be tuple(float, float)
+        """Filters data using specified filter, based on Obspy.signal.filter module.
+        For frequency filters, data is optionally pre-processed.
+        For ``'bandpass'`` and ``'bandstop'`` options, ``freq`` must be tuple.
+        See :func:`~fobench.core.tools.filters.point_filter` for all filter options.
         """
 
         axis = self.__axis__(dim)
@@ -526,7 +522,7 @@ class Fiber(object):
 
     def p2p_amp(self, dim="t", results=False, plot_mode="pyqt"):
         """Computes peak-to-peak amplitude of data in time or space.
-        See :func:`~fobench.core.fiber.tools.wavefield.peak_to_peak_amp.
+        See :func:`~fobench.core.fiber.tools.wavefield.peak_to_peak_amp`.
         """
         axis = self.__axis__(dim)
         p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,

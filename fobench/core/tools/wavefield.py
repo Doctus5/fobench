@@ -314,7 +314,7 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
                 mode: str = 'full', demean: bool = True, normalize: bool = True,
                 normalization: str = 'global', min_overlap: int = 1,
                 gpu_use: bool = False) -> tuple[np.ndarray, np.ndarray]:
-    '''
+    """
     Cross-correlates two signals (1D to N-D) along a selected axis.
 
     Parameters
@@ -323,29 +323,30 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
         Input arrays. They can have any number of dimensions. Along ``axis``,
         lengths may differ. All other dimensions must be broadcast-compatible.
     axis : int, optional
-        Axis along which cross-correlation is computed. The default is -1.
+        Axis along which cross-correlation is computed.
     mode : str, optional
         Correlation output mode:
+
         - ``full``: all overlaps, longest output (``n1 + n2 - 1`` samples).
         - ``same``: output length equals ``signal1.shape[axis]``.
         - ``valid``: only complete overlaps, shortest output.
-        The default is ``full``.
+
     demean : bool, optional
         Removes mean from each trace before correlation. The default is True.
     normalize : bool, optional
         If True, correlation is divided by ``||x|| * ||y||``, keeping scores in
-        ``[-1, 1]``. The default is True.
+        ``[-1, 1]``.
     normalization : str, optional
         Normalization strategy when ``normalize=True``:
+
         - ``global``: uses one denominator per trace (faster; can show edge spikes in
           ``mode='full'`` with different lengths).
-        - ``windowed``: computes denominator per lag using only overlapping samples
-          (Pearson-like per lag, more robust at edges).
-        The default is ``global``.
+        - ``windowed``: computes denominator per lag using only overlapping samples (Pearson-like per lag, more robust at edges).
+
     min_overlap : int, optional
         Minimum number of overlapping samples required at a lag. Lags with less
         overlap are set to 0. Useful to suppress unstable edge values in
-        ``mode='full'``. The default is 1.
+        ``mode='full'``.
     gpu_use : bool, optional
         Kept for backwards compatibility. Currently unused.
 
@@ -356,7 +357,8 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
     corr : np.ndarray
         Cross-correlation values. Shape equals the broadcasted input shape with
         length ``len(lags)`` along ``axis``.
-    '''
+
+    """
 
     if isinstance(axis, bool):
         # Backward compatibility with the old signature x_correlate(s1, s2, gpu_use)

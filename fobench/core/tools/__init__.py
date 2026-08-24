@@ -1,3 +1,3 @@
-"""Contains all functionality related to data and signal processing"""
+"""Contains all functionality related to data and signal processing."""
 
 

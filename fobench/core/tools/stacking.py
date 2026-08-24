@@ -1,4 +1,4 @@
-"""Functions for stacking arrays"""
+"""Functions for stacking arrays."""
 
 import numpy as np
 from scipy.signal import hilbert
