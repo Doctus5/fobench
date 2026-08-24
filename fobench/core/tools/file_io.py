@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from obspy.core import UTCDateTime as UTC
 
-def read_data(filepath: str = None, company: str = None, range_ch: int|list = None,
+def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.ndarray = None,
               format: str = None, load_data: bool = True,
               show_progress: bool = True, storage_opts = None):
     """
@@ -34,8 +34,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list = No
     company : str
         Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
         ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
-    range_ch : tuple(int, int)
-            Range of channels to load.
+    range_ch : int or tuple(int, int) or numpy array
+            Range of channels to load. If one single number (``int``), it is one single channel. 
+            If ``tuple`` is then interpreted as a (start, end) channels.
+            If ``list`` or ``numpy array``, it is de specific set of channels to load.
     format : str, optional
         Format specifier.
     load_data : bool
