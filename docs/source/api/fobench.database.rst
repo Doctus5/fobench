@@ -1,4 +1,4 @@
-fobench.database
+﻿fobench.database
 ================
 
 .. automodule:: fobench.database
@@ -13,6 +13,8 @@ fobench.database
    dataset
    manager
    parallel
+   plotters
    processing
    project
    unit
+   utils

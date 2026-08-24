@@ -1,49 +1,38 @@
-"""
-Functions for plotting manly in the level of Unit Class.
+"""Functions for plotting on ``Unit`` class level.
 
-Created on 2024-10-28 16:53:00
-Last modification on 2024-10-28 16:53:00
+:Authors:
+    - Sergio Diaz-Meza
+    - Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-:contributors:
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
+:Contributors:
+    - Christopher Wollin
 
 """
-
-# Necessary libraries
-import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from matplotlib.patches import Rectangle
-import matplotlib.ticker as ticker
-from matplotlib.dates import DateFormatter, MinuteLocator, num2date
-
 import datetime as datetime
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.patches import Rectangle
+from matplotlib.dates import num2date
 
+"""Necessary for Technical aspects"""
 
-
-'''
-########################################################################################
-Necessary for Technical aspects...
-########################################################################################
-'''
-
-# #Setting the precision for the labels in the plots. Taken from StackOverflow.
 class PrecisionDateFormatter(ticker.Formatter):
-    """
-    Extend the `matplotlib.ticker.Formatter` class to allow for millisecond
+    """Extends the :class:`~matplotlib.ticker.Formatter` class to allow for millisecond
     precision when formatting a tick (in days since the epoch) with a
-    `~datetime.datetime.strftime` format string.
+    `~datetime.datetime.strftime` format string. Adapted from StackOverflow.
     """
 
-    def __init__(self, fmt, precision=3, tz=None):
+    def __init__(self, fmt:str , precision: int = 3, tz=None):
         """
         Parameters
         ----------
         fmt : str
             `~datetime.datetime.strftime` format string.
+        precision : int, optional
+            Number of digits for millisecond precision, by default 3.
+        tz : timezone, optional
+            Timezone for the dates, default is UTC.
+
         """
         self.num2date = num2date
         self.fmt = fmt
@@ -61,12 +50,9 @@ class PrecisionDateFormatter(ticker.Formatter):
         ms = dt.strftime("%f")[:self.precision]
 
         return dt.strftime(self.fmt).format(ms=ms)
-    
-    
 
 class AdaptivePrecisionDateFormatter(ticker.Formatter):
-    """
-    Extend the `matplotlib.ticker.Formatter` class to allow for adaptive
+    """Extends the :class:`~matplotlib.ticker.Formatter` class to allow for adaptive
     formatting based on the date range, adding millisecond precision if needed.
     """
 
@@ -80,6 +66,7 @@ class AdaptivePrecisionDateFormatter(ticker.Formatter):
             Number of digits for millisecond precision, by default 3.
         tz : timezone, optional
             Timezone for the dates, default is UTC.
+
         """
         self.num2date = num2date
         self.dates = dates
@@ -110,73 +97,68 @@ class AdaptivePrecisionDateFormatter(ticker.Formatter):
     def __call__(self, x, pos=0):
         # Convert x-axis position to a datetime object
         dt = self.num2date(x, self.tz)
-        
+
         # Apply milliseconds only if the format requires it
         if "{ms}" in self.axis_fmt:
-            
             ms = dt.strftime("%f")[:self.precision]
-            
             return dt.strftime(self.axis_fmt).format(ms=ms)
         else:
-            
-            return dt.strftime(self.axis_fmt) 
-        
+            return dt.strftime(self.axis_fmt)
+
     def get_formats(self):
         """Return the formats for the x-axis and title."""
         title = self.num2date(self.dates[0], self.tz)
-        
+
         return self.axis_fmt, title.strftime(self.title_fmt)
 
-    
-		
-'''
-########################################################################################
-Unit Class plots below...
-########################################################################################
-'''
+"""Unit class plots"""
 
-def plot_data_coverage(dataset_infos, min_max_t=None):
-    '''
-    Co-authors: --
-    Description: 
-        Plots the coverage of Datasets from a Unit class. 
-    :Params:
-        - json_file(type:String): dataframe indicating paths and essential metadata from each file.
-        - min_max_t(type:Tuple): tuple containing the earliest and latest usage time of the Unit.
-    :Return:
-        - NA.  
-	'''
+def plot_data_coverage(dataset_infos: str, min_max_t: tuple = None):
+    """Plots the coverage of Datasets from a ``Unit`` instance.
+
+    Parameters
+    ----------
+    dataset_infos : str
+        Dataframe indicating paths and essential metadata from each file.
+    min_max_t : tuple, optional
+        Tuple containing the earliest and latest usage time of the Unit.
+
+    Returns
+    -------
+    None
+
+    """
 
     fig, ax = plt.subplots(1,1, figsize=(8,4))
-    
+
     y_ticks, y_labels = [], []
     low_lim, high_lim = min_max_t[0].matplotlib_date, min_max_t[1].matplotlib_date # convert to matplotlib datetimes
-    
+
     for i in range(len(dataset_infos)): # get essential info from datasets.
-        
+
         # ax.plot()
         dataset_info = dataset_infos[i]# single info line of the dataset.
         low, high = i, i+1
         i_time, f_time = dataset_info # for the moment is just start and end time. More to come! :)
         i_time, f_time = i_time.matplotlib_date, f_time.matplotlib_date
-        
+
         y_ticks.append(i + 0.5)
         y_labels.append(f'Dataset {high}')
-        
+
         width, height = f_time - i_time, high - low # calculating dimensions of the rectangle pathc.
         ax.add_patch(Rectangle((i_time, low), width, height)) # Draw the rectangle indicating data availability.
-    
+
     ax.set_xlim(low_lim, high_lim)
     ax.set_ylim(-1, i+2)
-    
+
     # Introduce custom ticks and labels
     ax.set_yticks(y_ticks)
     ax.set_yticklabels(y_labels)
-    
+
     # Initialize the formatter
     formatter = AdaptivePrecisionDateFormatter([low_lim, high_lim])
     axis_fmt, title_fmt = formatter.get_formats()
-    
+
     ax.xaxis_date()
     ax.xaxis.set_major_formatter(formatter)
     # precision = str(datetime.timedelta(days=(high_lim - low_lim)).total_seconds())[::-1].find('.')
@@ -188,8 +170,6 @@ def plot_data_coverage(dataset_infos, min_max_t=None):
     # plt.xlabel('Time', fontsize=15)
     # plt.ylabel('Datasets', fontsize=15)
     plt.title(title_fmt, fontsize=15)
-    
+
     plt.tight_layout()
     plt.show()
-    
-    

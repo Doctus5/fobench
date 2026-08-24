@@ -1,31 +1,23 @@
-"""
-Pipeline specification utilities for Fiber processing workflows.
+"""Pipeline specification utilities for Fiber processing workflows.
 
-Created on 2026-04-07 20:10:00
-Last modification on 2026-04-07 20:10:00
+:Authors:
+    - Sergio Diaz-Meza
+    - Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz.de)
-:contributors:
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-	- Christopher Wollin (wollin@gfz.de)
-:license:
+:Contributors:
+    - Christopher Wollin
 
 """
 
 import pandas as pd
-
-# Import Fiber for both install layouts:
-# - editable install (`from fobench.fiber import Fiber`)
-# - repo namespace usage (`from fobench.fobench.fiber import Fiber`)
 try:
     from fobench.core.fiber import Fiber
 except ModuleNotFoundError:
     from ...fobench.core.fiber import Fiber
 
-
-def pipeline_check(pipeline : list, allow_callables : bool = True):
-    """Methods to validate a pipeline specification for parallel computing. Crucial to avoid fundamental errors before long parallel executions.
+def pipeline_check(pipeline: list, allow_callables: bool = True) -> list[dict]:
+    """Methods to validate a pipeline specification for parallel computing.
+    Crucial to avoid fundamental errors before long parallel executions.
 
     Parameters
     ----------
@@ -38,12 +30,13 @@ def pipeline_check(pipeline : list, allow_callables : bool = True):
         - ``str`` shorthand for ``{"op": <step>}``.
         - callable shorthand for ``{"op": <callable>}`` when
           ``allow_callables=True``.
+
     allow_callables : bool, optional
         If ``True``, callables are accepted as step operators.
 
     Returns
     -------
-    list of dict
+    list[dict]
         Normalized pipeline with explicit keys:
         ``name``, ``op``, ``kwargs``, ``capture``, ``attribute``,
         ``store_as``.
@@ -51,9 +44,10 @@ def pipeline_check(pipeline : list, allow_callables : bool = True):
     Raises
     ------
     TypeError
-        If ``pipeline`` or one of the steps has invalid type.
+        ``pipeline`` or one of the steps has invalid type.
     ValueError
-        If a step definition is incomplete or inconsistent.
+        Step definition is incomplete or inconsistent.
+
     """
 
     # Basic input validation before looping over steps.
@@ -172,7 +166,7 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
 
     Parameters
     ----------
-    task_row : dict or pandas.Series
+    task_row : dict | pandas.Series
         Row-like object containing at least ``"file"``.
         Optional keys such as ``"file_index"`` and ``"window_id"``
         are propagated to output.
@@ -188,6 +182,7 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
     dict
         Dictionary containing ``status``, ``error``, file identifiers,
         and ``outputs``.
+
     """
 
     # Default empty Fiber kwargs if not provided.
@@ -284,7 +279,7 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
 
 
 def run_batch_pipeline(batch, pipeline : list, fiber_kwargs : dict = None,
-    validate_pipeline : bool = False):
+    validate_pipeline : bool = False)-> list[dict]:
     """Run pipeline processing over a batch of task rows.
 
     Parameters
@@ -301,8 +296,9 @@ def run_batch_pipeline(batch, pipeline : list, fiber_kwargs : dict = None,
 
     Returns
     -------
-    list of dict
+    list[dict]
         List of outputs from ``run_file_pipeline`` (one dictionary per row).
+
     """
 
     # Basic batch check before processing.
@@ -347,9 +343,10 @@ def window_map_tasks(file_window_map, columns=None):
 
     Returns
     -------
-    list of dict
+    list[dict]
         Task rows ready to be consumed by ``run_batch_pipeline`` or
         ``Parallel.submit`` tasks.
+
     """
 
     if not isinstance(file_window_map, pd.DataFrame):

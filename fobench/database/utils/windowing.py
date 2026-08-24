@@ -1,22 +1,16 @@
-"""
-Windowing methods for handling windows over files in terms of times or space.
+"""Windowing methods for handling windows over files in terms of times or space.
 
-Created on 2026-04-06 16:05:46
-Last modification on 2026-04-06 16:05:46
+:Authors:
+    - Sergio Diaz-Meza
+    - Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-:contributors:
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
+:Contributors:
+    - Christopher Wollin
 
 """
 
-# Necessary packages to import
 import numpy as np
 import pandas as pd
-
 
 def _to_pandas_datetime(value):
     """Convert scalar-like datetime values to pandas.Timestamp-compatible input.
@@ -30,6 +24,7 @@ def _to_pandas_datetime(value):
     -------
     pandas.Timestamp
         Converted timestamp.
+
     """
 
     # ObsPy UTCDateTime exposes native datetime through ``.datetime``.
@@ -64,7 +59,8 @@ def time_windows(start_time, end_time, window_size, step=None):
     Raises
     ------
     ValueError
-        If the provided time range is invalid or empty.
+        Provided time range is invalid or empty.
+
     """
 
     # Normalize datetime-like inputs.
@@ -135,6 +131,7 @@ def overlap_seconds(start_a, end_a, start_b, end_b):
     float
         Overlap duration in seconds. Returns ``0.0`` when intervals do not
         overlap.
+
     """
 
     sa, ea = _to_pandas_datetime(start_a), _to_pandas_datetime(end_a)
@@ -171,10 +168,11 @@ def files2windows(files_df, windows_df, start_label="start_time",
         ``file_index``, ``window_id``, ``overlap_s``, ``file_weight``,
         ``window_weight``.
 
-    Notes
-    -----
+    Note
+    ----
     ``file_weight`` represents overlap divided by full file duration.
     ``window_weight`` represents overlap divided by full window duration.
+
     """
 
     if not isinstance(min_overlap_s, (int, float)):
@@ -271,6 +269,7 @@ def files2windows_groups(files_df, windows_df, group_cols=None,
     pandas.DataFrame
         File-window mapping. When grouping is enabled, output includes
         ``group_id`` and the grouping columns.
+
     """
 
     # Fast path without grouping.
@@ -356,9 +355,9 @@ def windows_file_map(files_df, time_range, window_size, step=None,
 
     Returns
     -------
-    pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
-        File-window map. If ``return_windows=True``, returns
-        ``(file_window_map, windows_df)``.
+    pandas.DataFrame | tuple(pandas.DataFrame, pandas.DataFrame)
+        File-window map. If ``return_windows=True``, returns ``(file_window_map, windows_df)``.
+
     """
 
     if start_label not in files_df.columns or end_label not in files_df.columns:
@@ -469,9 +468,10 @@ def dataset_windowing(dataset, time_range : tuple, window_size : float | int, st
 
     Returns
     -------
-    pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
+    pandas.DataFrame | tuple(pandas.DataFrame, pandas.DataFrame)
         Window mapping for the dataset. If ``return_windows=True``,
         returns ``(map_df, windows_df)``.
+
     """
 
     if not hasattr(dataset, "database"):
@@ -542,9 +542,10 @@ def unit_windowing(unit, time_range, window_size, step=None,
 
     Returns
     -------
-    pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
+    pandas.DataFrame o| tuple(pandas.DataFrame, pandas.DataFrame)
         Window mapping for the unit. If ``return_windows=True``,
         returns ``(map_df, windows_df)``.
+
     """
 
     if not hasattr(unit, "datasets"):
@@ -679,9 +680,11 @@ def files_window_vector(file_vectors, file_window_map, n_windows=None,
         ``file_window_map["window_id"]``.
     mode : {"rms", "mean", "sum"}, optional
         Aggregation mode:
+
         - ``"rms"``: overlap-weighted RMS combination
         - ``"mean"``: overlap-weighted mean
         - ``"sum"``: simple sum over mapped file vectors
+
     weight_label : str, optional
         Weight column from ``file_window_map`` used for ``"rms"`` and
         ``"mean"`` modes.
@@ -692,6 +695,7 @@ def files_window_vector(file_vectors, file_window_map, n_windows=None,
     -------
     numpy.ndarray
         Matrix of shape ``(n_windows, n_channels)``.
+
     """
 
     # Ensure numeric 2D array for vectorized math.
