@@ -1,7 +1,7 @@
 Download and Installation
 =========================
 
-We will use Conda to create a virtual environment to safely manage the dependencies for FoBench. You can create and activate a minimal environment for Fobench with the following commands:
+We will use Conda to create a virtual environment to safely manage the dependencies for FoBench. You can create and activate a minimal environment for FoBench with the following commands:
 
 .. code-block:: bash
 

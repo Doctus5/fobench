@@ -34,10 +34,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
     company : str
         Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
         ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
-    range_ch : int or tuple(int, int) or numpy array
-            Range of channels to load. If one single number (``int``), it is one single channel. 
+    range_ch : int or tuple(int, int) or np.array
+            Range of channels to load. If one single number (``int``), it is one single channel.
             If ``tuple`` is then interpreted as a (start, end) channels.
-            If ``list`` or ``numpy array``, it is de specific set of channels to load.
+            If ``list`` or ``np.array``, it is the specific set of channels to load.
     format : str, optional
         Format specifier.
     load_data : bool
@@ -77,7 +77,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         tdms_chan = measurement.channels()
         chans = np.asarray([int(chan.name) for chan in tdms_chan], dtype=int)
         chans, data_range = __channel_selection__(range_ch, chans)
-        
+
         # loading of the data conditioned. Old way
         # data_range = None if range_ch is None else list(chans_nums)
         # data = __data__(measurement, format, company, data_range) if load_data else None

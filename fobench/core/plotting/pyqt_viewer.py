@@ -374,7 +374,7 @@ class Viewer(QtWidgets.QMainWindow):
         elif mode == "psd":
             plot, self.dock_psd = self.make_plot_dock(f"PSD Ch {self.selected_channel}",
                                                        "Frequency [Hz]", "PSD Amplitude")
-        plot.plot(freqs, amps, pen="k")
+        plot.plot(freqs, np.squeeze(amps), pen="k")
         plot.setXRange(freqs[0], freqs[-1], padding=0)
         plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
                                     yMin=min(amps), yMax=max(amps))

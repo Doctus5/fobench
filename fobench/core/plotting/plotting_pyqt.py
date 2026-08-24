@@ -205,8 +205,6 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
 
     """
 
-    if isinstance(amplitudes, np.ndarray) and amplitudes.ndim == 1:
-        amplitudes = [amplitudes]
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
     plot.setLabel("left", y_label, **{"color": "k", "font-size": "14pt"})
     plot.setLabel("bottom", x_label, **{"color": "k", "font-size": "14pt"})
