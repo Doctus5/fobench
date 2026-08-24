@@ -546,26 +546,10 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     """Extracts the data depending on the file type"""
 
     # it would be nice if manufacturer would save their data as (distance, time) shape initially.
-    # it woudl allow for fast processing.
-    if format == "tdms" and company == "silixa":
+    # it would allow for fast processing.
+    if format in ("h5", "hdf5"):
 
-        values = extract_point.as_dataframe().to_numpy()
-        if range_ch is not None:
-            values = values[:, range_ch]
-        # return np.ascontiguousarray(values.T)
-        return values
-
-    elif format in ("h5", "hdf5"):
-
-        if company == "febus":
-            dims = extract_point.shape
-            values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])
-            if range_ch is not None:
-                values = values[:, range_ch]
-            # return np.ascontiguousarray(values.T)
-            return values
-
-        elif company in ("silixa", "asn", "optasense", "aragon", "sintela", "terra15", "michele"):
+        if company in ("silixa", "asn", "optasense", "aragon", "sintela", "terra15", "michele"):
             if range_ch is None:
                 values = extract_point[:,:]
             else:
@@ -574,6 +558,22 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
                 values *= 1e-9  # Convert from nanostrain to strain
             # return np.ascontiguousarray(values.T)
             return values
+
+        elif company == "febus":
+            dims = extract_point.shape
+            values = extract_point[:, :LAG, :].reshape(dims[0] * LAG, dims[2])
+            if range_ch is not None:
+                values = values[:, range_ch]
+            # return np.ascontiguousarray(values.T)
+            return values
+
+    elif format == "tdms" and company == "silixa":
+
+        values = extract_point.as_dataframe().to_numpy()
+        if range_ch is not None:
+            values = values[:, range_ch]
+        # return np.ascontiguousarray(values.T)
+        return values
 
     # ####################################################
     # CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.

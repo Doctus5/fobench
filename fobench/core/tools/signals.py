@@ -482,11 +482,11 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
     if mode == "spectrum":
         if pad > 0:
             if o_signal.ndim == 1:
-                o_signal = np.pad(o_signal, (pad-1, pad), mode='constant')
+                o_signal = np.pad(o_signal, (pad-1, pad), mode="constant")
             elif axis == 0:
-                o_signal = np.pad(o_signal, ((pad-1, pad),(0, 0)), mode='constant')
+                o_signal = np.pad(o_signal, ((pad-1, pad),(0, 0)), mode="constant")
             else:
-                o_signal = np.pad(o_signal, ((0, 0),(pad-1, pad)), mode='constant')
+                o_signal = np.pad(o_signal, ((0, 0),(pad-1, pad)), mode="constant")
 
         n = o_signal.shape[axis] if nfft is None else nfft
         fft = np.fft.fft(o_signal, n=n, axis=axis)
