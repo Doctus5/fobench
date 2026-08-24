@@ -1,7 +1,7 @@
-fobench.plotting.plotting\_mpl
-==============================
+fobench.core.plotting.plotting\_mpl
+===================================
 
-.. automodule:: fobench.plotting.plotting_mpl
+.. automodule:: fobench.core.plotting.plotting_mpl
 
    
    .. rubric:: Functions

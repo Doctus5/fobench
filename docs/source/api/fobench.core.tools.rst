@@ -1,7 +1,7 @@
-fobench.tools
-=============
+fobench.core.tools
+==================
 
-.. automodule:: fobench.tools
+.. automodule:: fobench.core.tools
 
    
 .. rubric:: Modules

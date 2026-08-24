@@ -23,7 +23,8 @@ extensions = ["sphinx_last_updated_by_git",
 
 templates_path = ["_templates"]
 exclude_patterns = []
-
+# napoleon_include_init_with_doc = True
+autoclass_content = 'both'
 autodoc_default_options = {"members": True,
                            "private-members": True}
 autosummary_generate = True

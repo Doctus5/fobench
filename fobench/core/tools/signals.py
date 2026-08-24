@@ -125,12 +125,12 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     """
 
     o_signal = np.asarray(o_signal, dtype=float)
-    
+
     if order == 0:
         return signal.detrend(o_signal, axis=axis, type="constant")
     if order == 1:
         return signal.detrend(o_signal, axis=axis, type="linear")
-    
+
     # when order of detrned is higher than 1
     new_signal = np.empty_like(o_signal)
 
@@ -206,7 +206,7 @@ def get_tukey_window(M: int, alpha: float, sym: bool)-> np.ndarray:
 def taper_signal(data: np.ndarray, axis: int, alpha: float = 0.1, detaper: bool = False,
                  sym: bool = True) -> np.ndarray:
 
-    """Taper signal using Tukey window
+    """Taper signal using Tukey window.
 
     Parameters
     ----------
@@ -345,7 +345,7 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
 
         w_len = int(fs * ram_window)
         t_axis = 0 if axis == 1 else 1
-        
+
         # weight = uniform_filter1d(np.abs(data), size=w_len, axis=t_axis, mode="nearest")
         # weight[weight == 0] = 1
         # normalized_data = data / weight
@@ -353,7 +353,7 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
         for i in tqdm(range(total_channels), desc="Running mean normalization", leave=False):
             for segment_start in range(num_points - w_len + 1):
                 segment_end = segment_start + w_len
-                
+
                 if t_axis == 0:
                     segment = normalized_data[segment_start:segment_end, i]
                     weight = np.mean(np.abs(segment))
@@ -374,7 +374,7 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
 def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels: int,
                   sampling_frequency: int, axis: int)-> np.ndarray:
 
-    """Performs spectral whitening of all channels. Adapted code from: https://github.com/seismo-live/seismo_live
+    """Performs spectral whitening of all channels. Adapted code from: https://github.com/seismo-live/seismo_live .
     Signals should be adequatly pre-processed.
 
     Parameters
@@ -398,7 +398,7 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
     whitened_matrix = np.zeros_like(data, dtype="float32")
 
     for i in tqdm(range(total_channels), desc='Whitening', leave=False):
-        
+
         channel = data[:, i] if axis == 0 else data[i, :]
         n = len(channel)
         f_range = float(freq_max) - float(freq_min)
@@ -487,12 +487,12 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
                 o_signal = np.pad(o_signal, ((pad-1, pad),(0, 0)), mode='constant')
             else:
                 o_signal = np.pad(o_signal, ((0, 0),(pad-1, pad)), mode='constant')
-        
+
         n = o_signal.shape[axis] if nfft is None else nfft
         fft = np.fft.fft(o_signal, n=n, axis=axis)
         freq_axis = np.fft.fftfreq(n, 1 / fs)
         positive_freqs = freq_axis[:n//2]
-        
+
         if o_signal.ndim == 1:
             magnitude = 2/n * np.abs(fft)[:n//2]
         elif axis == 0:

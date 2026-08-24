@@ -1,7 +1,7 @@
-fobench.tools.signals
-=====================
+fobench.core.tools.signals
+==========================
 
-.. automodule:: fobench.tools.signals
+.. automodule:: fobench.core.tools.signals
 
    
    .. rubric:: Functions

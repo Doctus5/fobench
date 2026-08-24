@@ -1,7 +1,7 @@
-﻿fobench.tools.filters
-=====================
+fobench.core.tools.filters
+==========================
 
-.. automodule:: fobench.tools.filters
+.. automodule:: fobench.core.tools.filters
 
    
    .. rubric:: Functions

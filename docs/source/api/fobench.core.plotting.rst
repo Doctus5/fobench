@@ -1,7 +1,7 @@
-﻿fobench.plotting
-================
+fobench.core.plotting
+=====================
 
-.. automodule:: fobench.plotting
+.. automodule:: fobench.core.plotting
 
    
 .. rubric:: Modules

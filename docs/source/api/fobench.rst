@@ -10,6 +10,5 @@
    :toctree:
    :recursive:
 
-   fiber
-   plotting
-   tools
+   core
+   database

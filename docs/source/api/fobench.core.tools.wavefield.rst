@@ -1,7 +1,7 @@
-fobench.tools.wavefield
-=======================
+fobench.core.tools.wavefield
+============================
 
-.. automodule:: fobench.tools.wavefield
+.. automodule:: fobench.core.tools.wavefield
 
    
    .. rubric:: Functions
@@ -13,4 +13,5 @@ fobench.tools.wavefield
       peak_to_peak_amp
       rmsa
       spatial_coherence_matrix
+      x_correlate
    

@@ -437,19 +437,20 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 
 def to_xarray(Fiber, name=None, use_distance=False):
-    
+    """Converts to xarray"""
+
     try:
         import xarray as xr
     except ImportError as exc:
         raise ImportError("xarray package is required, but no module is found.")
-    
+
     # create the different labels and coordinates
     data_label = name or Fiber.units or "data"
     times = Fiber.times("datetime64")
     channels = np.asarray(Fiber.channels)
     distances = np.asarray(Fiber.distances, dtype=float)
     attrs = clean_metadata(Fiber)
-    
+
     if use_distance:
         dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "distance"}
         dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
@@ -462,10 +463,10 @@ def to_xarray(Fiber, name=None, use_distance=False):
         coords = {"time": ("time",times),
                 "channel": ("channel",channels),
 				"distance": ("channel",distances)}
-    
+
     return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
-        
-    
+
+
 def clean_metadata(Fiber) -> dict:
 	"""Returns a clean metadata of Fiber
 
@@ -475,7 +476,7 @@ def clean_metadata(Fiber) -> dict:
 	Returns:
 		dict: clean metadata dicitonary of Fiber class
 	"""
-    
+
 	attrs = {"fiber": Fiber.fiber,
 			"company": Fiber.company,
 			"format": Fiber.format,
@@ -497,7 +498,7 @@ def clean_metadata(Fiber) -> dict:
 			# "processing": Fiber.processing,
 			# "properties": Fiber.properties
    			}
-    
+
 	return attrs
 
 
@@ -541,31 +542,31 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 
 
 def _to_seconds(value) -> float:
-    
+
     if isinstance(value, (int, float, np.integer, np.floating)):
-        
+
         return float(value)
-    
+
     return float(UTC(value))
 
 
 def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
-    
+
     x = np.arange(data.shape[0])
-    
+
     for j in range(data.shape[1]):
-        
+
         y = data[:, j]
         valid = np.isfinite(y)
-        
+
         if np.any(valid) and not np.all(valid):
-            
+
             y[~valid] = np.interp(x[~valid], x[valid], y[valid])
-    
+
     return data
 
 
-def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2, 
+def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2,
                       dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
                       out: np.ndarray = None) -> np.ndarray:
 	"""2D concatenaiton of matrices with time series data.
@@ -714,31 +715,31 @@ def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: 
 
 
 def _to_seconds(value) -> float:
-    
+
     if isinstance(value, (int, float, np.integer, np.floating)):
-        
+
         return float(value)
-    
+
     return float(UTC(value))
 
 
 def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
-    
+
     x = np.arange(data.shape[0])
-    
+
     for j in range(data.shape[1]):
-        
+
         y = data[:, j]
         valid = np.isfinite(y)
-        
+
         if np.any(valid) and not np.all(valid):
-            
+
             y[~valid] = np.interp(x[~valid], x[valid], y[valid])
-    
+
     return data
 
 
-def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2, 
+def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2,
                       dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
                       out: np.ndarray = None) -> np.ndarray:
 	"""2D concatenaiton of matrices with time series data.

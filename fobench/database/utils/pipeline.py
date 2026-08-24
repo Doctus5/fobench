@@ -19,9 +19,9 @@ import pandas as pd
 # - editable install (`from fobench.fiber import Fiber`)
 # - repo namespace usage (`from fobench.fobench.fiber import Fiber`)
 try:
-    from fobench.fiber import Fiber
+    from fobench.core.fiber import Fiber
 except ModuleNotFoundError:
-    from ...fobench.fiber import Fiber
+    from ...fobench.core.fiber import Fiber
 
 
 def pipeline_check(pipeline : list, allow_callables : bool = True):

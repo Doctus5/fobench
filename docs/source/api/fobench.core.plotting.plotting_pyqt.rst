@@ -1,7 +1,7 @@
-fobench.plotting.plotting\_pyqt
-===============================
+fobench.core.plotting.plotting\_pyqt
+====================================
 
-.. automodule:: fobench.plotting.plotting_pyqt
+.. automodule:: fobench.core.plotting.plotting_pyqt
 
    
    .. rubric:: Functions
