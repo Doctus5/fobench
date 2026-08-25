@@ -278,7 +278,7 @@ class Unit(object):
 			self.total_datasets = len(self.datasets)
 
 		self.__fill_metadata__()
-		self.__built__ = True # its now builded.
+		self.__built__ = True # its now built.
 
 		return self
 

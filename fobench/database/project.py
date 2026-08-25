@@ -220,7 +220,7 @@ class Project(object):
 		----------
 		parallel_params : dict
 			Dictionary containing the parameters for parallelization. If parameters are
-			 then the building method runs in parallel. If ``None``, it runs in serial.
+			given, then the building method runs in parallel. If ``None``, it runs in serial.
 
 		Returns
 		-------

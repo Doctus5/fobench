@@ -1,4 +1,4 @@
-"""The data management module"""
+"""The data management module."""
 from .dataset import Dataset
 from .parallel import Parallel
 from .project import Project
