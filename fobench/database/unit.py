@@ -1,62 +1,70 @@
-"""
-Class "Unit" for visualizing and handling data within a project.
-a Project is understood as a field campaing in an specific location where several Datasets are collected
-from deployments.
+"""Class ``Unit`` for visualizing and handling data within a ``Project``.
+A ``Project`` is understood as a field campaing in an specific location where several
+``Datasets`` are collected from deployments.
 
-Created on 2022-08-19 12:07:17
-Last modification on 2024-07-08 15:59:00
+:Authors:
+	- Sergio Diaz-Meza
+	- Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-:contributors:
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
+:Contributors:
+	- Christopher Wollin
 
 """
 
-# Necessary packages to import
 import copy
 import pandas as pd
 from obspy.core import UTCDateTime as UTC
 
-# Fobench classes
 from .dataset import Dataset
 from .parallel import Parallel
 
-# Inner functions
 from . import manager as manager
 from .plotters import unit_plots as uni_plots
 from .utils.windowing import unit_windowing
 
-
-
 class Unit(object):
-	'''
-	IMPORTANT INFO: Most of the methods perform changes within the class permanently. Therefore is usefull to make a copy of the class
-	with the method copy() before performing any processing or changes.
-	'''
-	
-	#Creates the basic variables of the DAS object with its characteristics
-	def __init__(self, folder_path=None, metadata_file=None, sensing="das", company="", format="", storage_opts=None):
-		'''
-		Co-authors: --
-		Description: 
-			Initializes a "Unit" Class which keeps track of Datasets associated to an interrogator or sensing system.
-		:Params:
-			- folder_path(type:String): complete path where the single/multiple data files are located.
-			- metadata_file(type:String): complete path where the metadata JSON file is located. This file is generated once
+	"""Class keeps track of ``Datasets`` associated with an interrogator or sensing system.
+
+	Note
+	----
+	Most of the methods perform changes within the class permanently.
+	It can be useful to make a copy of the instance with the
+	``.copy()`` method before performing any processing or changes.
+	"""
+
+	def __init__(self, folder_path: str = None, metadata_file: str = None,
+			  sensing: str  = "das", company: str = "", format: str = "",
+			  storage_opts=None):
+		"""
+
+		Parameters
+		----------
+		folder_path : str, optional
+			Complete path where single/multiple data files are located.
+		metadata_file : str, optional
+			Complete path to where the metadata JSON file is located. This file is generated once
 			the Unit class was run for the first time scanning files.
-		:Return:
-			- NA.  
-		'''
+		sensing : str
+			Fiber optic sensing technology. Currently only ``"das"``.
+		company : str
+			Interrogator manufacturer.
+		format : str, optional
+			Format specifier.
+		storage_opts :
+			DESCRIPTION.
+
+		Returns
+		-------
+		None
+
+		"""
 
 		# In case class is initialized first time or empty (no metadata).
 		self.datasets : list[Dataset] = [] # list of datasets. Each one is a Unit class that contains Datasets class.
 
 		# Private attributes
 		self.__folder_path__ = folder_path # central folder path of files
-		self.__builded__ = False # is there a metadata file for it.
+		self.__built__ = False # is there a metadata file for it.
 		self.__storage_opts__ = storage_opts # credentials of S3 to look at the bucket
 
 		# Public attributes
@@ -71,39 +79,23 @@ class Unit(object):
 		self.metadata = self.__json_metadata__()
 
 		if metadata_file is not None: # check the case in which a metadata is introduced. Initialization from here is needed.
-
 			self.__build_from_metafile__(metadata_file)
-			self.__builded__ = True
-    
+			self.__built__ = True
 
+	"""Private Methods"""
 
-	'''
-	######################################################
-	Private Functions
-	######################################################
-	'''
-    
 	def __str__(self):
 		attributes = ['company', 'sensing', 'earliest_usage', 'latest_usage', 'total_datasets', 'total_files']
 
 		return ('Unit class\n'
-                'unit parameters:\n'
-                f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
-    
-    # Define metadata structure for JSON.
+				'unit parameters:\n'
+				f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
+
 	def __json_metadata__(self):
-		'''
-		Co-authors: --
-		Description: 
-			Define the metadata structure.
-		:Params:
-			- NA.
-		:Return:
-			- metadata(type:Dict): dictionary which is the metadata parameters.
-		'''
+		"""Defines the metadata structure and returns dictionary with metadata parameters."""
 
 		metadata = {
-                    "Attributes": {
+					"Attributes": {
 						"interrogator_id": None,
 						"manufacturer": 'NA',
 						"sensing": 'NA',
@@ -143,30 +135,20 @@ class Unit(object):
 						"interrogator_path": True
 						},
 					"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
-                    }
+					}
 
 		return metadata
 
-
-	#Creates the basic variables of the DAS object with its characteristics
-	def __build_from_metafile__(self, json_file=None):
-		'''
-		Co-authors: --
-		Description: 
-			Builds from a given metadata file.
-		:Params:
-			- json_file(type:String): complete path where the single/multiple datasets are located.
-		:Return:
-			- NA.
-		'''
+	def __build_from_metafile__(self, json_file: str = None):
+		"""Creates the basic variables of the DAS object with its characteristics.
+		Builds from given metadata JSON file.
+		"""
 
 		# Check if just the path of the metadata is being indicated.
 		if isinstance(json_file, str):
-
 			meta_dict = manager.open_metadatafile(json_file)
 
 		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
-
 			meta_dict = json_file
 
 		# Initialize/Fill the Unit attributes.
@@ -177,29 +159,18 @@ class Unit(object):
 		if meta_dict['Datasets']: # check Datasets.
 
 			for meta_dataset in meta_dict['Datasets']:
-
 				self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Units. )
-    
 			self.total_datasets = len(self.datasets)
 
 		return self
 
-
-	#Creates the basic variables of the DAS object with its characteristics
 	def __metadata_to_attributes__(self):
-		'''
-		Co-authors: --
-		Description: 
-			Fills Unit attributes (build) from metadata.
-		:Params:
-			- NA.
-		:Return:
-			- NA.
-		'''
+		"""Creates the basic variables of the DAS object with its characteristics.
+		Fills Unit attributes (build) from metadata.
+		"""
 
 		# Fill values in attributes
 		self.__folder_path__ = self.metadata['Attributes']['interrogator_path'] # central folder path of files.
-
 		self.sensing = self.metadata['Attributes']['sensing']
 		self.company = self.metadata['Attributes']['manufacturer']
 		self.total_files = self.metadata['Attributes']['total_files']
@@ -207,19 +178,11 @@ class Unit(object):
 		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the unit.
 
 		return self
-    
 
-    # Define metadata structure for JSON.
 	def __fill_metadata__(self):
-		'''
-		Co-authors: --
-		Description: 
-			Fill the arguments on the metadata.
-		:Params:
-			- NA. 
-		:Return:
-			- metadata(type:Dict): dictionary which is the metadata parameters.
-		'''
+		"""Define metadata structure for JSON. Fills the metadata arguments and
+		returns them as dictionary.
+		"""
 
 		# Fill values in metadata file
 		self.metadata['Attributes']["interrogator_id"] = None
@@ -234,79 +197,48 @@ class Unit(object):
 		# self.metadata['Attributes']["firmware_version"] = 'NA'
 		self.metadata['Datasets'] = [data_set.metadata for data_set in self.datasets] # populate with metadata
 
-
-    # Define metadata structure for JSON.
 	def __metadates_2_isoformat__(self, reverse=False):
-		'''
-		Co-authors: --
-		Description: 
-			Transforms the dates of the Dataset files metadata into isoformat. 
-			Convenient for saving since Timestamp objects can not be saved in JSONs.
-		:Params:
-			- reverse(type:Boolean): if True, it transform from isoformat to Timestamp object.
-		:Return:
-			- NA.
-		'''
+		"""Define metadata structure for JSON. Transforms the dates of the ``Dataset``
+		files metadata into isoformat.Convenient for saving since Timestamp objects
+		can not be saved in JSONs. If ``reverse=True``, transforma from isoformat
+		to Timestamp object.
+		"""
 
 		if self.datasets:
-
 			for dataset_meta in self.metadata['Datasets']:
-
 				dataset_meta['Database'] = manager.metadates_2_isoformat(dataset_meta['Database'], reverse=reverse)
 
 		return self
-    
 
-	'''
-	######################################################
-	Public Functions
-	######################################################
-	'''
- 
+	"""Public Functions"""
 
-	#Return a deep copy of the object. Useful for instances where there is no wish to affect the original data while keeping notherone affected.	
 	def copy(self):
-		'''
-		Co-authors: --
-		Description: Returns a deep copy of the class in the moment of execution.
-		:Params:
-			- NA.
-		:Return:
-			- (type:Unit Class): Same Unit Class in the state when the method is called.  
-		'''
-	
+		"""Return a deep copy of the object. Useful for instances where there
+		is no wish to affect the original data.
+		"""
 		return copy.deepcopy(self)
 
-
-	# Adding Datasets to the Unit.
 	def add_dataset(self, dataset):
-		'''
-		Co-authors: --
-		Description: 
-			Add Dataset objects to the current Unit Class.
-		:Params:
-			- dataset(type:Dataset Class): Dataset Class or Object to add to current Unit class. 
-		:Return:
-			- NA.
-		'''
-
+		"""Adding ``Dataset`` to the ``Unit``."""
 		self.datasets.append(dataset)
 
 		return self
 
-
-	#Creates the basic variables of the DAS object with its characteristics
 	def build(self, parallels=None):
-		'''
-		Co-authors: --
-		Description: 
-			Builds from a given metadata file.
-		:Params:
-			- parallel_params(type:Dict): dictionary containing the parameters for parallelization. If parameters are
-			given, then the building method runs in parallel. If None, it runs in serial.
-		:Return:
-			- NA.
-		'''
+		"""Creates the basic variables of the DAS object with its characteristics.
+		Builds from a given metadata file.
+
+		Parameters
+		----------
+		parallel_params : dict
+			Dictionary containing the parameters for parallelization. If parameters are
+			given, then the building method runs in parallel. If ``None``, it runs in serial.
+
+		Returns
+		-------
+		None
+
+		"""
 
 		files = manager.scan_folder(self.__folder_path__, format=self.format, storage_opts=self.__storage_opts__)#[:400] # remove the limitations.
 
@@ -340,40 +272,40 @@ class Unit(object):
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
 				self.total_files += dataset.total_files # adding to total number of files.
-    
+
 			self.earliest_usage = UTC(min(earlier))
 			self.latest_usage = UTC(max(later))
 			self.total_datasets = len(self.datasets)
 
 		self.__fill_metadata__()
-		self.__builded__ = True # its now builded.
+		self.__built__ = True # its now builded.
 
 		return self
 
 
-	# Shows a table of the containing Datasets
 	def dataset_table(self, return_table : bool = False, include_private: bool = False) -> None | pd.DataFrame:
-		"""Prints or returns a summaized table of Datasets found for the unit and its properties.
+		"""Prints or returns a summarized table of ``Datasets`` found for the
+		``Unit`` and its properties.
 
 		Parameters
 		----------
 		return_table : bool, optional
-			if True, it returns the summarized table of datasets within Unit and its properties. If False, it prints it in terminal, by default False
+			If ``True``, returns the summarized table of ``Datasets`` within ``Unit``
+			and its properties. If ``False``, prints them in terminal.
 		include_private : bool, optional
-			includes private attributes of the datasets, by default False
+			Include private attributes of the ``Datasets``.
 
 		Returns
 		-------
-		None | DataFrame
-			_description_
+		None | pandas.DataFrame
+
 		"""
 
 		rows = []
-
 		for i, ds in enumerate(self.datasets):
-    
+
 			row = {}
- 
+
 			row["total_files"] = ds.total_files
 			row["start_time"] = ds.start_time
 			row["end_time"] = ds.end_time
@@ -384,45 +316,42 @@ class Unit(object):
 			row["total_channels"] = ds.total_channels
 			row["spatial_interval"] = ds.spatial_interval
 			row["channel_offset"] = ds.channel_offset
-    
+
 			rows.append(row)
 
 		df = pd.DataFrame(rows)
 
 		if return_table:
-			
 			return df
 
 		else:
-
 			print(df.to_string(header=True))
 
 
 	def trim(self, time_range: tuple, include_overlap : bool = True):
-		"""Trim the unit and its datasets based on date ranges. See manager.fr_time_filtering for more details.
+		"""Trim the unit and its datasets based on date ranges.
+		See :func:`~fobench.database.manager.df_time_filtering`.
 
 		Parameters
 		----------
 		time_range : tuple
 			Start and end times in ISO format (or any datetime-parsable values).
-			Example: ("2019-12-12T00:00:00Z", "2020-12-12T00:00:00Z")
+			Example: ``("2019-12-12T00:00:00Z", "2020-12-12T00:00:00Z")``
 		include_overlap : bool, optional
-			If False (default), keep rows fully contained in ``range``.
-			If True, keep rows that overlap ``range``. Deault is True.
+			If ``False`` keep rows fully contained in ``range``.
+			If ``True``, keep rows that overlap ``range``.
 
 		Returns
 		-------
-		_type_
-			NA
+		None
+
 		"""
 
 		self.total_files = 0
 		trimmed_datasets = []
 
 		for ds in self.datasets:
-    
 			ds.trim(time_range, include_overlap)
-
 			if ds.total_files > 0:
 				trimmed_datasets.append(ds)
 				self.total_files += ds.total_files
@@ -446,7 +375,8 @@ class Unit(object):
 		merge_datasets: bool = True, group_cols: list[str] = None,
 		include_meta: bool = False,
 		return_windows: bool = False):
-		"""Build file-to-window mapping for this unit. Thsi is usually for the pipeline construction and parallel tasks.
+		"""Build file-to-window mapping for this ``Unit``. This is usually for the
+		pipeline construction and parallel tasks.
 
 		Parameters
 		----------
@@ -476,9 +406,10 @@ class Unit(object):
 
 		Returns
 		-------
-		pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
+		pandas.DataFrame | tuple(pandas.DataFrame, pandas.DataFrame)
 			Window mapping for this unit. If ``return_windows=True``,
 			returns ``(map_df, windows_df)``.
+
 		"""
 
 		return unit_windowing(
@@ -503,7 +434,7 @@ class Unit(object):
 		submit_chunk_size: int = None, cpu_ratio: float = 0.85,
 		show_progress: bool = True, reducer: str = "mean",
 		output_adapter=None):
-		"""Apply a Fiber task over unit windows and save to zarr.
+		"""Apply a ``Fiber`` task over ``Unit`` windows and save to zarr.
 
 		Parameters
 		----------
@@ -547,6 +478,7 @@ class Unit(object):
 		-------
 		dict
 			Execution summary and output metadata.
+
 		"""
 
 		# Lazy import to avoid requiring zarr unless apply_fiber is used.
@@ -574,26 +506,10 @@ class Unit(object):
 			output_adapter=output_adapter
 		)
 
-
-	'''
-	####################################################
-	Plotting functions below...
-	####################################################
-	'''
-
+	"""Plotting Functions"""
 
 	def view_avail(self):
-		'''
-		Co-authors: --
-		Description: 
-			Function for plotting and viewing the available Datasets and their time coverage.
-		:Params:
-			- parallel_params(type:Dict): dictionary containing the parameters for parallelization. If parameters are
-			given, then the building method runs in parallel. If None, it runs in serial.
-		:Return:
-			- NA.
-		'''
+		"""Function for plotting and viewing the available Datasets and their time coverage."""
 
 		dataset_infos = [[dataset.start_time, dataset.end_time] for dataset in self.datasets]
-
 		uni_plots.plot_data_coverage(dataset_infos, (self.earliest_usage, self.latest_usage))

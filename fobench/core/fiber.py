@@ -40,7 +40,6 @@ class Fiber(object):
 
     def __init__(self, filepath: str, company: str = "", range_ch: tuple[int,int] = None, sensing: str = "das",
                  load_data: bool = True, show_progress: bool = True, storage_opts = None):
-
         """
 
         Parameters

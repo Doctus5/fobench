@@ -1,15 +1,12 @@
-"""
-Shared processing methods for applying Fiber workflows over Dataset/Unit windows.
+"""Shared processing methods for applying ``Fiber`` workflows over ``Dataset/Unit``
+windows.
 
-Created on 2026-04-09 19:35:00
-Last modification on 2026-04-09 19:35:00
+:Authors:
+	- Sergio Diaz-Meza
+	- Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-:contributors:
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
+:Contributors:
+	- Christopher Wollin
 
 """
 
@@ -26,7 +23,6 @@ from .utils.results_io import (
     flush_weighted_updates,
     finalize_weighted_mean,
 )
-
 
 def _auto_n_cores(cpu_ratio: float = 0.85):
     """Compute a safe automatic number of cores.
@@ -61,13 +57,14 @@ def _normalize_pipeline(task, output_key: str = None):
         - list/tuple: full pipeline.
         - dict with ``"pipeline"`` or ``"steps"``.
         - str/callable: shorthand single-step pipeline.
+
     output_key : str, optional
         Output key to capture and read from pipeline outputs.
 
     Returns
     -------
     tuple
-        Pair ``(pipeline, output_key)``.
+        ``(pipeline, output_key)``.
     """
 
     # Convert supported input styles to a pipeline object.
@@ -140,11 +137,11 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
     submit_chunk_size: int = None, cpu_ratio: float = 0.85,
     show_progress: bool = True, reducer: str = "mean",
     output_adapter=None):
-    """Apply a Fiber task over file windows and save results incrementally to zarr.
+    """Apply a ``Fiber`` task over file windows and save results incrementally to zarr.
 
     Parameters
     ----------
-    source : Dataset or Unit-like object
+    source : ``Dataset`` or ``Unit``-like object
         Source object that provides ``window_map``.
     task : list, tuple, dict, str, or callable
         Task definition to run over each file through pipeline execution.
@@ -371,4 +368,3 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
         "n_cores": int(n_cores),
         "submit_chunk_size": int(submit_chunk_size),
     }
-
