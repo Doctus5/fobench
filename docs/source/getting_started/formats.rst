@@ -41,11 +41,11 @@ The reading and writing of the following data formats is currently supported:
      - ✓
      - ✓
      - ``"febus"``
-   * - QuantX
+   * - OptaSense
      - hdf5
      - ✓
      - ✓
-     - ``"quantx"``
+     - ``"optasense"``
    * - ASN
      - hdf5
      - ✓

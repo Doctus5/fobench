@@ -33,7 +33,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         Path to file to read.
     company : str
         Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-        ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
+        ``"optasense"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
     range_ch : int or tuple(int, int) or np.array
             Range of channels to load. If one single number (``int``), it is one single channel.
             If ``tuple`` is then interpreted as a (start, end) channels.
