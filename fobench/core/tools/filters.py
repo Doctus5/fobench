@@ -79,7 +79,7 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
 """
 -----------------------------------------------------------------
 Obspy filtering functions
-modified from `here <https://docs.obspy.org/_modules/obspy/signal/filter.html>`_
+modified from `here <https://docs.obspy.org/_modules/obspy/signal/filter.html>`__
 # :copyright:
 #     The ObsPy Development Team (devs@obspy.org)
 # :license:
@@ -385,7 +385,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
               numtaps: int = 50, zerophase: bool = False, axis: int=0)-> np.ndarray:
     """ Finite impulse response (FIR) filter whose transfer function minimizes
     the maximum error between the desired gain and the realized gain in the
-    specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`_
+    specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`__
     for more details. Filter design calls :func:`~scipy.signal.remez`.
 
 
@@ -432,7 +432,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
                 zerophase: bool = False, axis: int=0) -> np.ndarray:
     """ FIR-Lowpass filter. Filter data by passing data only below a certain frequency.
-    For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`_
+    For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`__
 
     Warning
     -------
@@ -763,7 +763,8 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               plot_mode:str = "pyqt", verbose: bool = False, mode="pass",
               t_axis: int = 0, d_axis: int = 1):
     """ Frequency wavenumber filter
-    :Contributors: : Johannes Hart (GFZ-Potsdam)
+
+    :Contributors: Johannes Hart (GFZ-Potsdam)
 
     Parameters
     ----------

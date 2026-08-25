@@ -1,4 +1,4 @@
-fobench.core
+﻿fobench.core
 ============
 
 .. automodule:: fobench.core
