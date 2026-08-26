@@ -24,7 +24,18 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
     Parameters
     ----------
     f_type : str
-        The filter type.
+        The filter type. Options are
+
+        - ``bandpass`` : Bandpass filter
+        - ``bandstop`` : Bandstop filter
+        - ``lowpass`` . Lowpass filter
+        - ``highpass`` : Highpass filter
+        - ``median`` : Median filter
+        - ``lp_fir`` : FIR-Lowpass filter
+        - ``lp_cheby2`` : Chebyshev type II lowpass Filter
+        - ``afk`` : Adaptive frequency-wavenumber filter
+        - ``remez-fir`` : FIR filter using Remez exchange algorithm
+
     data : np.ndarray
         Data to filter.
     df : float
