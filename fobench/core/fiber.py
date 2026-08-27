@@ -83,16 +83,16 @@ class Fiber(object):
         self.__basefile__ = self.attributes["basefile"] # changed to the structure of the file
         self.fiber = self.attributes["fiber"]
         self.properties = self.attributes["properties"] # all metadata of input file
-        self.channels = self.attributes["chans"] # list of channels as array
-        self.total_channels = self.attributes["total_channels"]
-        self.sampling_frequency = self.attributes["sampling_frequency"] # sampling rate of the data.
-        self.o_sampling_frequency = self.attributes["o_sampling_frequency"] if self.attributes["o_sampling_frequency"] != None else self.attributes["sampling_frequency"] # original sampling frequency. Important for conversion factor.
-        self.dt = 1 / self.sampling_frequency # calculated time step.
+        self.channels = self.attributes["channels"] # list of channels as array
+        self.n_channels = self.attributes["n_channels"]
+        self.sampling_rate = self.attributes["sampling_rate"] # sampling rate of the data.
+        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] != None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
+        self.dt = 1 / self.sampling_rate # calculated time step.
         self.start_time = self.attributes["start_time"] # start time of the data in file.
         self.end_time = self.attributes["end_time"] # end time of the data in file.
         self.spatial_interval = self.attributes["spatial_interval"] # channel spacing or spatial interval between channels [m].
         self.time_length = self.end_time - self.start_time
-        self.num_points = self.attributes["num_points"] # int(self.time_length/self.dt)
+        self.n_samples = self.attributes["n_samples"] # int(self.time_length/self.dt)
         self.gauge_length = self.attributes["gauge_length"] # gauge length used in the measurement [m].
         self.channel_offset = self.attributes["channel_offset"] # offset where measurement started. It will not always record at channel 0 or distance 0.
         self.data = self.attributes["data"]
@@ -109,8 +109,8 @@ class Fiber(object):
 
     def __str__(self):
         """Defines output of print(Fiber)."""
-        attributes = ["units", "start_time", "end_time", "num_points", "total_channels",
-                    "spatial_interval", "sampling_frequency", "gauge_length"]
+        attributes = ["units", "start_time", "end_time", "n_samples", "n_channels",
+                    "spatial_interval", "sampling_rate", "gauge_length"]
 
         return ("Instance of Fiber class\n"
                 "recording parameters:\n"
@@ -153,9 +153,9 @@ class Fiber(object):
         See :func:`~fobench.core.utils.instr_corr`."""
         if not self.corrected:
             (self.data, self.units, self.channels,
-            self.total_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
+            self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
                                     target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"))
-            # self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels_num]
+            # self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels]
             self.corrected = True
             return self
 
@@ -171,7 +171,7 @@ class Fiber(object):
                                                      times=self.times(), start_time=self.start_time,
                                                      end_time=self.end_time, axis=t_axis)
 
-        self.data, self.start_time, self.end_time, self.time_length, self.num_points = (data,
+        self.data, self.start_time, self.end_time, self.time_length, self.n_samples = (data,
                 start_time, end_time, end_time-start_time, data.shape[t_axis])
 
         return self
@@ -187,7 +187,7 @@ class Fiber(object):
         self.data = self.data[:,ch0:chf+1] if d_axis == 1 else self.data[ch0:chf+1,:]
         self.channels = self.channels[ch0:chf+1]
         self.distances = self.distances[ch0:chf+1]
-        self.total_channels = len(self.channels)
+        self.n_channels = len(self.channels)
 
         return self
 
@@ -249,7 +249,7 @@ class Fiber(object):
         self.data = np.concatenate((first.data, second.data), axis=axis)
         self.start_time, self.end_time = first.start_time, second.end_time
         self.time_length = self.end_time - self.start_time
-        self.num_points = self.data.shape[axis]
+        self.n_samples = self.data.shape[axis]
         self.__filepath__.extend(input_das.__filepath__)
 
         return self
@@ -299,7 +299,7 @@ class Fiber(object):
         else:
             raise ValueError(f"\nInvalid resample type: '{rs_type}'. Choose on of:\n"
                     " -'upsampling'\n -'downsampling'")
-        self.total_channels = len(self.channels)
+        self.n_channels = len(self.channels)
 
         return self
 
@@ -350,19 +350,19 @@ class Fiber(object):
                 raise ValueError("new_freq (temporal) must be provided as a positive number in Hz")
             if new_freq <= 0:
                 raise ValueError(f"new_freq must be > 0 Hz, got {new_freq}")
-            if new_freq > self.sampling_frequency:
-                raise ValueError(f"new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_frequency} Hz)")
+            if new_freq > self.sampling_rate:
+                raise ValueError(f"new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_rate} Hz)")
 
-            if self.sampling_frequency % new_freq != 0:
-                warn(f"Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_frequency / int(self.sampling_frequency / new_freq)} Hz instead")
-            down_factor = int(self.sampling_frequency / new_freq)
-            new_freq = self.sampling_frequency / down_factor
+            if self.sampling_rate % new_freq != 0:
+                warn(f"Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_rate / int(self.sampling_rate / new_freq)} Hz instead")
+            down_factor = int(self.sampling_rate / new_freq)
+            new_freq = self.sampling_rate / down_factor
 
             self.data = filters.decimate(data=self.data, factor=down_factor, f_type=f_type, axis=axis)
 
-            self.sampling_frequency  = new_freq
-            self.dt = 1 / self.sampling_frequency
-            self.num_points = self.data.shape[axis]
+            self.sampling_rate  = new_freq
+            self.dt = 1 / self.sampling_rate
+            self.n_samples = self.data.shape[axis]
 
         elif dim == "d": # filtering and decimate spatially
             new_dx = new_freq
@@ -379,7 +379,7 @@ class Fiber(object):
             self.spatial_interval *=  factor
             self.channels = self.channels[::factor]
             self.distances = (self.channels -self.channel_offset) * self.spatial_interval
-            self.total_channels = len(self.channels)
+            self.n_channels = len(self.channels)
 
         return self
 
@@ -392,8 +392,8 @@ class Fiber(object):
         axis = self.__axis__(dim)
         self.data = signals.normalize_signal(self.data, method=method,
                                        ram_window=ram_window, axis=axis,
-                                       fs=self.sampling_frequency, total_channels=self.total_channels,
-                                       num_points=self.num_points)
+                                       fs=self.sampling_rate, n_channels=self.n_channels,
+                                       n_samples=self.n_samples)
 
         return self
 
@@ -407,8 +407,8 @@ class Fiber(object):
                       warn("Data has possibly not been filtered before whitening! Check"
                      "preprocessing and results carefully!\ncontinuing...")
         self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
-                                    sampling_frequency=self.sampling_frequency,
-                                    total_channels=self.total_channels, axis=axis)
+                                    sampling_rate=self.sampling_rate,
+                                    n_channels=self.n_channels, axis=axis)
 
         return self
 
@@ -424,7 +424,7 @@ class Fiber(object):
         axis = self.__axis__(dim)
         if pre_process and f_type != "median":
             self.preprocess(alpha=alpha, sym=sym, order=order, dim=dim)
-        df = self.sampling_frequency if dim == "t" else 1/self.spatial_interval
+        df = self.sampling_rate if dim == "t" else 1/self.spatial_interval
         self.data = filters.point_filter(f_type=f_type, data=self.data,
                                   df=df, freq=freq, axis=axis, **options)
 
@@ -497,7 +497,7 @@ class Fiber(object):
             plot_mode = "pyqt"
 
         if plot_mode == "pyqt":
-            plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels,
+            plot_pyqt.plot_distance(distances=self.distances, channels=self.channels,
                                        data=snr, y_label="SNR [-]", title="SNR Profile")
         if results:
             return snr
@@ -509,14 +509,14 @@ class Fiber(object):
         See :func:`~fobench.core.tools.wavefield.rmsa`.
         """
         axis = self.__axis__(dim)
-        if window is not None and dim == "t": window =  window*self.sampling_frequency
+        if window is not None and dim == "t": window =  window*self.sampling_rate
         if plot_mode == "mpl":
             warn("⚠️ matplotlib plotting not implemented for this method, "
                  "plotting using pyqtgraph instead")
             plot_mode = "pyqt"
         rmsa = wavefield.rmsa(data=self.data, axis=axis, window=window, dim=dim,
                             times=self.times("unix"), distances = self.distances,
-                            channels_num=self.channels, vmin=vmin, vmax=vmax,
+                            channels=self.channels, vmin=vmin, vmax=vmax,
                             plot_mode=plot_mode)
         if results:
             return rmsa
@@ -527,9 +527,9 @@ class Fiber(object):
         """
         axis = self.__axis__(dim)
         p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
-                                             self.sampling_frequency, axis=axis)
+                                             self.sampling_rate, axis=axis)
         if plot_mode=="pyqt" and dim=="t":
-                plot_pyqt.plot_distance(distances=self.distances, channels_num=self.channels,
+                plot_pyqt.plot_distance(distances=self.distances, channels=self.channels,
                             data=p2p_amplitude, y_label="P2P Amplitude", x_label="Channel",
                               title="Peak-to-Peak Amplitude Profile")
         if plot_mode=="pyqt" and dim=="d":
@@ -552,13 +552,13 @@ class Fiber(object):
         """
         axis = self.__axis__("t")
 
-        fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_frequency,
+        fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_rate,
                                            order=order, nfft=nfft, norm=norm, axis=axis)
         p95 = np.percentile(fx, 95)
         if vmin is None: vmin = 0
         if vmax is None: vmax = p95
         if plot_mode == "pyqt":
-            plot_pyqt.plot_2d_distance(distances=self.distances, channels_num=np.array(self.channels),
+            plot_pyqt.plot_2d_distance(distances=self.distances, channels=np.array(self.channels),
                               y_ticks=freqs, data=fx if axis else fx.T,
                               cmap=cmap, vmin=vmin, vmax=vmax, y_label="Frequency [Hz]",
                               title="Frequency content", cbar_label=self.units)
@@ -591,7 +591,7 @@ class Fiber(object):
         ch_idx = np.array([self.channels.tolist().index(ch) for ch in channel])
         o_signal = np.take(self.data, indices=ch_idx, axis=self.__axis__("d"))
 
-        f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_frequency, mode=mode,
+        f, spec = signals.signal_spectrum(o_signal=o_signal, fs=self.sampling_rate, mode=mode,
                 norm=norm, order=order, nfft=nfft, pre_processing=pre_processing, pad=pad, nperseg=nperseg,
                 axis=axis)
 
@@ -666,7 +666,7 @@ class Fiber(object):
         channel = int(channel)
         index = self.channels.tolist().index(channel)
         data = self.data[:, index]
-        f, t, Sxx = signals.signal_spectrogram(data=data, sampling_frequency=self.sampling_frequency,
+        f, t, Sxx = signals.signal_spectrogram(data=data, sampling_rate=self.sampling_rate,
                                          axis=axis, norm=norm)
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
@@ -720,13 +720,13 @@ class Fiber(object):
         See :func:`~fobench.core.tools.wavefield.autocorrelation_profile`.
         """
         axis = self.__axis__("t")
-        max_shift = int(max_lag*self.sampling_frequency)
-        if max_shift >= self.num_points:
+        max_shift = int(max_lag*self.sampling_rate)
+        if max_shift >= self.n_samples:
             raise ValueError("Selected max_shift is too large")
         acf = wavefield.autocorrelation_profile(self.data, max_shift, axis, plot_mode,
-                                                deconvolve, self.total_channels,
+                                                deconvolve, self.n_channels,
                                                 self.distances, self.channels,
-                                                self.sampling_frequency,
+                                                self.sampling_rate,
                                                 window_size=window_size, vmin=vmin,
                                                 vmax=vmax, **imshow_kwargs)
 
@@ -741,8 +741,8 @@ class Fiber(object):
         data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
         coh = wavefield.spatial_coherence_matrix(data=data_input, max_lag=max_lag,
                                            distances=self.distances,
-                                           fs=self.sampling_frequency,
-                                           channel_nums=self.channels,
+                                           fs=self.sampling_rate,
+                                           channels=self.channels,
                                            plot_mode=plot_mode, results=results,
                                            vmin=vmin, vmax=vmax)
         if results:

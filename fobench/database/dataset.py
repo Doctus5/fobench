@@ -56,17 +56,17 @@ class Dataset(object):
         
         # This variable might be redundant with the variables in metadata. Check this to reduce memory!
         self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the curent Dataset.
-        self.total_files = 0
+        self.n_files = 0
         
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
         self.sensing = sensing # sensing target of the dataset.
         self.start_time = None
         self.end_time = None
-        self.sampling_frequency = None
+        self.sampling_rate = None
         self.dt = None
         self.gauge_length = None
         self.units = None #units of meassure.
-        self.total_channels = None
+        self.n_channels = None
         self.spatial_interval = None
         self.pulse_rate = None
         self.pulse_width = None
@@ -236,14 +236,14 @@ class Dataset(object):
 		'''
 
         # Fill values in attributes
-        self.total_files = self.database['file'].size
+        self.n_files = self.database['file'].size
         self.start_time = UTC(self.database['start_time'].iloc[0])
         self.end_time = UTC(self.database['end_time'].iloc[-1])
-        self.sampling_frequency = self.database['sampling_frequency'].iloc[0]
+        self.sampling_rate = self.database['sampling_rate'].iloc[0]
         self.dt = self.database['dt'].iloc[0]
         self.gauge_length = self.database['gauge_length'].iloc[0]
         self.units = None # units of meassure.
-        self.total_channels = self.database['total_channels'].iloc[0]
+        self.n_channels = self.database['n_channels'].iloc[0]
         self.spatial_interval = self.database['spatial_interval'].iloc[0]
         self.pulse_rate = None
         self.pulse_width = None  
@@ -272,13 +272,13 @@ class Dataset(object):
         self.metadata['Attributes']["interrogator_id"] = None
         self.metadata['Attributes']["acquisition_start_time"] = self.start_time.isoformat()
         self.metadata['Attributes']["acquisition_end_time"] = self.end_time.isoformat()
-        self.metadata['Attributes']["acquisition_sample_rate"] = self.sampling_frequency
+        self.metadata['Attributes']["acquisition_sample_rate"] = self.sampling_rate
         self.metadata['Attributes']["acquisition_sample_rate_unit"] = "Hz"
         self.metadata['Attributes']["time_stamp"] = self.dt
         self.metadata['Attributes']["gauge_length"] = self.gauge_length
         self.metadata['Attributes']["gauge_length_unit"] = "meter"
         self.metadata['Attributes']["unit_of_measure"] = None
-        self.metadata['Attributes']["number_of_channels"] = self.total_channels
+        self.metadata['Attributes']["number_of_channels"] = self.n_channels
         self.metadata['Attributes']["spatial_sampling_interval"] = self.spatial_interval
         self.metadata['Attributes']["spatial_sampling_interval_unit"] = "meter"
         self.metadata['Attributes']["pulse_rate"] = 'NA'
@@ -369,9 +369,9 @@ class Dataset(object):
         """
         
         self.database = manager.df_time_filtering(df=self.database, range=time_range, include_overlaps=include_overlap)
-        self.total_files = len(self.database)
+        self.n_files = len(self.database)
 
-        if self.total_files == 0:
+        if self.n_files == 0:
 
             self.start_time = None
             self.end_time = None

@@ -75,23 +75,23 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         dataset = None
         measurement = file_file["Measurement"]
         tdms_chan = measurement.channels()
-        chans = np.asarray([int(chan.name) for chan in tdms_chan], dtype=int)
-        chans, data_range = __channel_selection__(range_ch, chans)
+        channels = np.asarray([int(chan.name) for chan in tdms_chan], dtype=int)
+        channels, data_range = __channel_selection__(range_ch, channels)
 
         # loading of the data conditioned. Old way
-        # data_range = None if range_ch is None else list(chans_nums)
+        # data_range = None if range_ch is None else list(channels)
         # data = __data__(measurement, format, company, data_range) if load_data else None
 
         # new way
         data = __tdms_biReader__(filepath, file_file, data_range) if load_data else None
 
         fiber = properties["name"].split("_")[0]
-        sampling_frequency = properties["SamplingFrequency[Hz]"]
-        o_sampling_frequency = sampling_frequency
-        dt = 1/sampling_frequency
+        sampling_rate = properties["SamplingFrequency[Hz]"]
+        o_sampling_rate = sampling_rate
+        dt = 1/sampling_rate
         start_time = UTC(properties["ISO8601 Timestamp"])
-        num_points = len(tdms_chan[0])
-        end_time = UTC(start_time + (num_points-1)*dt)
+        n_samples = len(tdms_chan[0])
+        end_time = UTC(start_time + (n_samples-1)*dt)
         spatial_interval = properties["SpatialResolution[m]"]
         time_length = end_time - start_time
         gauge_length = properties["GaugeLength"]
@@ -127,8 +127,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             for vv in list(file_file["Acquisition"]["Raw[0]"]["RawData"].attrs): properties[vv] = file_file["Acquisition"]["Raw[0]"]["RawData"].attrs[vv]  #optional
             for vv in list(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs): properties[vv] = file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs[vv]  #optional
 
-            chans = np.arange(properties["NumberOfLoci"], dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(properties["NumberOfLoci"], dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
 
             # data loading
@@ -139,14 +139,14 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties["FibreType"]
-            sampling_frequency = properties["OutputDataRate"]
-            o_sampling_frequency = sampling_frequency
-            dt = 1/sampling_frequency
+            sampling_rate = properties["OutputDataRate"]
+            o_sampling_rate = sampling_rate
+            dt = 1/sampling_rate
             start_time = UTC(properties["PartStartTime"])
             end_time = UTC(start_time + (properties["Count"]-1)*dt)
             spatial_interval = properties["SpatialResolution"]
             time_length = end_time - start_time
-            num_points = properties["Count"]
+            n_samples = properties["Count"]
             gauge_length = properties["GaugeLength"]
             channel_offset = abs(properties["PreTriggerSamples"])
             units = "counts"
@@ -165,13 +165,13 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             fiber = "febus" # VARIABLE TO CHANGE FOR REAL NAME EXTRACTION
             measure_type = list(file_file[instrument]["Source1"]["Zone1"].keys())[0]
             dataset = file_file[instrument]["Source1"]["Zone1"][measure_type]
-            chans = np.arange(dataset.shape[2], dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(dataset.shape[2], dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
             #LAG = properties["BlockOverlap"][0] # 201 is standard. How much the data is repeated in batches.
-            sampling_frequency = 1/(properties["Spacing"][1]*1e-3)
-            o_sampling_frequency = sampling_frequency
-            dt = 1/sampling_frequency
+            sampling_rate = 1/(properties["Spacing"][1]*1e-3)
+            o_sampling_rate = sampling_rate
+            dt = 1/sampling_rate
             SEMILAG = properties["BlockRate"][0]*1e-3 if getattr(properties["BlockRate"], "size", 0) == 1 else properties["BlockRate"]*1e-3 # unpacking value sif is inside list.
             SEMILAG = int(np.round((1/SEMILAG) / dt))
 
@@ -186,7 +186,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             end_time = UTC(file_file[instrument]["Source1"]["time"][-1]) + (dt * SEMILAG)
             spatial_interval = properties["Spacing"][0]
             time_length = end_time - start_time
-            num_points = int(time_length/dt) # check!
+            n_samples = int(time_length/dt) # check!
             gauge_length = properties["GaugeLength"][0] # CHECK THIS!!
             channel_offset = 0 # FIX THIS!!
             units = "counts"
@@ -201,8 +201,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             properties = dict(file_file.attrs)
             template = None
             dataset = file_file["data_product"]
-            chans = np.arange(properties["nx"], dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(properties["nx"], dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
 
             # data loading
@@ -214,11 +214,11 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             data = __data__(dataset["data"], format, company, data_range) if load_data else None
             fiber = "standard"
             dt = float(properties["dt_computer"])
-            sampling_frequency = 1 / dt
-            o_sampling_frequency = sampling_frequency
-            num_points = int(properties["nt"])
+            sampling_rate = 1 / dt
+            o_sampling_rate = sampling_rate
+            n_samples = int(properties["nt"])
             start_time = UTC(properties["file_start_gps_time"]) if properties["file_start_gps_time"] else UTC(properties["file_start_computer_time"])
-            end_time = UTC(start_time + num_points * dt)
+            end_time = UTC(start_time + n_samples * dt)
             spatial_interval = float(properties["dx"])
             time_length = end_time - start_time
             gauge_length = float(properties["gauge_length"])
@@ -238,8 +238,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             properties = h5_to_dict(file_file["acqSpec"])
             dataset = file_file["data"]
             n_channels = int(np.asarray(file_file["header"]["dimensionRanges"]["dimension1"]["size"][()]).squeeze())
-            chans = np.arange(n_channels, dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(n_channels, dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
 
             # data loading
@@ -251,11 +251,11 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = "standard"
             dt = float(file_file["header"]["dt"][()])
-            sampling_frequency = 1 / dt
-            o_sampling_frequency = sampling_frequency
-            num_points = int(file_file["header"]["dimensionRanges"]["dimension0"]["size"][()].squeeze())
+            sampling_rate = 1 / dt
+            o_sampling_rate = sampling_rate
+            n_samples = int(file_file["header"]["dimensionRanges"]["dimension0"]["size"][()].squeeze())
             start_time = UTC(float(file_file["header"]["time"][()]))
-            end_time = UTC(start_time + num_points * dt)
+            end_time = UTC(start_time + n_samples * dt)
             original_channels = file_file["header"]["channels"]
             spatial_interval = float(file_file["header"]["dx"][()]) * (int(original_channels[1]) - int(original_channels[0]))
             time_length = end_time - start_time
@@ -276,8 +276,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             properties = dict(file_file["Acquisition"].attrs)
             template = None
             dataset = file_file["Acquisition"]["Raw[0]"]
-            chans = np.arange(int(file_file["Acquisition"]["Raw[0]"].attrs["NumberOfLoci"]), dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(int(file_file["Acquisition"]["Raw[0]"].attrs["NumberOfLoci"]), dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
 
             # data loading
@@ -288,12 +288,12 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             #         data = __data__(dataset["RawData"], format, company, data_range)
             data = __data__(dataset["RawData"], format, company, data_range) if load_data else None
             fiber = "standard"
-            sampling_frequency = float(dataset.attrs["OutputDataRate"])
-            o_sampling_frequency = sampling_frequency
-            dt = 1 / sampling_frequency
-            num_points = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
+            sampling_rate = float(dataset.attrs["OutputDataRate"])
+            o_sampling_rate = sampling_rate
+            dt = 1 / sampling_rate
+            n_samples = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
             start_time = UTC(str(properties["MeasurementStartTime"])[2:-1])
-            end_time = UTC(start_time + num_points * dt)
+            end_time = UTC(start_time + n_samples * dt)
             spatial_interval = float(properties["SpatialSamplingInterval"])
             time_length = end_time - start_time
             gauge_length = float(properties["GaugeLength"])
@@ -310,8 +310,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             template = None
             properties = dict(file_file.attrs)
             dataset = file_file["strain"]
-            chans = np.arange(file_file["position"].size, dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(file_file["position"].size, dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
             # data loading
             # data = None
@@ -324,12 +324,12 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             data = __data__(dataset, format, company, data_range) if load_data else None
             pbar.set_description("Extracting Attributes")
             fiber = "standard"
-            sampling_frequency = float(properties["trigger_frequency"][0])
-            o_sampling_frequency = sampling_frequency
-            dt = 1 / sampling_frequency
-            num_points = int(file_file["time"].size)
+            sampling_rate = float(properties["trigger_frequency"][0])
+            o_sampling_rate = sampling_rate
+            dt = 1 / sampling_rate
+            n_samples = int(file_file["time"].size)
             start_time = UTC(properties["Global_FileSaveIO_TimeStamp_s"][0])
-            end_time = UTC(start_time + num_points * dt)
+            end_time = UTC(start_time + n_samples * dt)
             spatial_interval = float(properties["spatial_sampling"][0])
             time_length = end_time - start_time
             gauge_length = float(properties["Global_RAM_User_SET_Pulse_Width_(meter)"][0])
@@ -347,8 +347,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             template = None
             properties = dict(file_file["Acquisition"].attrs)
             dataset = file_file["/Acquisition/Raw[0]/RawData"]
-            chans = np.arange(properties["NumberOfLoci"], dtype=int)
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.arange(properties["NumberOfLoci"], dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
 
             # data loading
             # data = None
@@ -358,12 +358,12 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties["FiberID"]
-            sampling_frequency = properties["PulseRate"]
-            o_sampling_frequency = sampling_frequency
-            num_points = dataset.shape[0]
+            sampling_rate = properties["PulseRate"]
+            o_sampling_rate = sampling_rate
+            n_samples = dataset.shape[0]
             start_time = UTC(properties["MeasurementStartTime"].decode("utf-8")) if isinstance(properties["MeasurementStartTime"],bytes) else UTC(properties["MeasurementStartTime"])
-            dt = 1 / sampling_frequency
-            end_time = UTC(start_time + num_points * dt)
+            dt = 1 / sampling_rate
+            end_time = UTC(start_time + n_samples * dt)
             time_length = end_time - start_time
             spatial_interval = float(properties["SpatialSamplingInterval"])
             channel_offset = properties["StartLocusIndex"]*spatial_interval
@@ -380,20 +380,20 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         print("File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.")
         file_file = None
         properties = {}
-        chans = None
+        channels = None
         dataset = np.load(filepath)
-        chans = np.arange(dataset.shape[1], dtype=int)
-        chans, data_range = __channel_selection__(range_ch, chans)
+        channels = np.arange(dataset.shape[1], dtype=int)
+        channels, data_range = __channel_selection__(range_ch, channels)
         # loading the data conditioned
         data = __data__(filepath, format, company, data_range) if load_data else None
         fiber = "La Chida"
-        sampling_frequency = 100000
-        o_sampling_frequency = sampling_frequency
-        dt = 1/sampling_frequency
+        sampling_rate = 100000
+        o_sampling_rate = sampling_rate
+        dt = 1/sampling_rate
         start_time = UTC("2023-03-01T00:00:00")
         spatial_interval = 0.4
-        num_points = int(dataset.shape[0])
-        end_time = UTC(start_time + num_points*dt)
+        n_samples = int(dataset.shape[0])
+        end_time = UTC(start_time + n_samples*dt)
         time_length = end_time - start_time
         gauge_length = 2
         channel_offset = None
@@ -405,20 +405,20 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         print("File format is a Numpy Zip Class. No Gauge Length specified. Do not attempt to convert to Strain-Rate.")
         file_file = None
         properties = {}
-        chans = None
+        channels = None
         dataset = np.load(filepath)
-        chans = np.arange(len(dataset["distance"]), dtype=int)
-        chans, data_range = __channel_selection__(range_ch, chans)
+        channels = np.arange(len(dataset["distance"]), dtype=int)
+        channels, data_range = __channel_selection__(range_ch, channels)
         # loading the data conditioned
         data = __data__(filepath, format, company, data_range) if load_data else None
         fiber = "La Chida"
-        sampling_frequency = dataset["freq"]
-        o_sampling_frequency = sampling_frequency
-        dt = 1/sampling_frequency
+        sampling_rate = dataset["freq"]
+        o_sampling_rate = sampling_rate
+        dt = 1/sampling_rate
         start_time = UTC("2023-03-01T00:00:00")
         spatial_interval = dataset["distance"][1] - dataset["distance"][0]
-        num_points = int(dataset["time"][:-2].shape[0])
-        end_time = UTC(start_time + num_points*dt)
+        n_samples = int(dataset["time"][:-2].shape[0])
+        end_time = UTC(start_time + n_samples*dt)
         time_length = end_time - start_time
         gauge_length = 2
         channel_offset = None
@@ -434,8 +434,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             properties = dict(file_file.attrs)
             template = None
             dataset = file_file["Fiber"]
-            chans = np.asarray(file_file["ChannelMap"])
-            chans, data_range = __channel_selection__(range_ch, chans)
+            channels = np.asarray(file_file["ChannelMap"])
+            channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
 
             # data loading
@@ -447,11 +447,11 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = properties["Fibre Type"].decode("UTF-8")
             dt = float(properties["Sampletime"][0])
-            sampling_frequency = 1 / dt
-            o_sampling_frequency = properties["SamplingFrequency[Hz]"][0]
-            num_points = int(dataset.shape[0])
+            sampling_rate = 1 / dt
+            o_sampling_rate = properties["SamplingFrequency[Hz]"][0]
+            n_samples = int(dataset.shape[0])
             start_time = UTC(properties["StartTime_txt"].decode("UTF-8")) if properties["StartTime_txt"] else UTC(properties["CPUTimeStamp_txt"].decode("UTF-8"))
-            end_time = UTC(start_time + (num_points-1) * dt)
+            end_time = UTC(start_time + (n_samples-1) * dt)
             spatial_interval = float(properties["SpatialResolution[m]"][0])
             time_length = end_time - start_time
             gauge_length = float(properties["GaugeLength"][0])
@@ -470,15 +470,15 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         "company",
         "fiber",
         "properties",
-        "chans",
-        "total_channels",
-        "sampling_frequency",
-        "o_sampling_frequency",
+        "channels",
+        "n_channels",
+        "sampling_rate",
+        "o_sampling_rate",
         "dt",
         "start_time",
         "end_time",
         "spatial_interval",
-        "num_points",
+        "n_samples",
         "time_length",
         "gauge_length",
         "channel_offset",
@@ -496,15 +496,15 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
                 company,
                 fiber,
                 h5_to_dict(properties),
-                np.array(chans),
-                len(chans),
-                sampling_frequency,
-                o_sampling_frequency,
+                np.array(channels),
+                len(channels),
+                sampling_rate,
+                o_sampling_rate,
                 dt,
                 start_time,
                 end_time,
                 spatial_interval,
-                num_points,
+                n_samples,
                 time_length,
                 gauge_length,
                 channel_offset,
@@ -787,7 +787,7 @@ def write_data(Fiber, filepath=None, company=None):
         channels_template = group_info.get("channels", template.get("channels", []))
 
         # map Fiber attrs back to TDMS root properties
-        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_frequency)
+        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_rate)
         root_properties["ISO8601 Timestamp"] = Fiber.start_time.isoformat()
         root_properties["SpatialResolution[m]"] = float(Fiber.spatial_interval)
         root_properties["GaugeLength"] = float(Fiber.gauge_length)
@@ -847,7 +847,7 @@ def write_data(Fiber, filepath=None, company=None):
         acquisition_node.setdefault("attrs", {})
         acquisition_node["attrs"].update({
             "FiberID": Fiber.fiber,
-            "PulseRate": Fiber.sampling_frequency,
+            "PulseRate": Fiber.sampling_rate,
             "MeasurementStartTime": (Fiber.start_time.isoformat()).encode("utf-8"),
             "NumberOfLoci": int(Fiber.data.shape[1]),
             "SpatialSamplingInterval": Fiber.spatial_interval,
@@ -895,7 +895,7 @@ def write_data(Fiber, filepath=None, company=None):
 
         # Rebuild time axis in file units (seconds from start).
         t_dtype = np.dtype(time_node["dtype"])
-        t_vals = np.arange(Fiber.data.shape[0], dtype=np.float64) * (1.0 / Fiber.sampling_frequency)
+        t_vals = np.arange(Fiber.data.shape[0], dtype=np.float64) * (1.0 / Fiber.sampling_rate)
         t_vals = t_vals.astype(t_dtype, copy=False)
         time_node["data"] = t_vals
         time_node["shape"] = t_vals.shape
@@ -912,7 +912,7 @@ def write_data(Fiber, filepath=None, company=None):
 
         # Update known Aragon root attrs while preserving original dtype/shape style.
         root_attrs = template.setdefault("attrs", {})
-        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Fiber.sampling_frequency))
+        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Fiber.sampling_rate))
         __update_h5_attr_like__(root_attrs, "spatial_sampling", float(Fiber.spatial_interval))
         __update_h5_attr_like__(root_attrs, "Global_RAM_User_SET_Pulse_Width_(meter)", float(Fiber.gauge_length))
         __update_h5_attr_like__(root_attrs, "fiber_position_offset", float(Fiber.channel_offset) * float(Fiber.spatial_interval))
@@ -952,7 +952,7 @@ def write_data(Fiber, filepath=None, company=None):
                 data_node["chunks"] = None
 
         # Scalar datasets in header.
-        dt_val = np.array(1.0 / float(Fiber.sampling_frequency), dtype=np.dtype(dt_node["dtype"]))
+        dt_val = np.array(1.0 / float(Fiber.sampling_rate), dtype=np.dtype(dt_node["dtype"]))
         dt_node["data"] = dt_val
         dt_node["shape"] = dt_val.shape
 

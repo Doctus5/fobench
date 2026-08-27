@@ -116,7 +116,7 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     pg.exec()
 
 
-def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndarray,
+def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
                   y_label: str = "", x_label: str = "Channel",
                   title: str = "") -> None:
 
@@ -126,7 +126,7 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     ----------
     distances : np.ndarray
         Array containing optical distances values.
-    channels_num : np.ndarray
+    channels : np.ndarray
         Array containing channel numbers.
     data : np.ndarray
         Array containing data to plot.
@@ -148,7 +148,7 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
     plot.setLabel("bottom", x_label, **{"color": "k", "font-size": "14pt"})
     text_label, h_layout, container = get_bottom_layout()
     h_layout.addWidget(button := get_axis_button())
-    state = {"x_vals": channels_num, "dx": channels_num[1]-channels_num[0]}
+    state = {"x_vals": channels, "dx": channels[1]-channels[0]}
     def refresh(x_vals):
         state["x_vals"], state["dx"] = x_vals, x_vals[1]-x_vals[0]
         dx = state["dx"]
@@ -170,10 +170,10 @@ def plot_distance(distances: np.ndarray, channels_num: np.ndarray, data: np.ndar
         else:
             button.setText("Distance")
             plot.setLabel("bottom", "Channel", **{"color": "k", "font-size": "14pt"})
-            refresh(channels_num)
+            refresh(channels)
 
     button.clicked.connect(switch_axis)
-    refresh(channels_num)
+    refresh(channels)
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
@@ -329,7 +329,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     win.addItem(proxy_container, row=2, col=0)
     pg.exec()
 
-def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
+def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
                      data: np.ndarray, y_ticks: list, vmin: float = None, vmax: float = None,
                      y_label: str = "", x_label: str = "Channel", title: str = "",
                      cmap: str = "seismic", cbar_label: str = "", invert_y=False) -> None:
@@ -340,7 +340,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     ----------
     distances : np.ndarray
         Array containing optical distances of channels.
-    channels_num : np.ndarray
+    channels : np.ndarray
         Array containing channel numbers.
     data : np.ndarray
         Array containing data to plot.
@@ -385,7 +385,7 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
     plot.getViewBox().setLimits(yMin=min(y_ticks)-dy/2, yMax=max(y_ticks)+dy/2)
     text_label, h_layout, container = get_bottom_layout()
     h_layout.addWidget(button := get_axis_button())
-    state = {"x_vals": channels_num, "dx": channels_num[1]-channels_num[0]}
+    state = {"x_vals": channels, "dx": channels[1]-channels[0]}
 
     def refresh(x_vals):
         state["x_vals"], state["dx"] = x_vals, x_vals[1]-x_vals[0]
@@ -410,10 +410,10 @@ def plot_2d_distance(distances: np.ndarray, channels_num: np.ndarray,
         else:
             button.setText("Distance")
             plot.setLabel("bottom", "Channel", **{"color": "k", "font-size": "14pt"})
-            refresh(channels_num)
+            refresh(channels)
 
     button.clicked.connect(switch_axis)
-    refresh(channels_num)
+    refresh(channels)
     data_min, data_max = float(np.nanmin(data)), float(np.nanmax(data))
     data_range = data_max - data_min
     cmap = pg.colormap.get(cmap, source="matplotlib")

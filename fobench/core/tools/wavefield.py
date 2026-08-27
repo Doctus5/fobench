@@ -10,7 +10,7 @@ from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.plotting_mpl import plot_acfs
 
 def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
-                             channel_nums: np.ndarray = None, plot_mode: str = "pyqt",
+                             channels: np.ndarray = None, plot_mode: str = "pyqt",
                              results: bool = False, vmin: float = None, vmax: float = None) ->  np.ndarray:
     """Computes pairwise maximum cross-correlation between channels as a function of lag.
 
@@ -24,7 +24,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         Sampling frequency of signal.
     distances : np.ndarray
         Channel distances.
-    channel_nums : np.ndarray, optional
+    channels : np.ndarray, optional
         Channel numbering.
     plot_mode : str
         ``"pyqt"``, ``"mpl"`` or no plotting.
@@ -57,11 +57,11 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         plot_mode = "pyqt"
 
     if plot_mode == "pyqt":
-        if channel_nums is not None: channel_nums = np.arange(0, n_ch)
+        if channels is None: channels = np.arange(0, n_ch)
         vmin = vmin if vmin is not None else -1
         vmax = vmax if vmax is not None else 1
         plot_pyqt.plot_2d_distance(distances=distances, data=coherence_matrix,
-                         y_ticks=channel_nums, channels_num=channel_nums,
+                         y_ticks=channels, channels=channels,
                          y_label = "Channel #", x_label = "Channel #",
                          title = "Spatial Coherence Matrix",
                          cmap = "viridis", cbar_label = "Correlation Coefficient",
@@ -71,7 +71,7 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         return coherence_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,
-                            deconvolve: bool, total_channels: int, distances: list, channels_num: list,
+                            deconvolve: bool, n_channels: int, distances: list, channels: list,
                             fs:int, window_size: int = None, vmin:float = None, vmax: float = None, **imshow_kwargs)-> np.ndarray:
     """Computes the autocorrelation either for each channel or each time sample and
     optionally deconvolves the autocorrelation source term using a moving window.
@@ -93,11 +93,11 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     window_size : int, optional
         Size of the moving window to compute the average autocorrelation, if not passed
         full record is used for deconvolution.
-    total_channels : int
+    n_channels : int
         Total number of channels.
     distances : list, np.ndarray
         Optical distances of channels.
-    channels_num : list, np.ndarray
+    channels : list, np.ndarray
         Channel numbering.
     fs : int
         Sampling frequency of data.
@@ -123,9 +123,9 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
         else:
             avg_acf = []
             half_window = window_size // 2
-            for i in trange(total_channels, desc="Deconvolving", leave=False):
+            for i in trange(n_channels, desc="Deconvolving", leave=False):
                 start_ch = max(0, i - half_window)
-                end_ch = min(total_channels, i + half_window + 1)
+                end_ch = min(n_channels, i + half_window + 1)
                 avg_acf.append(np.mean(result[:, start_ch:end_ch], axis=1))
             avg_acf = np.array(avg_acf).T
         result -= avg_acf
@@ -137,7 +137,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
         plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(result),
                          y_ticks=np.arange(0, max_shift)/fs, y_label = "Lag/TWT [s]",
                          title = "Autocorrelation Profile", cmap = "viridis",
-                         channels_num=channels_num, cbar_label = "Correlation Coefficient",
+                         channels=channels, cbar_label = "Correlation Coefficient",
                          invert_y=True, vmin=vmin, vmax=vmax)
 
     elif plot_mode == "mpl":
@@ -147,7 +147,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     return result
 
 def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
-         channels_num: list, distances: np.ndarray, plot_mode: str, vmin: float = None,
+         channels: list, distances: np.ndarray, plot_mode: str, vmin: float = None,
          vmax: float = None) -> np.ndarray:
     """Computes the root mean square amplitude of data. Data is split into windows
     before, pass window equal to data_length to compute one RMSA vector for full record.
@@ -164,7 +164,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         Dimension along which to compute RMSA.
     times : np.ndarray
         Array containing time stamps of data.
-    channels_num: list
+    channels: list
         List of channel numbers.
     distances : np.ndarray
         Array containing optical distances.
@@ -185,10 +185,10 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
 
     if window is None:
-        data_length = len(times) if dim == "t" else len(channels_num)
+        data_length = len(times) if dim == "t" else len(channels)
         result = compute_rmsa(data, data_length, data_length, axis)
     elif window:
-        data_length = len(times) if dim == "t" else len(channels_num)
+        data_length = len(times) if dim == "t" else len(channels)
         result = compute_rmsa(data, data_length, window, axis)
 
     if plot_mode == "mpl":
@@ -199,7 +199,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
     if plot_mode == "pyqt":
         if window is None:
             if dim == "t":
-                plot_pyqt.plot_distance(distances=distances, data=result[0,:], channels_num=channels_num,
+                plot_pyqt.plot_distance(distances=distances, data=result[0,:], channels=channels,
                               title="RMS Amplitude Profile", y_label="RMS Amplitude")
             elif dim == "d":
                 plot_pyqt.plot_timeseries(timestamps=times, data=result[0,:], dt=times[1]-times[0],
@@ -211,15 +211,15 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
             if dim == "t":
                 timestamps = np.array_split(times, int(len(times)/window))
                 timestamps = np.array([timestamp[int(len(timestamp)/2)] for timestamp in timestamps])
-                plot_pyqt.plot_2d_timeseries(timestamps=timestamps, data=result, y_ticks=channels_num, y_label="Channel",
+                plot_pyqt.plot_2d_timeseries(timestamps=timestamps, data=result, y_ticks=channels, y_label="Channel",
                                    dt=timestamps[1]-timestamps[0], title="RMS Amplitude", distances=distances,
                                    cmap="inferno", cbar_label="RMS Amplitude", vmin=vmin, vmax=vmax)
             elif dim == "d":
-                chans = np.array_split(channels_num, int(len(channels_num)/window))
-                chans = np.array([chan[int(len(chan)/2)] for chan in chans])
+                window_channels = np.array_split(channels, int(len(channels)/window))
+                window_channels = np.array([ch[int(len(ch)/2)] for ch in window_channels])
                 dists = np.array_split(distances, int(len(distances)/window))
                 dists = np.array([dist[int(len(dist)/2)] for dist in dists])
-                plot_pyqt.plot_2d_timeseries(timestamps=times, data=result.T, y_ticks=chans, y_label="Channel",
+                plot_pyqt.plot_2d_timeseries(timestamps=times, data=result.T, y_ticks=window_channels, y_label="Channel",
                                    dt=times[1]-times[0], title="RMS Amplitude", distances=dists,
                                    cmap="inferno", cbar_label="RMS Amplitude", vmin=vmin, vmax=vmax)
 

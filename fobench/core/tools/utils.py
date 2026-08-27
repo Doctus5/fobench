@@ -146,7 +146,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge length in meters.
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
-			fs = attributes["o_sampling_frequency"] # sampling frequency, which can be 1000 Hz for raw data.
+			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain-rate per counts.
 			data = np.multiply(data, factor)
 
@@ -163,7 +163,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			if gauge_samples != 0:
 				attributes["channels"] = attributes["channels"][n_left:-n_right]
 				attributes["distances"] = attributes["distances"][n_left:-n_right]
-				attributes["total_channels"] = attributes["channels"].size
+				attributes["n_channels"] = attributes["channels"].size
 			attributes["gauge_length"] = gl
 		else:
 			print("\n⚠️ Data not in velocity units, doing nothing ...")
@@ -177,7 +177,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
 			digital_N = int(attributes["units"][-4]) ** int(attributes["units"][-2:]) # magic number linked to the digitalization of the data. why not 2**ints
-			fs = attributes["o_sampling_frequency"] # sampling frequency, which can be 1000 Hz for raw data.
+			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
@@ -195,11 +195,11 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
-			fs = attributes["o_sampling_frequency"] # sampling frequency, which can be 1000 Hz for raw data.
+			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
 			data = np.multiply(data,factor)
 
-	return data, target, attributes['channels'], attributes['total_channels'], attributes['gauge_length'], attributes['distances']
+	return data, target, attributes['channels'], attributes['n_channels'], attributes['gauge_length'], attributes['distances']
 
 
 def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
@@ -333,7 +333,7 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 	-------
 	new_data : np.ndarray
 		2D matrix containing the new spatial upsampled data.
-	new_channels_num : list
+	new_channels : list
 		List containing the new numbers of the channels, with newly created intermediary ones.
 
 	"""
@@ -342,16 +342,16 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 	data = Fiber.data
 	channels = np.asarray(Fiber.channels)
 
-	new_channels = np.empty(2 * Fiber.total_channels - 1, dtype=float)
+	new_channels = np.empty(2 * Fiber.n_channels - 1, dtype=float)
 	new_channels[0::2] = channels
 	new_channels[1::2] = 0.5 * (channels[:-1] + channels[1:])
 
 	if d_axis == 1:
-		new_data = np.empty((data.shape[t_axis], 2*Fiber.total_channels - 1), dtype=np.result_type(data, float))
+		new_data = np.empty((data.shape[t_axis], 2*Fiber.n_channels - 1), dtype=np.result_type(data, float))
 		new_data[:, 0::2] = data
 		new_data[:, 1::2] = 0.5 * (data[:, :-1] + data[:, 1:])
 	else:
-		new_data = np.empty((2*Fiber.total_channels - 1, data.shape[t_axis]), dtype=np.result_type(data, float))
+		new_data = np.empty((2*Fiber.n_channels - 1, data.shape[t_axis]), dtype=np.result_type(data, float))
 		new_data[0::2, :] = data
 		new_data[1::2, :] = 0.5 * (data[:-1, :] + data[1:, :])
 
@@ -372,7 +372,7 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 	-------
 	new_data : np.ndarray
 		2D matrix containing the new spatial downsampled data.
-	new_channels_num : list
+	new_channels : list
 		List containing the new numbers of the channels, with the inermediate ones eliminated.
 
 	"""
@@ -380,8 +380,8 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 	d_axis = Fiber.__axis__("d")
 	new_data = Fiber.data[:,::2] if d_axis == 1 else Fiber.data[::2,:]
 	new_channels = Fiber.channels[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
-	#new_channels_num = [i for i in range(0,int(len(Fiber.channels_num)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
-	#new_channels_num = Fiber.channels_num[:int(len(Fiber.channels_num)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
+	#new_channels = [i for i in range(0,int(len(Fiber.channels)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
+	#new_channels = Fiber.channels[:int(len(Fiber.channels)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 
 	return new_data, np.asarray(new_channels)
 
@@ -408,14 +408,14 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 	stream = Stream() if t_type == 'obspy' else []
 
-	for i in trange(Fiber.total_channels, desc="Creating Stream"):
+	for i in trange(Fiber.n_channels, desc="Creating Stream"):
 		data = Fiber.data[i,:] if Fiber.__axis__("d") == 0 else Fiber.data[:,i]
 		if t_type == "obspy":
 			trace = oTrace(data=data)
 			trace.stats.network = Fiber.fiber
 			trace.stats.station = str(Fiber.channels[i]).zfill(5)
-# 			trace.stats.npts = self.num_points #+ 1
-			trace.stats.sampling_rate = Fiber.sampling_frequency
+# 			trace.stats.npts = self.n_samples #+ 1
+			trace.stats.sampling_rate = Fiber.sampling_rate
 			trace.stats.delta = Fiber.dt
 			trace.stats.starttime = Fiber.start_time
 			trace.stats.calib = instr_corr(np.array(1), attributes=vars(Fiber))
@@ -499,8 +499,8 @@ def clean_metadata(Fiber) -> dict:
 			"company": Fiber.company,
 			"format": Fiber.format,
 			"units": Fiber.units,
-			"sampling_frequency": Fiber.sampling_frequency,
-			"o_sampling_frequency": Fiber.o_sampling_frequency,
+			"sampling_rate": Fiber.sampling_rate,
+			"o_sampling_rate": Fiber.o_sampling_rate,
 			"dt": Fiber.dt,
 			"spatial_interval": Fiber.spatial_interval,
 			"gauge_length": Fiber.gauge_length,
@@ -508,7 +508,7 @@ def clean_metadata(Fiber) -> dict:
 			"start_time": Fiber.start_time.isoformat(),
 			"end_time": Fiber.end_time.isoformat(),
 			"time_length": Fiber.time_length,
-			"total_channels": Fiber.total_channels,
+			"n_channels": Fiber.n_channels,
 			"conv_factor": Fiber.conv_factor,
 			"sensing": Fiber.sensing,
 			# "basefile": getattr(Fiber, "__basefile__", None),
@@ -554,7 +554,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 			f"\n⚠️ Unrecognized time format '{time_type}'! Please choose one of:\n"
 			" -'UTCDateTime'\n -'isoformat'\n -'matplotlib'\n -'unix'")
 
-	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.num_points)]
+	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.n_samples)]
 
 	return np.array([converters[time_type](t) for t in times])
 

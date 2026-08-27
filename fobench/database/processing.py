@@ -1,5 +1,5 @@
 """
-Shared processing methods for applying Fiber workflows over Dataset/Unit windows.
+Shared processing methods for applying Fiber workflows over Dataset/Interrogator windows.
 
 Created on 2026-04-09 19:35:00
 Last modification on 2026-04-09 19:35:00
@@ -144,7 +144,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
 
     Parameters
     ----------
-    source : Dataset or Unit-like object
+    source : Dataset or Interrogator-like object
         Source object that provides ``window_map``.
     task : list, tuple, dict, str, or callable
         Task definition to run over each file through pipeline execution.
@@ -166,7 +166,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
     group_cols : list[str], optional
         Grouping columns for compatibility grouping.
     merge_datasets : bool, optional
-        Only used for Unit-like sources. If ``True``, map datasets together.
+        Only used for Interrogator-like sources. If ``True``, map datasets together.
     fiber_kwargs : dict, optional
         Extra keyword arguments for Fiber initialization.
     parallel_params : dict, optional

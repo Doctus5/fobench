@@ -506,19 +506,19 @@ def dataset_windowing(dataset, time_range : tuple, window_size : float | int, st
     )
 
 
-def unit_windowing(unit, time_range, window_size, step=None,
+def inter_windowing(inter, time_range, window_size, step=None,
     include_overlap=True, min_overlap_s=0.0, merge_datasets=True,
     group_cols=None, include_meta=False,
     return_windows=False):
-    """Build file-to-window mapping from a Unit instance.
+    """Build file-to-window mapping from a Interrogator instance.
 
     Parameters
     ----------
-    unit : object
-        Unit-like object with ``datasets`` attribute.
+    inter : object
+        Interrogator-like object with ``datasets`` attribute.
     time_range : tuple, optional
         Requested time range as ``(start_time, end_time)``. If ``None``,
-        the full unit range is used.
+        the full interrogator range is used.
     window_size : float or int
         Window size in seconds.
     step : float or int, optional
@@ -543,29 +543,29 @@ def unit_windowing(unit, time_range, window_size, step=None,
     Returns
     -------
     pandas.DataFrame or tuple[pandas.DataFrame, pandas.DataFrame]
-        Window mapping for the unit. If ``return_windows=True``,
+        Window mapping for the interrogator. If ``return_windows=True``,
         returns ``(map_df, windows_df)``.
     """
 
-    if not hasattr(unit, "datasets"):
-        raise TypeError('"unit" must define a "datasets" attribute.')
+    if not hasattr(inter, "datasets"):
+        raise TypeError('"inter" must define a "datasets" attribute.')
 
-    # Infer default time range from unit metadata or datasets.
+    # Infer default time range from interrogator metadata or datasets.
     if time_range is None:
-        t0 = getattr(unit, "earliest_usage", None)
-        tf = getattr(unit, "latest_usage", None)
+        t0 = getattr(inter, "earliest_usage", None)
+        tf = getattr(inter, "latest_usage", None)
 
         if t0 is None or tf is None:
             starts = []
             ends = []
-            for dataset in unit.datasets:
+            for dataset in inter.datasets:
                 if getattr(dataset, "database", None) is None or dataset.database.empty:
                     continue
                 starts.append(dataset.database["start_time"].min())
                 ends.append(dataset.database["end_time"].max())
 
             if not starts or not ends:
-                raise ValueError("Unit has no files with valid time information.")
+                raise ValueError("Interrogator has no files with valid time information.")
 
             t0 = min(starts)
             tf = max(ends)
@@ -578,7 +578,7 @@ def unit_windowing(unit, time_range, window_size, step=None,
         maps = []
         windows_ref = None
 
-        for dataset_id, dataset in enumerate(unit.datasets):
+        for dataset_id, dataset in enumerate(inter.datasets):
 
             if getattr(dataset, "database", None) is None or dataset.database.empty:
                 continue
@@ -628,7 +628,7 @@ def unit_windowing(unit, time_range, window_size, step=None,
 
     # Option 2: Merge all dataset databases first, then map once.
     parts = []
-    for dataset_id, dataset in enumerate(unit.datasets):
+    for dataset_id, dataset in enumerate(inter.datasets):
 
         if getattr(dataset, "database", None) is None or dataset.database.empty:
             continue
@@ -649,7 +649,7 @@ def unit_windowing(unit, time_range, window_size, step=None,
             return empty, windows_ref
         return empty
 
-    # Build one consolidated files table for unit-wide mapping.
+    # Build one consolidated files table for interrogator-wide mapping.
     files_df = pd.concat(parts, ignore_index=True)
     return windows_file_map(
         files_df=files_df,
