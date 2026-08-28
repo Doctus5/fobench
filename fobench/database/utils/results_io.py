@@ -1,23 +1,17 @@
-"""
-Methods for writing and finalizing chunked processing results to zarr.
+"""Methods for writing and finalizing chunked processing results to zarr.
 
-Created on 2026-04-09 17:47:00
-Last modification on 2026-04-09 17:47:00
+:Authors:
+    - Sergio Diaz-Meza
+    - Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-:contributors:
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
+:Contributors:
+    - Christopher Wollin
 
 """
 
-# Necessary packages to import
 import shutil
 import numpy as np
 import zarr
-
 
 def init_zarr_store(store_path: str, windows_df, overwrite: bool = True):
     """Initialize a zarr store and save window coordinate vectors.
@@ -33,9 +27,10 @@ def init_zarr_store(store_path: str, windows_df, overwrite: bool = True):
 
     Returns
     -------
-    tuple
+    tuple(zarr.Array, zarr.Array)
         Pair ``(zroot, n_windows)`` where ``zroot`` is the opened
         zarr group and ``n_windows`` is the number of windows.
+
     """
 
     if overwrite:
@@ -74,8 +69,9 @@ def init_weighted_accumulators(zroot, n_windows: int, n_channels: int,
 
     Returns
     -------
-    tuple
-        Pair ``(z_sum, z_weight)`` zarr arrays.
+    tuple(zarr.Array, zarr.Array)
+        Pair of zarr arrays:``(z_sum, z_weight)``.
+
     """
 
     chunk_0 = min(int(window_chunk), int(n_windows)) if n_windows > 0 else 1
@@ -164,6 +160,7 @@ def finalize_weighted_mean(zroot, z_sum, z_weight, out_name: str = "result_mean"
     -------
     zarr.Array
         Output mean array.
+
     """
 
     n_windows, n_channels = z_sum.shape

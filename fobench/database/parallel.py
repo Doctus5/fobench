@@ -1,37 +1,32 @@
-"""
-Parallel wrapper methods for parallel computing and HPC for Fiber Optic projects.
+"""Parallel wrapper methods for parallel computing and HPC for Fiber Optic projects.
 
-Created on 2024-09-07 11:42:00
-Last modification on 2024-09-07 11:42:00
+:Authors:
+    - Sergio Diaz-Meza
+    - Jonas Pätzel
 
-:author:
-	- Sergio Diaz-Meza (sergioad@gfz-potsdam.de)
-:contributors:
-	- Jonas Pätzel (jonas.patzel@ulb.be)
-	- Christopher Wollin (wollin@gfz-potsdam.de)
-:license:
+:Contributors:
+    - Christopher Wollin
 
 """
 
-# Necessary libraries
 import subprocess as terminal
 import numpy as np
 import sys
 import time
 from tqdm import tqdm
 
-
 class Parallel(object):
     """Parallel wrapper class for FoBench database and processing tasks.
+    Initialize the parallel wrapper and selected backend.
 
     Notes
     -----
     This class centralizes multiple backends under one interface:
     ``mpi``, ``multiprocessing``, ``dask`` and ``processpool``.
     """
-    
+
     def __init__(self, params = None):
-        """Initialize the parallel wrapper and selected backend.
+        """
 
         Parameters
         ----------
@@ -39,7 +34,7 @@ class Parallel(object):
             Configuration dictionary for parallel execution. Supported keys
             include:
 
-            - ``mode`` : {"mpi", "multiprocessing", "dask", "processpool"}
+            - ``mode`` : ``"mpi"``, ``"multiprocessing"``, ``"dask"`` or ``"processpool"``.
             - ``n_cores`` : int
             - ``batch_size`` : int or None
             - Dask-specific options such as ``scheduler_address``,
@@ -49,15 +44,15 @@ class Parallel(object):
         Raises
         ------
         ValueError
-            If the selected ``mode`` is not supported.
+            Selected ``mode`` is not supported.
         """
-        
+
         params = {} if params is None else params
 
         # public attributes
-        self.mode = params.get('mode', 'multiprocessing') # communication method / parallelisation method.
-        self.n_cores = int(params.get('n_cores', 1)) # number of cores to use in parallelisation.
-        self.batch_size = params.get('batch_size', None) # optional explicit task batch size. Amount of works that one worker/core must do.
+        self.mode = params.get("mode", "multiprocessing") # communication method / parallelisation method.
+        self.n_cores = int(params.get("n_cores", 1)) # number of cores to use in parallelisation.
+        self.batch_size = params.get("batch_size", None) # optional explicit task batch size. Amount of works that one worker/core must do.
         self.params = params
 
         # private attributes
@@ -67,34 +62,25 @@ class Parallel(object):
         self._dask_retries = 0
 
         # initialize any module and cores for parallel process.
-        if self.mode == 'mpi':
-            
+        if self.mode == "mpi":
             self.__import_mpi__()
             self.__init_mpi__()
-        
-        elif self.mode == 'multiprocessing':
-            
+
+        elif self.mode == "multiprocessing":
             self.__import_multiprocessing__()
             # self.__init_multiprocessing__()
 
-        elif self.mode == 'dask':
-
+        elif self.mode == "dask":
             self.__import_dask__()
             self.__init_dask__()
 
-        elif self.mode in ('processpool', 'concurrent'):
-
+        elif self.mode in ("processpool", "concurrent"):
             self.__import_concurrent__()
 
         else:
+            raise ValueError(f"Unsupported parallel mode '{self.mode}'. Use one of: mpi, multiprocessing, dask, processpool.")
 
-            raise ValueError(f'Unsupported parallel mode "{self.mode}". Use one of: mpi, multiprocessing, dask, processpool.')
-    
-    '''
-	######################################################
-	Private Functions
-	######################################################
-	'''
+    """Private functions"""
 
     def __import_mpi__(self):
         """Import and validate MPI dependencies.
@@ -102,31 +88,27 @@ class Parallel(object):
         Raises
         ------
         ImportError
-            If ``mpi4py`` is not available.
+            ``mpi4py`` is not available.
         EnvironmentError
-            If ``mpirun`` (OpenMPI/MPICH runtime) is not available.
+            ``mpirun`` (OpenMPI/MPICH runtime) is not available.
         """
-        
+
         # See if mpi4py is installed in the Python environment.
         try:
-            
             from mpi4py import MPI
             self._MODE_ = MPI
-            
+
         except ImportError:
-            
-            raise ImportError("mpi4py is not installed. Please install it by running 'pip install mpi4py' or 'conda install mpi4py'.")
-        
+            raise ImportError("⚠️ mpi4py is not installed. Please install it by running 'pip install mpi4py' or 'conda install mpi4py'.")
+
         # See if OpenMPI is installed/configured correctly in the system.
         try:
-            
             terminal.run(["mpirun", "--version"], check=True, stdout=terminal.PIPE, stderr=terminal.PIPE)
-            
+
         except terminal.CalledProcessError:
-            
-            raise EnvironmentError("OpenMPI is not installed or not configured correctly on your system.")
-                
-    
+            raise EnvironmentError("⚠️ OpenMPI is not installed or not configured correctly on your system.")
+
+
     def __init_mpi__(self):
         """Initialize MPI communicator and rank/size metadata.
 
@@ -135,35 +117,34 @@ class Parallel(object):
         After initialization, ``self.n_cores`` is set to the detected MPI
         world size.
         """
-        
+
         self.mpi_comm = self._MODE_.COMM_WORLD # Initialize parallelization communications.
         self.mpi_rank = self.mpi_comm.Get_rank() # recognize cores.
         self.mpi_size = self.mpi_comm.Get_size() # recognize available cores.
         self.n_cores = self.mpi_size
-        
+
         print(f"MPI initialized. Core: {self.mpi_rank}, Size: {self.mpi_size}")
-        
-    
+
+
     def __import_multiprocessing__(self):
         """Import Python multiprocessing backend.
 
         Raises
         ------
         ImportError
-            If ``multiprocessing`` is unavailable.
+            ``multiprocessing`` is unavailable.
         """
-        
+
         # See if mpi4py is installed in the Python environment.
         try:
-            
             # import concurrent.futures as multip
             import multiprocessing as multip
             self._MODE_ = multip
-            
-        except ImportError:
-            
-            raise ImportError("multiprocessing is not installed. Please install it by running 'pip install multiprocessing' or 'conda install multiprocessing'.")
 
+        except ImportError:
+            raise ImportError("⚠️ multiprocessing is not installed. Please "
+                              "install it by running 'pip install multiprocessing' "
+                              "or 'conda install multiprocessing'.")
 
     def __import_concurrent__(self):
         """Import ``concurrent.futures`` ProcessPool backend.
@@ -171,17 +152,15 @@ class Parallel(object):
         Raises
         ------
         ImportError
-            If ``concurrent.futures`` is unavailable.
+            ``concurrent.futures`` is unavailable.
         """
 
         try:
-
             from concurrent import futures as concurrent_futures
             self._MODE_ = concurrent_futures
 
         except ImportError:
-
-            raise ImportError("concurrent.futures is not available in your Python environment.")
+            raise ImportError("⚠️ concurrent.futures is not available in your Python environment.")
 
 
     def __import_dask__(self):
@@ -190,17 +169,19 @@ class Parallel(object):
         Raises
         ------
         ImportError
-            If Dask distributed is unavailable.
+            Dask distributed is unavailable.
         """
 
         try:
 
             from dask.distributed import Client, LocalCluster, as_completed
-            self._MODE_ = {'Client': Client, 'LocalCluster': LocalCluster, 'as_completed': as_completed}
+            self._MODE_ = {"Client": Client, "LocalCluster": LocalCluster, "as_completed": as_completed}
 
         except ImportError:
 
-            raise ImportError("Dask distributed is not installed. Please install it by running 'pip install \"dask[distributed]\"' or 'conda install dask distributed'.")
+            raise ImportError("⚠️ Dask distributed is not installed. "
+                              "Please install it by running 'pip install "
+                              "\'dask[distributed]\' or 'conda install dask distributed'.")
 
 
     def __init_dask__(self):
@@ -212,23 +193,21 @@ class Parallel(object):
         external scheduler. Otherwise, a local ``LocalCluster`` is created.
         """
 
-        client_cls = self._MODE_['Client']
-        cluster_cls = self._MODE_['LocalCluster']
+        client_cls = self._MODE_["Client"]
+        cluster_cls = self._MODE_["LocalCluster"]
 
-        scheduler_address = self.params.get('scheduler_address', None)
-        self._dask_retries = int(self.params.get('retries', 0))
+        scheduler_address = self.params.get("scheduler_address", None)
+        self._dask_retries = int(self.params.get("retries", 0))
 
         if scheduler_address is not None:
-
             self._dask_client = client_cls(scheduler_address)
 
         else:
-
-            n_workers = int(self.params.get('n_workers', self.n_cores))
-            threads_per_worker = int(self.params.get('threads_per_worker', 1))
-            processes = bool(self.params.get('processes', True))
-            memory_limit = self.params.get('memory_limit', 'auto')
-            dashboard_address = self.params.get('dashboard_address', None)
+            n_workers = int(self.params.get("n_workers", self.n_cores))
+            threads_per_worker = int(self.params.get("threads_per_worker", 1))
+            processes = bool(self.params.get("processes", True))
+            memory_limit = self.params.get("memory_limit", "auto")
+            dashboard_address = self.params.get("dashboard_address", None)
 
             self._dask_cluster = cluster_cls(
                 n_workers=n_workers,
@@ -240,7 +219,7 @@ class Parallel(object):
             self._dask_client = client_cls(self._dask_cluster)
             self.n_cores = n_workers
 
-        print(f'Dask initialized. Scheduler: {self._dask_client.scheduler_info()["address"]}')
+        print(f"⚠️ Dask initialized. Scheduler: {self._dask_client.scheduler_info()['address']}")
 
 
     def __close_dask__(self):
@@ -253,12 +232,10 @@ class Parallel(object):
         """
 
         if self._dask_client is not None:
-
             self._dask_client.close()
             self._dask_client = None
 
         if self._dask_cluster is not None:
-
             self._dask_cluster.close()
             self._dask_cluster = None
 
@@ -272,14 +249,10 @@ class Parallel(object):
             Attempts best-effort cleanup.
         """
 
-        if getattr(self, 'mode', None) == 'dask':
-
+        if getattr(self, "mode", None) == "dask":
             try:
-
                 self.__close_dask__()
-
             except Exception:
-
                 pass
 
 
@@ -288,7 +261,7 @@ class Parallel(object):
 
         Parameters
         ----------
-        fixed_args : object, tuple, list, or None
+        fixed_args : object or tuple or list or None
             Fixed arguments that should be passed to each task invocation.
 
         Returns
@@ -298,15 +271,12 @@ class Parallel(object):
         """
 
         if fixed_args is None:
-
             return tuple()
 
         if isinstance(fixed_args, tuple):
-
             return fixed_args
 
         if isinstance(fixed_args, list):
-
             return tuple(fixed_args)
 
         return (fixed_args,)
@@ -325,7 +295,7 @@ class Parallel(object):
 
         Returns
         -------
-        list of list
+        list[list]
             Batched arguments, each inner list corresponding to one task.
         """
 
@@ -333,30 +303,25 @@ class Parallel(object):
         n_groups = max(1, n_groups)
 
         if not isinstance(var_args, np.ndarray):
-
             var_args = np.array(list(var_args), dtype=object)
 
         else:
-
             var_args = var_args.astype(object)
 
         if var_args.size == 0:
-
             return []
 
         if self.batch_size is not None:
-
             batch_size = max(1, int(self.batch_size))
             return [var_args[i:i+batch_size].tolist() for i in range(0, var_args.size, batch_size)]
 
         if var_args.size < n_groups:
-
             n_groups = var_args.size
 
         return [chunk.tolist() for chunk in np.array_split(var_args, n_groups) if chunk.size > 0]
-    
+
     def __submit_once__(self, task, var_args, fixed_args, to_return=True,
-        show_progress=True, progress_desc='Parallel submit'):
+        show_progress=True, progress_desc="Parallel submit"):
         """Run one submission wave with current backend.
 
         Parameters
@@ -382,24 +347,20 @@ class Parallel(object):
 
         # split the data to process into batches and rearrange variables.
         if not isinstance(var_args, np.ndarray):
-
             var_args = np.array(list(var_args), dtype=object)
 
         else:
-
             var_args = var_args.astype(object)
 
         fixed_args = self.__normalize_fixed_args__(fixed_args)
 
         if var_args.size == 0:
-
             return [] if to_return else None
 
         arguments_chunk = self.__chunk_arguments__(var_args)
 
         # for MPI Protocol
-        if self.mode == 'mpi':
-
+        if self.mode == "mpi":
             arguments_chunk = self.__chunk_arguments__(var_args, n_groups=self.n_cores)
 
             # distribute tasks to cores.
@@ -407,9 +368,7 @@ class Parallel(object):
 
             batch_result = None
             if len(var_batch) != 0: # check that core is not processing empty tasks. Could bring problems.
-
-                print(f'Processing in core {self._MODE_.Get_processor_name()}..{self.mpi_rank} a batch of {len(var_batch)} tasks.')
-
+                print(f"Processing in core {self._MODE_.Get_processor_name()}..{self.mpi_rank} a batch of {len(var_batch)} tasks.")
                 batch_result = task(var_batch, *fixed_args) # parallel task running.
 
             self.mpi_comm.Barrier() # wait for all to finish.
@@ -418,7 +377,6 @@ class Parallel(object):
             sys.stdout.flush() # flush output from non-root cores.
 
             if self.mpi_rank != 0:
-
                 self._MODE_.Finalize()
                 exit()
 
@@ -426,16 +384,14 @@ class Parallel(object):
             sys.stdout.flush() # flush root core messages
 
         # for Multiprocessing.
-        elif self.mode == 'multiprocessing':
-
+        elif self.mode == "multiprocessing":
             results = []
 
             if not show_progress:
                 for i, batch in enumerate(arguments_chunk):
-                    print(f'Processing in core {i} a batch of {len(batch)} tasks.')
+                    print(f"Processing in core {i} a batch of {len(batch)} tasks.")
 
             with self._MODE_.Pool(processes=min(self.n_cores, len(arguments_chunk))) as pool:
-
                 # Submit each backend batch asynchronously to track global progress.
                 async_results = [pool.apply_async(task, (batch, *fixed_args)) for batch in arguments_chunk]
 
@@ -454,11 +410,10 @@ class Parallel(object):
                 results = [result.get() for result in async_results]
 
         # for Dask.
-        elif self.mode == 'dask':
-
+        elif self.mode == "dask":
             if not show_progress:
                 for i, batch in enumerate(arguments_chunk):
-                    print(f'Processing in dask-worker-slot {i} a batch of {len(batch)} tasks.')
+                    print(f"Processing in dask-worker-slot {i} a batch of {len(batch)} tasks.")
 
             futures = [
                 self._dask_client.submit(
@@ -475,7 +430,7 @@ class Parallel(object):
                 results = [None] * len(futures)
                 future_idx = {future: i for i, future in enumerate(futures)}
                 pbar = tqdm(total=len(futures), desc=progress_desc, leave=True, disable=not show_progress)
-                for future, wave_result in self._MODE_['as_completed'](futures, with_results=True):
+                for future, wave_result in self._MODE_["as_completed"](futures, with_results=True):
                     results[future_idx[future]] = wave_result
                     pbar.update(1)
                 pbar.close()
@@ -483,16 +438,14 @@ class Parallel(object):
                 results = self._dask_client.gather(futures)
 
         # for concurrent.futures ProcessPool backend.
-        elif self.mode in ('processpool', 'concurrent'):
-
+        elif self.mode in ("processpool", "concurrent"):
             results = []
 
             if not show_progress:
                 for i, batch in enumerate(arguments_chunk):
-                    print(f'Processing in processpool-worker-slot {i} a batch of {len(batch)} tasks.')
+                    print(f"Processing in processpool-worker-slot {i} a batch of {len(batch)} tasks.")
 
             with self._MODE_.ProcessPoolExecutor(max_workers=min(self.n_cores, len(arguments_chunk))) as executor:
-
                 future_map = {
                     executor.submit(task, batch, *fixed_args): i
                     for i, batch in enumerate(arguments_chunk)
@@ -514,17 +467,10 @@ class Parallel(object):
         if to_return is True:
 
             return results
-        
-    
-    '''
-	######################################################
-	Public Functions
-	######################################################
-	'''
 
-    # method for processing tasks.
+    """Public Funtions"""
     def submit(self, task, var_args, fixed_args, to_return=True,
-        submission_mode='single_submit', submit_chunk_size=None,
+        submission_mode="single_submit", submit_chunk_size=None,
         show_progress=True):
         """Run a task in parallel using the configured backend.
 
@@ -540,6 +486,7 @@ class Parallel(object):
               Pipeline configuration. Expected keys are:
               ``pipeline`` (or ``steps``), optional ``fiber_kwargs``, and
               optional ``validate_pipeline``.
+
         var_args : array-like
             Variable arguments to be partitioned into batches.
         fixed_args : object, tuple, list, or None
@@ -579,7 +526,7 @@ class Parallel(object):
 
             # Keep dictionary API simple and explicit.
             if ("pipeline" in task) and ("steps" in task):
-                raise ValueError('Use only one of "pipeline" or "steps" in task dictionary.')
+                raise ValueError("Use only one of 'pipeline' or 'steps' in task dictionary.")
 
             if "pipeline" in task:
                 pipeline = task["pipeline"]
@@ -587,7 +534,7 @@ class Parallel(object):
                 pipeline = task.get("steps", None)
 
             if pipeline is None:
-                raise ValueError('Dictionary task requires "pipeline" (or "steps").')
+                raise ValueError("Dictionary task requires 'pipeline' (or 'steps').")
 
             fiber_kwargs = task.get("fiber_kwargs", None)
             validate_pipeline = bool(task.get("validate_pipeline", False))
@@ -628,12 +575,12 @@ class Parallel(object):
                 fixed_args=worker_fixed_args,
                 to_return=to_return,
                 show_progress=show_progress,
-                progress_desc='Parallel submit'
+                progress_desc="Parallel submit"
             )
 
         # Chunked submission mode: run in waves to reduce memory pressure.
         if self.mode == "mpi":
-            raise ValueError('chunked submittions are not currently supported for MPI mode.')
+            raise ValueError('⚠️ chunked submittions are not currently supported for MPI mode.')
 
         if not isinstance(var_args, np.ndarray):
             var_args = np.array(list(var_args), dtype=object)
@@ -658,12 +605,12 @@ class Parallel(object):
         ]
 
         all_results = []
-        pbar = tqdm(total=var_args.size, desc='Parallel submit', leave=True, disable=not show_progress)
+        pbar = tqdm(total=var_args.size, desc="Parallel submit", leave=True, disable=not show_progress)
 
         for i, wave in enumerate(wave_chunks):
 
             if not show_progress:
-                print(f'Running submit wave {i+1}/{len(wave_chunks)} with {wave.size} tasks.')
+                print(f"Running submit wave {i+1}/{len(wave_chunks)} with {wave.size} tasks.")
 
             wave_result = self.__submit_once__(
                 task=worker_task,
@@ -682,5 +629,3 @@ class Parallel(object):
 
         if to_return:
             return all_results
-        
-    

@@ -40,7 +40,6 @@ class Fiber(object):
 
     def __init__(self, filepath: str, company: str = "", range_ch: tuple[int,int] = None, sensing: str = "das",
                  load_data: bool = True, show_progress: bool = True, storage_opts = None):
-
         """
 
         Parameters
@@ -101,7 +100,7 @@ class Fiber(object):
         self.units = self.attributes["units"]
         self.conv_factor = self.attributes["conv_factor"] # Extra variables (ONLY FOR ASN HDF5)
         self.processing = [{"instance creation" : UTC.utcnow().ctime()}]
-        self.distances = (self.channels - self.channel_offset) * self.spatial_interval
+        self.distances = (self.channels + self.channel_offset) * self.spatial_interval
 
         self.ch_coord = None # coordinates of channels, requires more input ot be filled
 

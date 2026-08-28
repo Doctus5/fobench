@@ -42,6 +42,8 @@ intersphinx_mapping = {
     "matplotlib": ('https://matplotlib.org/stable/', None),
     "python": ('https://docs.python.org/3', None),
     "obspy": ("https://docs.obspy.org/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------
