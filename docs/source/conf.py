@@ -19,7 +19,8 @@ extensions = ["sphinx_last_updated_by_git",
               "sphinx.ext.autosummary",
               "sphinx_copybutton",
               "sphinx_togglebutton",
-              "sphinx_autodoc_typehints"]
+              "sphinx_autodoc_typehints",
+              "sphinx_design"]
 
 templates_path = ["_templates"]
 exclude_patterns = []

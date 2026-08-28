@@ -6,7 +6,7 @@ pages:
   script:
     - apt-get update
     - apt-get install -y --no-install-recommends libgl1
-    - pip install sphinx sphinx_rtd_theme sphinx_last_updated_by_git sphinx_copybutton sphinx_togglebutton sphinx_autodoc_typehints
+    - pip install sphinx sphinx_rtd_theme sphinx_last_updated_by_git sphinx_copybutton sphinx_togglebutton sphinx_autodoc_typehints sphinx-design
     - pip install -e .
     - sphinx-build -b html docs/source docs/build/html
     - mkdir -p public

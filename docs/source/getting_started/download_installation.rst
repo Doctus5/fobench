@@ -15,16 +15,28 @@ With the environment activated, install Fobench using `pip`:
 
    pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
    
+      
 .. admonition:: Installing in development mode
 
-    To install in editable mode, it is best to clone the repository to your target destination and then install:
+   To install in editable mode, it is best to clone the repository to your target destination and then install:
 
-    .. code-block:: bash
+   .. tab-set::
 
-       git clone https://git.gfz-potsdam.de/sergioad/fobench.git
-       cd fobench
-       pip install -e .
+      .. tab-item:: Stable Branch
 
+         .. code-block:: bash
+
+            git clone https://git.gfz-potsdam.de/sergioad/fobench.git
+            cd fobench
+            pip install -e .
+
+      .. tab-item:: Development Branch
+
+         .. code-block:: bash
+
+            git clone -b dev https://git.gfz-potsdam.de/sergioad/fobench.git
+            cd fobench
+            pip install -e .
 
 If you already have an installed version of FoBench make sure to update regularly, using the following command:
 

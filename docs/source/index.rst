@@ -12,9 +12,14 @@ FoBench is a toolbox for reading, processing and visualizing Fiber Optic Sensing
    - Built-in parallel processing
    - Workflows inspired by ObsPy and Pyrocko
 
-Follow the :doc:`Installation Guide <getting_started/download_installation>` and :doc:`Processing Quickstart Guide <getting_started/quickstart>` to start processing your own data!
+.. raw:: html
 
-    
+   <img src="_static/welcome_icon.png"
+        alt="Welcome"
+        style="float: left; width: 15%; margin: 0 1.5em 1em 0;">
+
+Follow the :doc:`Installation Guide <getting_started/download_installation>` and :doc:`Processing Quickstart Guide <getting_started/quickstart>` to start processing your own data! 
+
 .. toctree::
    :hidden:
    :maxdepth: 2
@@ -22,7 +27,6 @@ Follow the :doc:`Installation Guide <getting_started/download_installation>` and
    
    Download & Installation <getting_started/download_installation>
    Supported Data Formats <getting_started/formats>
-   Performance <getting_started/performance>
    Processing Quickstart Guide <getting_started/quickstart>
    Visualizations <visualizations>
    Contribute <getting_started/contribute>
@@ -45,14 +49,18 @@ Follow the :doc:`Installation Guide <getting_started/download_installation>` and
    :caption: Links
    :hidden:
 
-   GitHub <https://github.com/>
+   Latest Stable Branch <https://git.gfz-potsdam.de/sergioad/fobench>
+   Development Branch <https://git.gfz-potsdam.de/sergioad/fobench/-/tree/dev?ref_type=heads>
+   
 ..
    for later: PyPi <https://pypi.org/>
 
    
-   
+.. raw:: html
+
+   <div style="height: 6em;"></div>
+
 
 :ref:`genindex`
 :ref:`modindex`
 :ref:`search`
-
