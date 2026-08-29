@@ -166,6 +166,8 @@ class Fiber(object):
         or ISOformat style strings.
         """
         t_axis = self.__axis__("t")
+        t0 = self.start_time if t0 is None else t0
+        tf = self.end_time if tf is None else tf
         data, start_time, end_time = utils.trim_time(t0=t0, tf=tf, data=self.data,
                                                      times=self.times(), start_time=self.start_time,
                                                      end_time=self.end_time, axis=t_axis)
