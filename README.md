@@ -1,8 +1,8 @@
-# Fobench: Fiber Optic Sensing Code Bench Testing
+# FoBench: A open source fiber optic sensing toolbox
 
-Welcome to **Fobench**! This repository contains code for reading and processing Fiber Optic Sensing files, currently Distributed Dynamic Strain Sensing (DDSS; a.k.a DAS) and Distributed Strain Sensing (DSS). Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
+Welcome to **FoBench**! This repository contains code for reading and processing Fiber Optic Sensing data. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
 
-Follow this guide to get started with Fobench.
+Follow this guide to get started with FoBench.
 
 ---
 
@@ -67,7 +67,7 @@ conda deactivate
 With the environment activated, install Fobench using `pip`:
 
 ```bash
-pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
+pip install git+https://github.com/Doctus5/fobench.gits
 ```
 
 If you already have an installed version of Fobench, we recommend to constantly update it and we constantly release updated on fixing bugs. To update, use the following command:
