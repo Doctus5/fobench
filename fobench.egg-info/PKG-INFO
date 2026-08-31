@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: fobench
-Version: 0.0.31
+Version: 1.0.0
 Summary: A toolbox for basic signal processing of fibre optic sensing data, and data/file management.
 Author: Sergio Diaz-Meza, Jonas Pätzel
 Author-email: sergioad@gfz.de, jonas.patzel@ulb.be

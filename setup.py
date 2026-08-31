@@ -22,7 +22,7 @@ setup(
     author='Sergio Diaz-Meza, Jonas Pätzel',
     author_email='sergioad@gfz.de, jonas.patzel@ulb.be',
     description='A toolbox for basic signal processing of fibre optic sensing data, and data/file management.',
-    version = '0.0.31',
+    version = '1.0.0',
     packages = find_packages(),
     install_requires = [
         # Here goes the dependencies !!
