@@ -19,7 +19,7 @@ from obspy.core import UTCDateTime as UTC
 # Fobench classes
 
 # Inner functions
-from .unit import Unit
+from .interrogator import Interrogator
 from . import manager as manager
 
 
@@ -60,8 +60,8 @@ class Project(object):
 		self.network_code = ""
 		self.location = ""
 		self.country = ""
-		self.units : list[Unit] = [] # list of units/interrogators used. Each one is a Unit class that contains Datasets class.
-		self.num_units = len(self.units)
+		self.inters : list[Interrogator] = [] # list of interrogators used. Each one is an Interrogator class that contains Datasets class.
+		self.n_inters = len(self.inters)
 		self.start_time = None
 		self.end_time = None
 
@@ -75,7 +75,7 @@ class Project(object):
 	"""Private Functions"""
 
 	def __str__(self):
-		attributes = ['location', 'num_units', 'start_time', 'end_time']
+		attributes = ['location', 'n_inters', 'start_time', 'end_time']
 
 		return ('Project class\n'
 				'project parameters:\n'
@@ -153,7 +153,7 @@ class Project(object):
 		# self.metadata['Attributes']["model"] = 'NA'
 		# self.metadata['Attributes']["serial_number"] = 'NA'
 		# self.metadata['Attributes']["firmware_version"] = 'NA'
-		self.metadata['Interrogator'] = [unit.metadata for unit in self.units] # populate with metadata
+		self.metadata['Interrogator'] = [inter.metadata for inter in self.inters] # populate with metadata
 		self.metadata["Attributes"]["network_code"] = self.network_code
 		self.metadata["Attributes"]["location"] = self.location
 		self.metadata["Attributes"]["country"] = self.country
@@ -177,11 +177,11 @@ class Project(object):
 		self.__metadata_to_attributes__()
 
 		if meta_dict['Interrogator']:
-			for mes_unit in meta_dict['Interrogator']:
-				ind_unit = Unit(self, metadata_file=mes_unit) # Initialize the Units.
-				self.add_unit(ind_unit)
+			for mes_inter in meta_dict['Interrogator']:
+				ind_inter = Interrogator(self, metadata_file=mes_inter) # Initialize the Interrogators.
+				self.add_inter(ind_inter)
 
-		self.num_units = len(self.units)
+		self.n_inters = len(self.inters)
 
 		return self
 
@@ -206,10 +206,11 @@ class Project(object):
 
 		return copy.deepcopy(self)
 
-	def add_unit(self, unit: Unit):
-		"""Add ``Units`` class to the current ``Project`` object."""
+	def add_inter(self, inter: Interrogator):
+		"""Add ``Interrogator`` class to the current ``Project`` object."""
 
-		self.units.append(unit)
+		self.inters.append(inter)
+		self.n_inters = len(self.inters)
 
 		return self
 
@@ -229,11 +230,12 @@ class Project(object):
 		"""
 
 		start_time_list, end_time_list = [], []
-		for unit in self.units:
 
-			unit.build(parallels=parallels)
-			start_time_list.append(unit.earliest_usage)
-			end_time_list.append(unit.latest_usage)
+		for inter in self.inters:
+
+			inter.build(parallels=parallels)
+			start_time_list.append(inter.earliest_usage)
+			end_time_list.append(inter.latest_usage)
 
 		self.start_time, self.end_time = min(start_time_list), max(end_time_list)
 

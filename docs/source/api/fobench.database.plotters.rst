@@ -10,4 +10,4 @@ fobench.database.plotters
    :toctree:
    :recursive:
 
-   unit_plots
+   inter_plots

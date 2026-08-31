@@ -288,7 +288,7 @@ def filt_preprocess(io_signal: np.ndarray, axis:int = None, order:int = 1,
 
 def normalize_signal(data: np.ndarray, method:str = "absolute max",
                      axis: int = None, ram_window: int = None, fs: int = None,
-                     total_channels: int = None, num_points: int = None)-> np.ndarray:
+                     n_channels: int = None, n_samples: int = None)-> np.ndarray:
     """Normalizes signal(s)
 
     Parameters
@@ -307,9 +307,9 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
         Window length in seconds, only for running absolute mean normalization.
     fs : int, optional
         Sampling frequency of signal.
-    total_channels : int, optional
+    n_channels : int, optional
         Total number of channels, only for running absolute mean normalization.
-    num_points : int, optional
+    n_samples : int, optional
         Total number of time samples, only for running absolute mean normalization.
 
     Raises
@@ -350,8 +350,8 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
         # weight[weight == 0] = 1
         # normalized_data = data / weight
 
-        for i in tqdm(range(total_channels), desc="Running mean normalization", leave=False):
-            for segment_start in range(num_points - w_len + 1):
+        for i in tqdm(range(n_channels), desc="Running mean normalization", leave=False):
+            for segment_start in range(n_samples - w_len + 1):
                 segment_end = segment_start + w_len
 
                 if t_axis == 0:
@@ -371,8 +371,8 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
 
     return normalized_data
 
-def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels: int,
-                  sampling_frequency: int, axis: int)-> np.ndarray:
+def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, n_channels: int,
+                  sampling_rate: int, axis: int)-> np.ndarray:
 
     """Performs spectral whitening of all channels. Adapted code from: https://github.com/seismo-live/seismo_live .
     Signals should be adequatly pre-processed.
@@ -383,9 +383,9 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
         Data to spectrally whiten.
     freq_min,freq_max : int, int
         Minimum and maximum of frequency band in which to perform spectral whitening.
-    total_channels : int
+    n_channels : int
         Total number of channels.
-    sampling_frequency : int
+    sampling_rate : int
         Sampling frequency of data
 
     Returns
@@ -397,13 +397,13 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, total_channels
 
     whitened_matrix = np.zeros_like(data, dtype="float32")
 
-    for i in tqdm(range(total_channels), desc='Whitening', leave=False):
+    for i in tqdm(range(n_channels), desc='Whitening', leave=False):
 
         channel = data[:, i] if axis == 0 else data[i, :]
         n = len(channel)
         f_range = float(freq_max) - float(freq_min)
-        nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / sampling_frequency))
-        f = np.arange(n) * sampling_frequency / (n - 1.0)
+        nsmo = int(np.fix(min(0.01, 0.5 * f_range) * float(n) / sampling_rate))
+        f = np.arange(n) * sampling_rate / (n - 1.0)
         JJ = ((f > float(freq_min)) & (f < float(freq_max))).nonzero()[0]
 
         # channel FFT
@@ -511,7 +511,7 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
 
     return positive_freqs, magnitude
 
-def signal_spectrogram(data: np.ndarray, sampling_frequency: int, axis: int,
+def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
                        norm: bool)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
 	"""Computes spectrogram of signal.
@@ -520,7 +520,7 @@ def signal_spectrogram(data: np.ndarray, sampling_frequency: int, axis: int,
     ----------
     data : np.ndarray
         Signal to process.
-    sampling_frequency : int
+    sampling_rate : int
         Sampling frequency of signal.
     axis : int
         Time axis index.
@@ -537,10 +537,10 @@ def signal_spectrogram(data: np.ndarray, sampling_frequency: int, axis: int,
         Spectrogram image.
 
     """
-	nyquist = sampling_frequency/2
-	nfft, nperseg = nyquist*2, int(sampling_frequency/5)
+	nyquist = sampling_rate/2
+	nfft, nperseg = nyquist*2, int(sampling_rate/5)
 	noverlap = int(nperseg/2)
-	f, t, Sxx = signal.spectrogram(data, sampling_frequency, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
+	f, t, Sxx = signal.spectrogram(data, sampling_rate, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
 	Sxx = np.flip(Sxx, axis=axis)
 	Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 

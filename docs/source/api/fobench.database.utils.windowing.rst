@@ -14,6 +14,6 @@ fobench.database.utils.windowing
       files_window_vector
       overlap_seconds
       time_windows
-      unit_windowing
+      inter_windowing
       windows_file_map
    

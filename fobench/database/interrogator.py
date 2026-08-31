@@ -1,4 +1,4 @@
-"""Class ``Unit`` for visualizing and handling data within a ``Project``.
+"""Class ``Interrogator`` for visualizing and handling data within a ``Project``.
 A ``Project`` is understood as a field campaing in an specific location where several
 ``Datasets`` are collected from deployments.
 
@@ -19,10 +19,12 @@ from .dataset import Dataset
 from .parallel import Parallel
 
 from . import manager as manager
-from .plotters import unit_plots as uni_plots
-from .utils.windowing import unit_windowing
+from .plotters import inter_plots as inter_plots
+from .utils.windowing import inter_windowing
 
-class Unit(object):
+
+
+class Interrogator(object):
 	"""Class keeps track of ``Datasets`` associated with an interrogator or sensing system.
 
 	Note
@@ -43,7 +45,7 @@ class Unit(object):
 			Complete path where single/multiple data files are located.
 		metadata_file : str, optional
 			Complete path to where the metadata JSON file is located. This file is generated once
-			the Unit class was run for the first time scanning files.
+			the Interrogator class was run for the first time scanning files.
 		sensing : str
 			Fiber optic sensing technology. Currently only ``"das"``.
 		company : str
@@ -60,7 +62,7 @@ class Unit(object):
 		"""
 
 		# In case class is initialized first time or empty (no metadata).
-		self.datasets : list[Dataset] = [] # list of datasets. Each one is a Unit class that contains Datasets class.
+		self.datasets : list[Dataset] = [] # list of datasets. Each one is an Dataset class that contains files.
 
 		# Private attributes
 		self.__folder_path__ = folder_path # central folder path of files
@@ -71,10 +73,10 @@ class Unit(object):
 		self.sensing = sensing
 		self.format = format
 		self.company = company
-		self.total_files = 0
-		self.total_datasets = len(self.datasets) # total files that the unit produced.
-		self.earliest_usage = None # earliest start date of meassurements with the unit.
-		self.latest_usage = None # latest end date of meassurements with the unit.
+		self.n_files = 0
+		self.n_datasets = len(self.datasets) # total datasets that the interrogator produced.
+		self.earliest_usage = None # earliest start date of meassurements with the interrogator.
+		self.latest_usage = None # latest end date of meassurements with the interrogator.
 
 		self.metadata = self.__json_metadata__()
 
@@ -85,11 +87,12 @@ class Unit(object):
 	"""Private Methods"""
 
 	def __str__(self):
-		attributes = ['company', 'sensing', 'earliest_usage', 'latest_usage', 'total_datasets', 'total_files']
+		attributes = ['company', 'sensing', 'earliest_usage', 'latest_usage', 'n_datasets', 'n_files']
 
-		return ('Unit class\n'
-				'unit parameters:\n'
-				f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
+		return ('Interrogator class\n'
+                'Interrogator parameters:\n'
+                f'{"-" * 65}\n'+ "\n".join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
+    # Define metadata structure for JSON.
 
 	def __json_metadata__(self):
 		"""Defines the metadata structure and returns dictionary with metadata parameters."""
@@ -101,7 +104,7 @@ class Unit(object):
 						"sensing": 'NA',
 						"earliest_usage": None,
 						"latest_usage": None,
-						"total_files": 0,
+						"n_files": 0,
 						"model": 'NA',
 						"serial_number": None,
 						"firmware_version": None,
@@ -110,11 +113,11 @@ class Unit(object):
 						},
 					"AttributeDefinitions": {
 						"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
-						"manufacturer": "Manufacturer name of the interrogator.",
+						"manufacturer": "Manufacturer name of the unit.",
 						"sensing": 'Sensing technique of the unit. Determines the type of data.',
 						"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
 						"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
-						"total_files": "Total number of files produced by this unit.",
+						"n_files": "Total number of files produced by this unit.",
 						"model": "Model number of the interrogator.",
 						"serial_number": "Serial number of the interrogator.",
 						"firmware_version": "Firmware version of the software used within the interrogator.",
@@ -127,7 +130,7 @@ class Unit(object):
 						"sensing": True,
 						"earliest_usage": True,
 						"latest_usage": True,
-						"total_files": True,
+						"n_files": True,
 						"model": True,
 						"serial_number": False,
 						"firmware_version": False,
@@ -151,31 +154,31 @@ class Unit(object):
 		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
 			meta_dict = json_file
 
-		# Initialize/Fill the Unit attributes.
-		self.metadata = json_file
+		# Initialize/Fill the Interrogator attributes.
+		self.metadata = meta_dict
 		self.__metadata_to_attributes__()
 
 		# Initialize the Datasets.
 		if meta_dict['Datasets']: # check Datasets.
 
 			for meta_dataset in meta_dict['Datasets']:
-				self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Units. )
-			self.total_datasets = len(self.datasets)
+				self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Interrogators. )
+			self.n_datasets = len(self.datasets)
 
 		return self
 
 	def __metadata_to_attributes__(self):
-		"""Creates the basic variables of the DAS object with its characteristics.
-		Fills Unit attributes (build) from metadata.
+		"""Creates the basic variables of the FOS object with its characteristics.
+		Fills Interrogator attributes (build) from metadata.
 		"""
 
 		# Fill values in attributes
 		self.__folder_path__ = self.metadata['Attributes']['interrogator_path'] # central folder path of files.
 		self.sensing = self.metadata['Attributes']['sensing']
 		self.company = self.metadata['Attributes']['manufacturer']
-		self.total_files = self.metadata['Attributes']['total_files']
-		self.earliest_usage = UTC(self.metadata['Attributes']['earliest_usage']) # earliest start date of meassurements with the unit.
-		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the unit.
+		self.n_files = self.metadata['Attributes']['n_files']
+		self.earliest_usage = UTC(self.metadata['Attributes']['earliest_usage']) # earliest start date of meassurements with the interrogator.
+		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the interrogator.
 
 		return self
 
@@ -190,7 +193,7 @@ class Unit(object):
 		self.metadata['Attributes']["sensing"] = self.sensing
 		self.metadata['Attributes']["earliest_usage"] = self.earliest_usage.isoformat()
 		self.metadata['Attributes']["latest_usage"] = self.latest_usage.isoformat()
-		self.metadata['Attributes']["total_files"] = self.total_files
+		self.metadata['Attributes']["n_files"] = self.n_files
 		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
 		# self.metadata['Attributes']["model"] = 'NA'
 		# self.metadata['Attributes']["serial_number"] = 'NA'
@@ -218,8 +221,9 @@ class Unit(object):
 		"""
 		return copy.deepcopy(self)
 
+
 	def add_dataset(self, dataset):
-		"""Adding ``Dataset`` to the ``Unit``."""
+		"""Adding ``Dataset`` to the ``Interrogator``."""
 		self.datasets.append(dataset)
 
 		return self
@@ -265,17 +269,17 @@ class Unit(object):
 		if self.datasets:
 
 			earlier, later = [], []
-			self.total_files = 0 # reset the variable to start summing.
+			self.n_files = 0 # reset the variable to start summing.
 
 			for dataset in self.datasets: # loop over existing datasets.
 
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
-				self.total_files += dataset.total_files # adding to total number of files.
+				self.n_files += dataset.n_files # adding to total number of files.
 
 			self.earliest_usage = UTC(min(earlier))
 			self.latest_usage = UTC(max(later))
-			self.total_datasets = len(self.datasets)
+			self.n_datasets = len(self.datasets)
 
 		self.__fill_metadata__()
 		self.__built__ = True # its now built.
@@ -285,12 +289,12 @@ class Unit(object):
 
 	def dataset_table(self, return_table : bool = False, include_private: bool = False) -> None | pd.DataFrame:
 		"""Prints or returns a summarized table of ``Datasets`` found for the
-		``Unit`` and its properties.
+		``Interrogator`` and its properties.
 
 		Parameters
 		----------
 		return_table : bool, optional
-			If ``True``, returns the summarized table of ``Datasets`` within ``Unit``
+			If ``True``, returns the summarized table of ``Datasets`` within ``Interrogator``
 			and its properties. If ``False``, prints them in terminal.
 		include_private : bool, optional
 			Include private attributes of the ``Datasets``.
@@ -306,14 +310,14 @@ class Unit(object):
 
 			row = {}
 
-			row["total_files"] = ds.total_files
+			row["n_files"] = ds.n_files
 			row["start_time"] = ds.start_time
 			row["end_time"] = ds.end_time
-			row["sampling_frequency"] = ds.sampling_frequency
+			row["sampling_rate"] = ds.sampling_rate
 			row["dt"] = ds.dt
 			row["gauge_length"] = ds.gauge_length
 			row["units"] = ds.units
-			row["total_channels"] = ds.total_channels
+			row["n_channels"] = ds.n_channels
 			row["spatial_interval"] = ds.spatial_interval
 			row["channel_offset"] = ds.channel_offset
 
@@ -329,7 +333,7 @@ class Unit(object):
 
 
 	def trim(self, time_range: tuple, include_overlap : bool = True):
-		"""Trim the unit and its datasets based on date ranges.
+		"""Trim the interrogator and its datasets based on date ranges.
 		See :func:`~fobench.database.manager.df_time_filtering`.
 
 		Parameters
@@ -347,20 +351,20 @@ class Unit(object):
 
 		"""
 
-		self.total_files = 0
+		self.n_files = 0
 		trimmed_datasets = []
 
 		for ds in self.datasets:
 			ds.trim(time_range, include_overlap)
-			if ds.total_files > 0:
+			if ds.n_files > 0:
 				trimmed_datasets.append(ds)
-				self.total_files += ds.total_files
+				self.n_files += ds.n_files
 
 		self.datasets = trimmed_datasets
-		self.total_datasets = len(self.datasets)
+		self.n_datasets = len(self.datasets)
 
 		# The following we can consider later. Early and latest usage mas night be related to the extend of the Dataset, but independent.
-		if self.total_datasets > 0:
+		if self.n_datasets > 0:
 			self.earliest_usage = min(ds.start_time for ds in self.datasets)
 			self.latest_usage = max(ds.end_time for ds in self.datasets)
 		else:
@@ -375,14 +379,14 @@ class Unit(object):
 		merge_datasets: bool = True, group_cols: list[str] = None,
 		include_meta: bool = False,
 		return_windows: bool = False):
-		"""Build file-to-window mapping for this ``Unit``. This is usually for the
+		"""Build file-to-window mapping for this ``Interrogator``. This is usually for the
 		pipeline construction and parallel tasks.
 
 		Parameters
 		----------
 		time_range : tuple, optional
 			Requested time range as ``(start_time, end_time)``.
-			If ``None``, the full unit range is used.
+			If ``None``, the full interrogator range is used.
 		window_size : float
 			Window size in seconds.
 		step : float, optional
@@ -394,7 +398,7 @@ class Unit(object):
 		min_overlap_s : float, optional
 			Minimum overlap (seconds) for file-window relations.
 		merge_datasets : bool, optional
-			If ``True``, all datasets in the unit are mapped into one single
+			If ``True``, all datasets in the interrogator are mapped into one single
 			window timeline. If ``False``, each dataset is mapped independently
 			and results are concatenated.
 		group_cols : list of str, optional
@@ -407,13 +411,13 @@ class Unit(object):
 		Returns
 		-------
 		pandas.DataFrame | tuple(pandas.DataFrame, pandas.DataFrame)
-			Window mapping for this unit. If ``return_windows=True``,
+			Window mapping for this interrogator. If ``return_windows=True``,
 			returns ``(map_df, windows_df)``.
 
 		"""
 
-		return unit_windowing(
-			unit=self,
+		return inter_windowing(
+			inter=self,
 			time_range=time_range,
 			window_size=window_size,
 			step=step,
@@ -434,7 +438,7 @@ class Unit(object):
 		submit_chunk_size: int = None, cpu_ratio: float = 0.85,
 		show_progress: bool = True, reducer: str = "mean",
 		output_adapter=None):
-		"""Apply a ``Fiber`` task over ``Unit`` windows and save to zarr.
+		"""Apply a ``Fiber`` task over ``Interrogator`` windows and save to zarr.
 
 		Parameters
 		----------
@@ -512,4 +516,4 @@ class Unit(object):
 		"""Function for plotting and viewing the available Datasets and their time coverage."""
 
 		dataset_infos = [[dataset.start_time, dataset.end_time] for dataset in self.datasets]
-		uni_plots.plot_data_coverage(dataset_infos, (self.earliest_usage, self.latest_usage))
+		inter_plots.plot_data_coverage(dataset_infos, (self.earliest_usage, self.latest_usage))

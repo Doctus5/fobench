@@ -94,7 +94,7 @@ def files2database(files, company, storage_opts=None):
 	"""
 
     N = len(files) # number of data files.
-    filtered_keys = ["start_time", "end_time", "dt", "sampling_frequency", "total_channels",
+    filtered_keys = ["start_time", "end_time", "dt", "sampling_rate", "n_channels",
                      "spatial_interval", "gauge_length", "channel_offset"] # attributes of interest for holding consistency.
     #filtered_keys = ["start_time", "end_time", "dt"] # attributes of interest for holding consistency.
 
@@ -208,7 +208,7 @@ def database_discontinuities(df, split=True):
 	"""
 
     # attributes of metadata to evaluate continuity.
-    var_conditions = ["sampling_frequency", "total_channels", "spatial_interval", "gauge_length", "channel_offset"]
+    var_conditions = ["sampling_rate", "n_channels", "spatial_interval", "gauge_length", "channel_offset"]
 
     # Initialize continuity check by checking time.
     # End time of file i + dt must match the start time of file i+1

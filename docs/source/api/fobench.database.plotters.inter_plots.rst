@@ -1,7 +1,7 @@
-fobench.database.plotters.unit\_plots
+fobench.database.plotters.inter\_plots
 =====================================
 
-.. automodule:: fobench.database.plotters.unit_plots
+.. automodule:: fobench.database.plotters.inter_plots
 
    
    .. rubric:: Functions

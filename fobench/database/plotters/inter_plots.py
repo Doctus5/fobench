@@ -1,4 +1,4 @@
-"""Functions for plotting on ``Unit`` class level.
+"""Functions for plotting on ``Interrogator`` class level.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -111,17 +111,17 @@ class AdaptivePrecisionDateFormatter(ticker.Formatter):
 
         return self.axis_fmt, title.strftime(self.title_fmt)
 
-"""Unit class plots"""
+"""Interrogator class plots"""
 
 def plot_data_coverage(dataset_infos: str, min_max_t: tuple = None):
-    """Plots the coverage of Datasets from a ``Unit`` instance.
+    """Plots the coverage of Datasets from a ``Interrogator`` instance.
 
     Parameters
     ----------
     dataset_infos : str
         Dataframe indicating paths and essential metadata from each file.
     min_max_t : tuple, optional
-        Tuple containing the earliest and latest usage time of the Unit.
+        Tuple containing the earliest and latest usage time of the Interrogator.
 
     Returns
     -------

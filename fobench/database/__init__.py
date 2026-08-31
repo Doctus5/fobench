@@ -2,4 +2,4 @@
 from .dataset import Dataset
 from .parallel import Parallel
 from .project import Project
-from .unit import Unit
+from .interrogator import Interrogator
