@@ -13,7 +13,7 @@ With the environment activated, install Fobench using `pip`:
 
 .. code-block:: bash
 
-   pip install git+https://git.gfz-potsdam.de/sergioad/fobench.git
+   pip install git+https://github.com/Doctus5/fobench.git
    
       
 .. admonition:: Installing in development mode
@@ -26,7 +26,7 @@ With the environment activated, install Fobench using `pip`:
 
          .. code-block:: bash
 
-            git clone https://git.gfz-potsdam.de/sergioad/fobench.git
+            git clone https://github.com/Doctus5/fobench.git
             cd fobench
             pip install -e .
 
