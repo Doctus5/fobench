@@ -9,7 +9,7 @@ We will use Conda to create a virtual environment to safely manage the dependenc
    conda activate fobench_env
 
 
-With the environment activated, install Fobench using `pip`:
+With the environment activated, install FoBench using `pip`:
 
 .. code-block:: bash
 
@@ -34,7 +34,7 @@ With the environment activated, install Fobench using `pip`:
 
          .. code-block:: bash
 
-            git clone -b dev https://git.gfz-potsdam.de/sergioad/fobench.git
+            git clone -b dev https://github.com/Doctus5/fobench.git
             cd fobench
             pip install -e .
 
