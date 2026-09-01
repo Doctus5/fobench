@@ -67,7 +67,7 @@ conda deactivate
 With the environment activated, install Fobench using `pip`:
 
 ```bash
-pip install git+https://github.com/Doctus5/fobench.gits
+pip install git+https://github.com/Doctus5/fobench.git
 ```
 
 If you already have an installed version of Fobench, we recommend to constantly update it and we constantly release updated on fixing bugs. To update, use the following command:
