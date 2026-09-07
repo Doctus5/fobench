@@ -1,18 +1,15 @@
 # FoBench: An open source fiber optic sensing toolbox
 
-<img src="docs/source/_static/welcome_icon_light.png"
-     alt="FoBench logo"
-     style="float: left; width: 15%; margin: 0 1.5em 1em 0;">
+<p align="center">
+  <img src="docs/source/_static/welcome_icon_light.png"
+       alt="Welcome"
+       style="width: 10%;">
+</p>
 
-Welcome to <strong>FoBench</strong>! This repository contains code for reading and processing Fiber Optic Sensing data. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
+Welcome to **FoBench**! This repository contains code for reading and processing Fiber Optic Sensing data. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
 
-<br><br>
+Follow this guide or check out the [documentation](https://doctus5.github.io/fobench/) to get started with FoBench.
 
-Follow this guide or check out the
-<a href="https://doctus5.github.io/fobench/">documentation</a>
-to get started with FoBench!
-
-<br style="clear: both;">
 
 
 ---
