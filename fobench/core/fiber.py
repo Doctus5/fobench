@@ -609,7 +609,7 @@ class Fiber(object):
             return f, spec
 
     def channel_plot(self, channel, max_value=None, figsize=None, file_name=None,
-                    plot_mode="pyqt", **kwargs):
+                    plot_mode="pyqt", export = None, show = True, **kwargs):
         """Generates simple plot of channel data.
         See :func:`~fobench.core.plotting.plotting_pyqt.plot_timeseries`.
         and :func:`~fobench.core.plotting.plotting_mpl.simple_plot`.
@@ -627,7 +627,8 @@ class Fiber(object):
         if plot_mode=="pyqt":
             t = self.times(time_type="unix")
             plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units,
-                             dt=self.dt, title="Channel Plot", labels=channel)
+                             dt=self.dt, title="Channel Plot", labels=channel,
+                             export=export, show=show)
         elif plot_mode=="mpl":
             t = self.times("matplotlib")
             plot.simple_plot(data=selected.T, t=t, channel=channel, units_y=self.units,
@@ -635,7 +636,8 @@ class Fiber(object):
                     file_name=file_name, **kwargs)
 
     def plot(self, vmin=None, vmax=None, figsize=None, show=True, cmap="seismic",
-          file_name=None, where=None, add_data=None, plot_mode="pyqt", **kwargs):
+          file_name=None, where=None, add_data=None, plot_mode="pyqt", export=None,
+          **kwargs):
         """Generates plot of data. See :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries`
         and :func:`~fobench.core.plotting.plotting_mpl.gen_DAS_plot`
         """
@@ -647,7 +649,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels),
                         data=self.data.T if self.__axis__("t") else self.data,
                         y_label="Channel", dt=self.dt, title="Data Plot", vmin=vmin,
-                        vmax=vmax, cbar_label=self.units, distances=self.distances)
+                        vmax=vmax, cbar_label=self.units, distances=self.distances,
+                        export=export, show=show)
         elif plot_mode == "mpl":
             t = self.times(time_type="matplotlib")
             plot.gen_DAS_plot(data=self.data.T if self.__axis__("t") else self.data, t=t,
@@ -656,8 +659,9 @@ class Fiber(object):
                         vmin=vmin, vmax=vmax, add_data=add_data, **kwargs)
 
     def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-                        cmap="viridis", file_name=None,     freq_lim=None,  results=False,
-                        plot_mode="pyqt", vmin=None, vmax=None, **kwargs):
+                        cmap="viridis", file_name=None, freq_lim=None, results=False,
+                        plot_mode="pyqt", vmin=None, vmax=None, export=None, show=True,
+                        **kwargs):
         """Computes and plots spectrogram for a ``"channel"``.
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
@@ -676,7 +680,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
                         data=np.rot90(Sxx, k=-1), y_label="Frequency [Hz]",
                         title=f"Spectrogram channel {channel}", cmap="viridis",
-                        vmin=vmin, vmax=vmax, cbar_label=self.units)
+                        vmin=vmin, vmax=vmax, cbar_label=self.units, export=export,
+                        show=show)
         elif plot_mode == "mpl":
             t = self.times(time_type="matplotlib")
             plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
@@ -687,7 +692,7 @@ class Fiber(object):
         if results:
             return Sxx, f, t
 
-    def record_section(self, channels, plot_mode="pyqt"):
+    def record_section(self, channels, plot_mode="pyqt", export=None, show=True):
         """Plots record section of multiple channels. If channels is tuple the range
         between lower and upper limit will be plotted, if list only channels in list
         will be plotted.
@@ -710,7 +715,7 @@ class Fiber(object):
         if plot_mode=="pyqt":
             plot_pyqt.plot_record_section(timestamps=self.times("unix"), data=das_data,
                                  title="Record Section", numbers=das_channels, dt=self.dt,
-                                 y_label="Channel")
+                                 y_label="Channel", export=export, show=show)
         elif plot_mode=="mpl":
             plot.plot_record_section(signals=das_data, t=self.times("matplotlib"),
                             channels=das_channels, date=str(self.start_time.date))

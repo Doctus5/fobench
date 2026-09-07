@@ -11,10 +11,10 @@
    :recursive:
 
    dataset
+   interrogator
    manager
    parallel
    plotters
    processing
    project
-   interrogator
    utils

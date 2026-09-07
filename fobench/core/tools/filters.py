@@ -837,7 +837,7 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
 
     if plot_mode == "pyqt":
         pyqt.plot_fk(wf_ini=data_td, wf_filt=data_filt, wf_fk=data_fk,
-                     mask=mask, f=f, k=k, dt=dt)
+                     mask=mask, f=f, k=k, dt=dt, export=export, show=show)
 
     data_filt = np.moveaxis(data_filt, (0,1), (t_axis, d_axis))
 
