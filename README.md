@@ -2,9 +2,10 @@
 
 <div align="center">
 <picture>
-    <img src="./docs/source/_static/welcome_icon_light.png" alt="FoBench Logo" style="width: 10%;">
+    <img src="./docs/source/_static/welcome_icon_light.png" alt="FoBench Logo" width="100px">
 </picture>
 </div>
+
 
 Welcome to **FoBench**! This repository contains code for reading and processing Fiber Optic Sensing data. Your help in testing and improving this code is invaluable, and any suggestions regarding style, features, or bug fixes are highly appreciated!
 
