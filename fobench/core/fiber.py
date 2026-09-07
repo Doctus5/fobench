@@ -79,13 +79,72 @@ class Fiber(object):
         self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch,
                         self.format, load_data=load_data, show_progress=show_progress, storage_opts=storage_opts)
 
+        self._initialize(sensing)
+
+    @classmethod
+    def from_array(cls, data, *, sampling_rate, start_time, spatial_interval,
+                   units, gauge_length=None, channel_offset=0):
+        """Create a Fiber from data shaped ``(time samples, channels)``.
+
+        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in meters,
+        ``start_time`` as an ObsPy-compatible time, and the data's ``units``.
+        ``gauge_length`` is optional and measured in meters. ``channel_offset``
+        is measured in channel intervals, so the first channel's distance is
+        ``channel_offset * spatial_interval``.
+
+        Data is copied, channels are numbered from zero, and ``end_time`` is
+        the time of the last sample. No file is read or instrument correction
+        applied. Use :meth:`to_xarray` to export the data.
+        """
+        data = np.array(data, copy=True)
+        if data.ndim != 2 or 0 in data.shape:
+            raise ValueError("data must be a nonempty 2D array (samples, channels)")
+        if sampling_rate <= 0 or spatial_interval <= 0:
+            raise ValueError("sampling_rate and spatial_interval must be positive")
+        start_time = UTC(start_time)
+        n_samples, n_channels = data.shape
+        dt = 1 / sampling_rate
+        end_time = start_time + (n_samples - 1) * dt
+
+        instance = cls.__new__(cls)
+        instance.__filepath__ = []
+        instance.__storage_opts__ = None
+        instance.company = ""
+        instance.format = "array"
+        instance.attributes = {
+            "basefile": None,
+            "format": instance.format,
+            "company": instance.company,
+            "fiber": "",
+            "properties": {},
+            "channels": np.arange(n_channels),
+            "n_channels": n_channels,
+            "sampling_rate": sampling_rate,
+            "o_sampling_rate": sampling_rate,
+            "dt": dt,
+            "start_time": start_time,
+            "end_time": end_time,
+            "spatial_interval": spatial_interval,
+            "n_samples": n_samples,
+            "time_length": end_time - start_time,
+            "gauge_length": gauge_length,
+            "channel_offset": channel_offset,
+            "data": data,
+            "units": units,
+            "conv_factor": None,
+        }
+        instance._initialize("das")
+        return instance
+
+    def _initialize(self, sensing):
+        """Populate shared state from file or array attributes."""
         self.__basefile__ = self.attributes["basefile"] # changed to the structure of the file
         self.fiber = self.attributes["fiber"]
         self.properties = self.attributes["properties"] # all metadata of input file
         self.channels = self.attributes["channels"] # list of channels as array
         self.n_channels = self.attributes["n_channels"]
         self.sampling_rate = self.attributes["sampling_rate"] # sampling rate of the data.
-        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] != None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
+        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] is not None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
         self.dt = 1 / self.sampling_rate # calculated time step.
         self.start_time = self.attributes["start_time"] # start time of the data in file.
         self.end_time = self.attributes["end_time"] # end time of the data in file.
@@ -150,6 +209,8 @@ class Fiber(object):
     def instr_correct(self, target="strain-rate", terra15_gl=None):
         """Performs instrument correction and data conversion for various instrument types.
         See :func:`~fobench.core.utils.instr_corr`."""
+        if self.__basefile__ is None:
+            raise ValueError("Instrument correction requires manufacturer metadata from a file")
         if not self.corrected:
             (self.data, self.units, self.channels,
             self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
@@ -274,6 +335,8 @@ class Fiber(object):
         """Save data of Fiber in a new file in its the original format. See
         :func:`~fobench.core.tools.file_io.write_data`.
         """
+        if self.__basefile__ is None:
+            raise ValueError("Writing requires a source file template; use to_xarray() to export array data")
         if isinstance(self.__basefile__, str):
             self.__basefile__ = file_io.scan_template(self.__basefile__,
                                                       company=self.company,
