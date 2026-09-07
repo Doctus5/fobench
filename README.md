@@ -2,7 +2,7 @@
 
 <div align="center">
 <picture>
-    <img src="./docs/source/_static/welcome_icon_light.png" alt="FoBench Logo" width="100px">
+    <img src="./docs/source/_static/welcome_icon_light.png" alt="FoBench Logo" width="200px">
 </picture>
 </div>
 
