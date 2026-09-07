@@ -162,7 +162,7 @@ class Viewer(QtWidgets.QMainWindow):
 
         # dropdown data analysis menu
         self.dropdown_data = QtWidgets.QComboBox()
-        self.dropdown_data.addItems(["Data Analysis", "RMSA", "P2PA", "SNR", "fx-Plot"])
+        self.dropdown_data.addItems(["Data Analysis", "RMSA", "P2PA", "SNR", "fx-Plot", "ACFs"])
         self.dropdown_data.setToolTip("Basic Data Analysis Methods")
         self.dropdown_data.currentIndexChanged.connect(self.on_dropdown_data_changed)
         self.dock_3.addWidget(self.dropdown_data, row=5, col=0)
@@ -254,7 +254,8 @@ class Viewer(QtWidgets.QMainWindow):
         actions = {"RMSA":  lambda: self.plot_data_over_distance(mode="rmsa"),
                    "P2PA":  lambda: self.plot_data_over_distance(mode="p2p_amp"),
                    "SNR":  lambda: self.plot_data_over_distance(mode="snr"),
-                   "fx-Plot": self.plot_fx,}
+                   "fx-Plot": self.plot_fx,
+                   "ACFs": self.acf_dialog}
         action = actions.get(self.dropdown_data.currentText())
         if action: action()
         self.dropdown_data.setCurrentIndex(0)
@@ -343,6 +344,60 @@ class Viewer(QtWidgets.QMainWindow):
         self.dock_fx = Dock("Frequency-Distance", size=(1200, 600), closable=True)
         self.area.addDock(self.dock_fx, "above", self.dock_1)
         self.dock_fx.addWidget(fx_plot_widget)
+
+    def acf_dialog(self) -> None:
+        "Plot the Autocorrelation profile"
+        @_busy_cursor
+        def calc(max_lag_val, deconvolve, window_size):
+            return self.Fiber.acf_profile(max_lag=max_lag_value,
+                                          deconvolve=deconvolve,
+                                          window_size=window_size,
+                                          plot_mode=None, results=True)
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Autocorrelation Settings")
+        dialog.setFixedWidth(400)
+        layout = QtWidgets.QFormLayout(dialog)
+        layout.setSpacing(10)
+
+        max_lag = QtWidgets.QLineEdit("")
+        layout.addRow("Maximum Lag (s):", max_lag)
+        deconvolve = QtWidgets.QCheckBox("Deconvolve Source term?")
+        win_size = QtWidgets.QLineEdit("Full Cable")
+        win_size.setEnabled(False)  # start disabled
+        layout.addRow(deconvolve)
+        layout.addRow("Window size (number of channels)", win_size)
+        deconvolve.toggled.connect(win_size.setEnabled)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            max_lag_value = float(max_lag.text())
+            window = None if win_size.text() == "Full Cable" else int(win_size.text())
+            acfs = calc(max_lag_value, deconvolve.isChecked(), window)
+            x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
+            y_min, y_max = 0, max_lag_value
+            acf_plot_widget = pg.GraphicsLayoutWidget()
+            acf_plot = acf_plot_widget.addPlot()
+            acf_plot.setAspectLocked(False)
+            acf_plot.setLabel("left", "twt / lag [s]")
+            acf_plot.setLabel("bottom", "Optical Distance [m]")
+            cmap = pg.colormap.get("seismic", source="matplotlib")
+            acf_image = pg.ImageItem()
+            acf_image.setImage(acfs.T)
+            acf_image.setLookupTable(cmap.getLookupTable())
+            acf_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
+            acf_plot.addItem(acf_image)
+            bar = pg.ColorBarItem(colorMap=cmap, values=(-0.8, 0.8),
+                                  interactive=True, rounding=0.001,
+                                  label="Correlation Coefficient")
+            bar.setImageItem(acf_image, insert_in=acf_plot)
+            acf_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)
+            acf_plot.getViewBox().invertY(True)
+            self.dock_acf = Dock("Autocorrelation Profile", size=(1200, 600), closable=True)
+            self.area.addDock(self.dock_acf, "above", self.dock_1)
+            self.dock_acf.addWidget(acf_plot_widget)
 
     def make_plot_dock(self, title: str, x_label: str, y_label: str,
                        dock_ref: Dock = None) -> tuple[pg.PlotItem, Dock]:
