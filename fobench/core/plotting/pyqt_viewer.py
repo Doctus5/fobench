@@ -381,7 +381,7 @@ class Viewer(QtWidgets.QMainWindow):
             acf_plot_widget = pg.GraphicsLayoutWidget()
             acf_plot = acf_plot_widget.addPlot()
             acf_plot.setAspectLocked(False)
-            acf_plot.setLabel("left", "twt / lag [s]")
+            acf_plot.setLabel("left", "Lag/TWT [s]")
             acf_plot.setLabel("bottom", "Optical Distance [m]")
             cmap = pg.colormap.get("seismic", source="matplotlib")
             acf_image = pg.ImageItem()

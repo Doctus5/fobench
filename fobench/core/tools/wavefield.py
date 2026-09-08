@@ -11,7 +11,8 @@ from fobench.core.plotting.plotting_mpl import plot_acfs
 
 def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
                              channels: np.ndarray = None, plot_mode: str = "pyqt",
-                             results: bool = False, vmin: float = None, vmax: float = None) ->  np.ndarray:
+                             results: bool = False, vmin: float = None, vmax: float = None,
+                             export=None, show=True) ->  np.ndarray:
     """Computes pairwise maximum cross-correlation between channels as a function of lag.
 
     Parameters
@@ -65,14 +66,15 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
                          y_label = "Channel #", x_label = "Channel #",
                          title = "Spatial Coherence Matrix",
                          cmap = "viridis", cbar_label = "Correlation Coefficient",
-                         vmin=vmin, vmax=vmax)
+                         vmin=vmin, vmax=vmax, export=export, show=show)
 
     if results:
         return coherence_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,
                             deconvolve: bool, n_channels: int, distances: list, channels: list,
-                            fs:int, window_size: int = None, vmin:float = None, vmax: float = None, **imshow_kwargs)-> np.ndarray:
+                            fs:int, window_size: int = None, vmin:float = None, vmax: float = None,
+                            export=None, show=True, **imshow_kwargs)-> np.ndarray:
     """Computes the autocorrelation either for each channel or each time sample and
     optionally deconvolves the autocorrelation source term using a moving window.
     Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record.
@@ -130,15 +132,14 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
             avg_acf = np.array(avg_acf).T
         result -= avg_acf
 
-
     if plot_mode == "pyqt":
-        if vmin is None: vmin = result.min()
-        if vmax is None: vmax = result.max()
+        if vmin is None: vmin = -0.8
+        if vmax is None: vmax = 0.8
         plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(result),
                          y_ticks=np.arange(0, max_shift)/fs, y_label = "Lag/TWT [s]",
                          title = "Autocorrelation Profile", cmap = "seismic",
                          channels=channels, cbar_label = "Correlation Coefficient",
-                         invert_y=True, vmin=vmin, vmax=vmax)
+                         invert_y=True, vmin=vmin, vmax=vmax, export=export, show=show)
 
     elif plot_mode == "mpl":
         plot_acfs(acfs=np.rot90(result, k=-1) if axis else np.fliplr(result), distances=distances, fs=fs,
@@ -148,7 +149,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
 
 def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
          channels: list, distances: np.ndarray, plot_mode: str, vmin: float = None,
-         vmax: float = None) -> np.ndarray:
+         vmax: float = None, export=None, show=True) -> np.ndarray:
     """Computes the root mean square amplitude of data. Data is split into windows
     before, pass window equal to data_length to compute one RMSA vector for full record.
 
@@ -200,10 +201,12 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         if window is None:
             if dim == "t":
                 plot_pyqt.plot_distance(distances=distances, data=result[0,:], channels=channels,
-                              title="RMS Amplitude Profile", y_label="RMS Amplitude")
+                              title="RMS Amplitude Profile", y_label="RMS Amplitude",
+                              export=export, show=show)
             elif dim == "d":
                 plot_pyqt.plot_timeseries(timestamps=times, data=result[0,:], dt=times[1]-times[0],
-                                             y_label="RMS Amplitude", title="RMS Amplitude over Time")
+                                             y_label="RMS Amplitude", title="RMS Amplitude over Time",
+                                             export=export, show=show)
         elif window:
             p95 = np.percentile(result, 95)
             if vmin is None: vmin = -p95
@@ -213,7 +216,8 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
                 timestamps = np.array([timestamp[int(len(timestamp)/2)] for timestamp in timestamps])
                 plot_pyqt.plot_2d_timeseries(timestamps=timestamps, data=result, y_ticks=channels, y_label="Channel",
                                    dt=timestamps[1]-timestamps[0], title="RMS Amplitude", distances=distances,
-                                   cmap="inferno", cbar_label="RMS Amplitude", vmin=vmin, vmax=vmax)
+                                   cmap="inferno", cbar_label="RMS Amplitude", vmin=vmin, vmax=vmax,
+                                   export=export, show=show)
             elif dim == "d":
                 window_channels = np.array_split(channels, int(len(channels)/window))
                 window_channels = np.array([ch[int(len(ch)/2)] for ch in window_channels])
@@ -221,7 +225,8 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
                 dists = np.array([dist[int(len(dist)/2)] for dist in dists])
                 plot_pyqt.plot_2d_timeseries(timestamps=times, data=result.T, y_ticks=window_channels, y_label="Channel",
                                    dt=times[1]-times[0], title="RMS Amplitude", distances=dists,
-                                   cmap="inferno", cbar_label="RMS Amplitude", vmin=vmin, vmax=vmax)
+                                   cmap="inferno", cbar_label="RMS Amplitude", vmin=vmin, vmax=vmax,
+                                   export=export, show=show)
 
     return result
 

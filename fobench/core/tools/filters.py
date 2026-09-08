@@ -772,7 +772,7 @@ def median_filter(data: np.ndarray, kernel_size: int | list = 3)-> np.ndarray:
 def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
               propagation: str | None = None, alpha: float = 0.3,
               plot_mode:str = "pyqt", verbose: bool = False, mode="pass",
-              t_axis: int = 0, d_axis: int = 1):
+              t_axis: int = 0, d_axis: int = 1, export=None, show=True):
     """ Frequency wavenumber filter
 
     :Contributors: Johannes Hart (GFZ-Potsdam)

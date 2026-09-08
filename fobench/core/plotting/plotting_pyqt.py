@@ -23,8 +23,14 @@ def exportable(func):
         show = kwargs.pop("show", True)
         plot, win = func(*args, **kwargs)
         if export_path is not None:
-            exporter = ImageExporter(plot)
-            exporter.export(str(export_path))
+            if isinstance(plot, (list, tuple)): #handle multiple panel case
+                win.show()
+                QtWidgets.QApplication.processEvents()
+                win.grab().save(str(export_path))
+                if not show:
+                    win.hide()
+            else:
+                ImageExporter(plot).export(str(export_path))
         if show:
             win.show()
             pg.exec()
@@ -729,4 +735,4 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
     plots[3].setXLink(plots[2])
     plots[3].setYLink(plots[2])
 
-    return plot, win
+    return plots, win
