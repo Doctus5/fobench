@@ -135,7 +135,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     if plot_mode == "pyqt":
         if vmin is None: vmin = -0.8
         if vmax is None: vmax = 0.8
-        plot_pyqt.plot_2d_distance(distances=distances, data=np.rot90(result),
+        plot_pyqt.plot_2d_distance(distances=distances, data=result.T,
                          y_ticks=np.arange(0, max_shift)/fs, y_label = "Lag/TWT [s]",
                          title = "Autocorrelation Profile", cmap = "seismic",
                          channels=channels, cbar_label = "Correlation Coefficient",
