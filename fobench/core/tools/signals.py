@@ -1,9 +1,12 @@
 """Signal processing functions except filtering."""
 
+from warnings import warn
 import numpy as np
+import pywt
 import scipy.signal as signal
 import scipy.integrate as integrate
 from tqdm import tqdm, trange
+from fobench.core.plotting import plotting_pyqt as plot_pyqt
 
 def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
 
@@ -545,3 +548,33 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
 	Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 
 	return f, t, Sxx
+
+
+def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
+        wavelet: pywt.Wavelet | str = "cmor1.5-1.0", fmin: float = 1.0,
+        fmax: float | None = None, n_scales: int = 100, times: np.array = None,
+        results: bool = False, plot_mode: str = "pyqt", vmin=None, vmax=None,
+        export=None, show=True) -> None | tuple[np.ndarray, np.ndarray]:
+
+    """Computes and plots continious wavelet transform. Mostly wraps pywt.cwt
+    """
+    if scales is None:
+        if fmax is None: fmax = fs/2
+        freqs = np.geomspace(fmin, fmax, n_scales)
+        scales = pywt.frequency2scale(wavelet, freqs/fs)
+    coeffs, f = pywt.cwt(signal, scales, wavelet, sampling_period=1.0/fs)
+    if vmin is None: vmin = 0
+    if vmax is None: vmax = np.percentile(abs(coeffs), 95)
+
+    if plot_mode == "mpl":
+        warn("⚠️ matplotlib plotting not implemented for this method, "
+             "plotting using PyQtGraph instead")
+        plot_mode = "pyqt"
+    if plot_mode == "pyqt":
+        plot_pyqt.plot_2d_timeseries(timestamps=times, y_ticks=f, dt=1/fs,
+                    data=abs(coeffs.T), y_label="Frequency [Hz]",
+                    title=f"CWT with {str(wavelet)}", cmap="viridis",
+                    vmin=vmin, vmax=vmax, cbar_label="")
+
+    if results:
+        return coeffs, freqs
