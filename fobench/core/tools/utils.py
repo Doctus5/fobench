@@ -435,6 +435,34 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 	return stream
 
+def to_wav(signal: np.ndarray, fs: int, out_file: str):
+    """Write out a signal as WAV audio file. Will only be audible to humans
+    at sufficiently high sampling rates. Increase ``fs`` to squeeze the signal.
+    Example: To convert the 100th chanel of a ``Fiber`` instance use:
+    ``to_wav(Fiber.get_data(100), fs=Fiber.sampling_rate, out_file="/home/user/signal")``
+
+    Warning
+    -------
+    ``fs`` will be rounded to ``int``, so output might be off by max 0.5 Hz
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        Signal to process.
+    fs : int
+        Sampling rate of signal.
+    out_file : str
+        Complete path under which WAV file will be stored, without file ending.
+
+    Returns
+    -------
+    None
+
+    """
+
+    from scipy.io import wavfile
+    signal = signal/np.abs(np.max(signal))
+    wavfile.write(out_file + ".wav", rate=int(fs), data=signal)
 
 def to_xarray(Fiber, name: str = None, use_distance: bool = False):
 
