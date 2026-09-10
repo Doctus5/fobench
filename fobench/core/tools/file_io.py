@@ -21,6 +21,69 @@ from tqdm import tqdm
 
 from obspy.core import UTCDateTime as UTC
 
+def read_array(data, *, sampling_rate, start_time, spatial_interval, units,
+               gauge_length=None, channel_offset=0, range_ch=None, load_data=True):
+    """Return recording attributes for a nonempty (samples, channels) array.
+
+    Sampling rate (Hz), start time (ObsPy-compatible), spatial interval (meters),
+    and units are required. Gauge length is optional in meters; channel offset
+    is in channel intervals. End time is the time of the last sample.
+
+    Channel selection follows :func:`read_data` and preserves original channel
+    numbers. Selected data is copied, or omitted when ``load_data=False``.
+    The returned dictionary has the same structure as :func:`read_data`, with
+    no source file or manufacturer metadata.
+    """
+    required = {
+        "sampling_rate": sampling_rate,
+        "start_time": start_time,
+        "spatial_interval": spatial_interval,
+        "units": units,
+    }
+    missing = [name for name, value in required.items() if value is None]
+    if missing:
+        raise ValueError("Array input requires " + ", ".join(missing))
+    if data.ndim != 2 or 0 in data.shape:
+        raise ValueError("data must be a nonempty 2D array (samples, channels)")
+    if sampling_rate <= 0 or spatial_interval <= 0:
+        raise ValueError("sampling_rate and spatial_interval must be positive")
+
+    start_time = UTC(start_time)
+    n_samples, n_channels = data.shape
+    channels, selector = __channel_selection__(range_ch, np.arange(n_channels))
+    if len(channels) == 0:
+        raise ValueError("range_ch must select at least one channel")
+    dt = 1 / sampling_rate
+    end_time = start_time + (n_samples - 1) * dt
+    if load_data:
+        data = np.array(data if selector is None else data[:, selector], copy=True)
+    else:
+        data = None
+
+    return {
+        "basefile": None,
+        "format": "array",
+        "company": "",
+        "fiber": "",
+        "properties": {},
+        "channels": channels,
+        "n_channels": len(channels),
+        "sampling_rate": sampling_rate,
+        "o_sampling_rate": sampling_rate,
+        "dt": dt,
+        "start_time": start_time,
+        "end_time": end_time,
+        "spatial_interval": spatial_interval,
+        "n_samples": n_samples,
+        "time_length": end_time - start_time,
+        "gauge_length": gauge_length,
+        "channel_offset": channel_offset,
+        "data": data,
+        "units": units,
+        "conv_factor": None,
+    }
+
+
 def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.ndarray = None,
               format: str = None, load_data: bool = True,
               show_progress: bool = True, storage_opts = None):

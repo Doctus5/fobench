@@ -38,17 +38,21 @@ class Fiber(object):
       else, e.g. ``None``.
     """
 
-    def __init__(self, filepath: str, company: str = "", range_ch: tuple[int,int] = None, sensing: str = "das",
-                 load_data: bool = True, show_progress: bool = True, storage_opts = None):
-        """
+    def __init__(self, filepath: str | np.ndarray, company: str = "", range_ch: tuple[int,int] = None, sensing: str = "das",
+                 load_data: bool = True, show_progress: bool = True, storage_opts = None, *,
+                 sampling_rate=None, start_time=None, spatial_interval=None,
+                 units=None, gauge_length=None, channel_offset=0):
+        """Initialize from a file or an array of recording data.
 
         Parameters
         ----------
-        filepath : str
-            Path to file to read.
+        filepath : str or numpy.ndarray
+            Path to file to read, or a nonempty array shaped (samples, channels).
+            Array data is copied when loaded, and channels are numbered from zero.
         company : str
             Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
             ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
+            Required for files; unused for arrays.
         range_ch : tuple(int, int) | list | int | np.array
             Range of channels to load. Can be a single channel, list or array of channnels
             or range given as tuple.
@@ -56,85 +60,67 @@ class Fiber(object):
             Fiber optic sensing technology. Currently only ``"das"``.
         load_data : bool
             If ``False``, only metadata is loaded.
-        show_progress : True
-            Show progress bar when loading data.
-        storage_opts :
-            -
+        show_progress : bool
+            Show progress bar when loading file data. Unused for arrays.
+        storage_opts : dict, optional
+            Storage options for remote files. Unused for arrays.
+        sampling_rate : float, optional
+            Sampling rate in Hz. Required for arrays; read from metadata for files.
+        start_time : obspy.UTCDateTime or str or float, optional
+            ObsPy-compatible recording start time. Required for arrays; read from
+            metadata for files. Array end time is the time of the last sample.
+        spatial_interval : float, optional
+            Channel spacing in meters. Required for arrays; read from metadata for files.
+        units : str, optional
+            Data units. Required for arrays; read from metadata for files.
+        gauge_length : float, optional
+            Gauge length in meters for arrays, or None if unknown. Read from files.
+        channel_offset : float, optional
+            Array offset in channel intervals, defaulting to zero. The first
+            channel's distance is channel_offset * spatial_interval. Read from files.
 
+        Notes
+        -----
+        No instrument correction is applied to array data. Use :meth:`to_xarray`
+        to export it; writing in an instrument's format requires a source file.
+
+        Examples
+        --------
+        >>> fiber = Fiber(np.zeros((100, 4)), sampling_rate=100.0,
+        ...               start_time="2026-01-01T00:00:00Z", spatial_interval=2.0,
+        ...               units="strain-rate")
         """
+        if isinstance(filepath, np.ndarray):
+            self.__filepath__ = []
+            self.__storage_opts__ = None
+            self.company = ""
+            self.format = "array"
+            self.attributes = file_io.read_array(
+                filepath, sampling_rate=sampling_rate, start_time=start_time,
+                spatial_interval=spatial_interval, units=units,
+                gauge_length=gauge_length, channel_offset=channel_offset,
+                range_ch=range_ch, load_data=load_data,
+            )
+        else:
+            if not isinstance(filepath, str):
+                raise TypeError("filepath must be a file path string or a NumPy array")
+            if not company:
+                raise ValueError(
+                    "\nNo company provided! Please choose one of:\n"
+                    " -'silixa'\n -'febus'\n -'bam'\n -'aragon'\n -'quantx'\n -'asn'\n"
+                    " -'terra15'\n -'sintela'"
+                )
 
-        if not company:
-            raise ValueError(
-                "\nNo company provided! Please choose one of:\n"
-                " -'silixa'\n -'febus'\n -'bam'\n -'aragon'\n -'quantx'\n -'asn'\n"
-                " -'terra15'\n -'sintela'"
+            self.__filepath__ = [filepath]
+            self.__storage_opts__ = storage_opts
+            self.company = company.lower()
+            self.format = filepath.split(".")[-1]
+            self.attributes = file_io.read_data(
+                self.__filepath__[0], self.company, range_ch, self.format,
+                load_data=load_data, show_progress=show_progress, storage_opts=storage_opts,
             )
 
-        self.__filepath__ = [filepath]
-        self.__storage_opts__ = storage_opts
-
-        self.company = company.lower()
-        self.format = filepath.split(".")[-1]
-
-        self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch,
-                        self.format, load_data=load_data, show_progress=show_progress, storage_opts=storage_opts)
-
         self._initialize(sensing)
-
-    @classmethod
-    def from_array(cls, data, *, sampling_rate, start_time, spatial_interval,
-                   units, gauge_length=None, channel_offset=0):
-        """Create a Fiber from data shaped ``(time samples, channels)``.
-
-        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in meters,
-        ``start_time`` as an ObsPy-compatible time, and the data's ``units``.
-        ``gauge_length`` is optional and measured in meters. ``channel_offset``
-        is measured in channel intervals, so the first channel's distance is
-        ``channel_offset * spatial_interval``.
-
-        Data is copied, channels are numbered from zero, and ``end_time`` is
-        the time of the last sample. No file is read or instrument correction
-        applied. Use :meth:`to_xarray` to export the data.
-        """
-        data = np.array(data, copy=True)
-        if data.ndim != 2 or 0 in data.shape:
-            raise ValueError("data must be a nonempty 2D array (samples, channels)")
-        if sampling_rate <= 0 or spatial_interval <= 0:
-            raise ValueError("sampling_rate and spatial_interval must be positive")
-        start_time = UTC(start_time)
-        n_samples, n_channels = data.shape
-        dt = 1 / sampling_rate
-        end_time = start_time + (n_samples - 1) * dt
-
-        instance = cls.__new__(cls)
-        instance.__filepath__ = []
-        instance.__storage_opts__ = None
-        instance.company = ""
-        instance.format = "array"
-        instance.attributes = {
-            "basefile": None,
-            "format": instance.format,
-            "company": instance.company,
-            "fiber": "",
-            "properties": {},
-            "channels": np.arange(n_channels),
-            "n_channels": n_channels,
-            "sampling_rate": sampling_rate,
-            "o_sampling_rate": sampling_rate,
-            "dt": dt,
-            "start_time": start_time,
-            "end_time": end_time,
-            "spatial_interval": spatial_interval,
-            "n_samples": n_samples,
-            "time_length": end_time - start_time,
-            "gauge_length": gauge_length,
-            "channel_offset": channel_offset,
-            "data": data,
-            "units": units,
-            "conv_factor": None,
-        }
-        instance._initialize("das")
-        return instance
 
     def _initialize(self, sensing):
         """Populate shared state from file or array attributes."""
