@@ -750,9 +750,9 @@ class Fiber(object):
             return coh
 
     def view(self):
-        """Launches the Fobench Data Viewer.
+        """Launches the FoBench Data Viewer.
         """
-        print(f"{'-'*65}\nStarting Fobench Data Viewer")
+        print(f"{'-'*65}\nStarting FoBench Data Viewer")
         app = QtWidgets.QApplication.instance()
         if app is None:
             app = QtWidgets.QApplication(sys.argv)
