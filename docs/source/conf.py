@@ -45,6 +45,7 @@ intersphinx_mapping = {
     "obspy": ("https://docs.obspy.org/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
+    "pywavelets": ("https://pywavelets.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------

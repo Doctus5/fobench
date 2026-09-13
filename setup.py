@@ -39,7 +39,8 @@ setup(
         'tqdm',
         'zarr',
         'xarray',
-        'rich' # dependency of zarr
+        'rich', # dependency of zarr
+        "PyWavelets"
     ],
     extras_require={
         # Here goes the optional dependencies, usually for paralle runinng.

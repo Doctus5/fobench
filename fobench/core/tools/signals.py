@@ -1,9 +1,12 @@
 """Signal processing functions except filtering."""
 
+from warnings import warn
 import numpy as np
+import pywt
 import scipy.signal as signal
 import scipy.integrate as integrate
 from tqdm import tqdm, trange
+from fobench.core.plotting import plotting_pyqt as plot_pyqt
 
 def hilbert(data: np.ndarray, axis: int = 0) -> np.ndarray:
 
@@ -514,7 +517,7 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
 def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
                        norm: bool)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
-	"""Computes spectrogram of signal.
+    """Computes spectrogram of signal.
 
     Parameters
     ----------
@@ -537,11 +540,77 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
         Spectrogram image.
 
     """
-	nyquist = sampling_rate/2
-	nfft, nperseg = nyquist*2, int(sampling_rate/5)
-	noverlap = int(nperseg/2)
-	f, t, Sxx = signal.spectrogram(data, sampling_rate, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
-	Sxx = np.flip(Sxx, axis=axis)
-	Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
+    nyquist = sampling_rate/2
+    nfft, nperseg = nyquist*2, int(sampling_rate/5)
+    noverlap = int(nperseg/2)
+    f, t, Sxx = signal.spectrogram(data, sampling_rate, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
+    Sxx = np.flip(Sxx, axis=axis)
+    Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 
-	return f, t, Sxx
+    return f, t, Sxx
+
+
+def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
+        wavelet: pywt.Wavelet | str = "cmor1.5-1.0", fmin: float = 1.0,
+        fmax: float | None = None, n_scales: int = 100, times: np.array = None,
+        results: bool = False, plot_mode: str = "pyqt", vmin=None, vmax=None,
+        export=None, show=True) -> None | tuple[np.ndarray, np.ndarray]:
+
+    """Computes and optionally plots continuous wavelet transform of input signal.
+    Mainly a wrapper around :func:`pywt.cwt`.
+    Minimum example: ``cwt(signal=Fiber.get_data(100), fs=das.sampling_rate,
+    times=das.times(time_type="unix"))``
+
+    Parameters
+    ----------
+    signal : np.ndarray
+        Signal to process.
+    fs : float
+        Sampling rate of signal.
+    scales : np.ndarray | None
+        Scales to use.
+    wavelet : pywt.Wavelet | str
+        The wavelet to use. See :func:`pywt.cwt`.
+    fmin, fmax : float
+        Minimum and maximum frequency to analyze.
+    n_scales : int
+        Number of scales, ignored if ``scales`` is not ``None``.
+    times : np.array
+        Array of Unix timestamps for plotting.
+    results : bool, optional
+        Toggles return of computed values.
+    plot_mode : str
+        ``"pyqt"``, ``"mpl"`` or no plotting.
+    vmin, vmax : float, optional
+        Minimum and maximum limits of colorbar.
+
+    Returns
+    -------
+    coeffs : np.ndarray
+        Complex CWT coefficients.
+    freqs : np.ndarray
+        Frequency axis vector.
+
+    """
+
+    if scales is None:
+        if fmax is None: fmax = fs/2
+        freqs = np.geomspace(fmin, fmax, n_scales)
+        scales = pywt.frequency2scale(wavelet, freqs/fs)
+    coeffs, f = pywt.cwt(signal, scales, wavelet, sampling_period=1.0/fs)
+    if vmin is None: vmin = 0
+    if vmax is None: vmax = np.percentile(abs(coeffs), 95)
+
+    if plot_mode == "mpl":
+        warn("⚠️ matplotlib plotting not implemented for this method, "
+             "plotting using PyQtGraph instead")
+        plot_mode = "pyqt"
+    if plot_mode == "pyqt":
+        plot_pyqt.plot_2d_timeseries(timestamps=times, y_ticks=f, dt=1/fs,
+                    data=abs(coeffs.T), y_label="Frequency [Hz]",
+                    title=f"CWT with {str(wavelet)}", cmap="viridis",
+                    vmin=vmin, vmax=vmax, cbar_label="CWT magnitude",
+                    export=export, show=True)
+
+    if results:
+        return coeffs, freqs
