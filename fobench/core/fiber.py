@@ -38,17 +38,21 @@ class Fiber(object):
       else, e.g. ``None``.
     """
 
-    def __init__(self, filepath: str, company: str = "", range_ch: tuple[int,int] = None, sensing: str = "das",
-                 load_data: bool = True, show_progress: bool = True, storage_opts = None):
-        """
+    def __init__(self, filepath: str | np.ndarray, company: str = "", range_ch: tuple[int,int] = None, sensing: str = "das",
+                 load_data: bool = True, show_progress: bool = True, storage_opts = None, *,
+                 sampling_rate=None, start_time=None, spatial_interval=None,
+                 units=None, gauge_length=None, channel_offset=0):
+        """Initialize from a file or an array of recording data.
 
         Parameters
         ----------
-        filepath : str
-            Path to file to read.
+        filepath : str or numpy.ndarray
+            Path to file to read, or a nonempty array shaped (samples, channels).
+            Array data is copied when loaded, and channels are numbered from zero.
         company : str
             Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
             ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
+            Required for files; unused for arrays.
         range_ch : tuple(int, int) | list | int | np.array
             Range of channels to load. Can be a single channel, list or array of channnels
             or range given as tuple.
@@ -56,36 +60,77 @@ class Fiber(object):
             Fiber optic sensing technology. Currently only ``"das"``.
         load_data : bool
             If ``False``, only metadata is loaded.
-        show_progress : True
-            Show progress bar when loading data.
-        storage_opts :
-            -
+        show_progress : bool
+            Show progress bar when loading file data. Unused for arrays.
+        storage_opts : dict, optional
+            Storage options for remote files. Unused for arrays.
+        sampling_rate : float, optional
+            Sampling rate in Hz. Required for arrays; read from metadata for files.
+        start_time : obspy.UTCDateTime or str or float, optional
+            ObsPy-compatible recording start time. Required for arrays; read from
+            metadata for files. Array end time is the time of the last sample.
+        spatial_interval : float, optional
+            Channel spacing in meters. Required for arrays; read from metadata for files.
+        units : str, optional
+            Data units. Required for arrays; read from metadata for files.
+        gauge_length : float, optional
+            Gauge length in meters for arrays, or None if unknown. Read from files.
+        channel_offset : float, optional
+            Array offset in channel intervals, defaulting to zero. The first
+            channel's distance is channel_offset * spatial_interval. Read from files.
 
+        Notes
+        -----
+        No instrument correction is applied to array data. Use :meth:`to_xarray`
+        to export it; writing in an instrument's format requires a source file.
+
+        Examples
+        --------
+        >>> fiber = Fiber(np.zeros((100, 4)), sampling_rate=100.0,
+        ...               start_time="2026-01-01T00:00:00Z", spatial_interval=2.0,
+        ...               units="strain-rate")
         """
+        if isinstance(filepath, np.ndarray):
+            self.__filepath__ = []
+            self.__storage_opts__ = None
+            self.company = ""
+            self.format = "array"
+            self.attributes = file_io.read_array(
+                filepath, sampling_rate=sampling_rate, start_time=start_time,
+                spatial_interval=spatial_interval, units=units,
+                gauge_length=gauge_length, channel_offset=channel_offset,
+                range_ch=range_ch, load_data=load_data,
+            )
+        else:
+            if not isinstance(filepath, str):
+                raise TypeError("filepath must be a file path string or a NumPy array")
+            if not company:
+                raise ValueError(
+                    "\nNo company provided! Please choose one of:\n"
+                    " -'silixa'\n -'febus'\n -'bam'\n -'aragon'\n -'quantx'\n -'asn'\n"
+                    " -'terra15'\n -'sintela'"
+                )
 
-        if not company:
-            raise ValueError(
-                "\nNo company provided! Please choose one of:\n"
-                " -'silixa'\n -'febus'\n -'bam'\n -'aragon'\n -'quantx'\n -'asn'\n"
-                " -'terra15'\n -'sintela'"
+            self.__filepath__ = [filepath]
+            self.__storage_opts__ = storage_opts
+            self.company = company.lower()
+            self.format = filepath.split(".")[-1]
+            self.attributes = file_io.read_data(
+                self.__filepath__[0], self.company, range_ch, self.format,
+                load_data=load_data, show_progress=show_progress, storage_opts=storage_opts,
             )
 
-        self.__filepath__ = [filepath]
-        self.__storage_opts__ = storage_opts
+        self._initialize(sensing)
 
-        self.company = company.lower()
-        self.format = filepath.split(".")[-1]
-
-        self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch,
-                        self.format, load_data=load_data, show_progress=show_progress, storage_opts=storage_opts)
-
+    def _initialize(self, sensing):
+        """Populate shared state from file or array attributes."""
         self.__basefile__ = self.attributes["basefile"] # changed to the structure of the file
         self.fiber = self.attributes["fiber"]
         self.properties = self.attributes["properties"] # all metadata of input file
         self.channels = self.attributes["channels"] # list of channels as array
         self.n_channels = self.attributes["n_channels"]
         self.sampling_rate = self.attributes["sampling_rate"] # sampling rate of the data.
-        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] != None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
+        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] is not None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
         self.dt = 1 / self.sampling_rate # calculated time step.
         self.start_time = self.attributes["start_time"] # start time of the data in file.
         self.end_time = self.attributes["end_time"] # end time of the data in file.
@@ -150,6 +195,8 @@ class Fiber(object):
     def instr_correct(self, target="strain-rate", terra15_gl=None):
         """Performs instrument correction and data conversion for various instrument types.
         See :func:`~fobench.core.utils.instr_corr`."""
+        if self.__basefile__ is None:
+            raise ValueError("Instrument correction requires manufacturer metadata from a file")
         if not self.corrected:
             (self.data, self.units, self.channels,
             self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
@@ -274,6 +321,8 @@ class Fiber(object):
         """Save data of Fiber in a new file in its the original format. See
         :func:`~fobench.core.tools.file_io.write_data`.
         """
+        if self.__basefile__ is None:
+            raise ValueError("Writing requires a source file template; use to_xarray() to export array data")
         if isinstance(self.__basefile__, str):
             self.__basefile__ = file_io.scan_template(self.__basefile__,
                                                       company=self.company,
