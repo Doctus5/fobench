@@ -1,4 +1,4 @@
-fobench.core.plotting.plotting\_pyqt
+﻿fobench.core.plotting.plotting\_pyqt
 ====================================
 
 .. automodule:: fobench.core.plotting.plotting_pyqt
@@ -8,6 +8,7 @@ fobench.core.plotting.plotting\_pyqt
 
    .. autosummary::
    
+      exportable
       get_axis_button
       get_bottom_layout
       get_colors

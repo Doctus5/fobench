@@ -1,4 +1,4 @@
-fobench.database.utils.windowing
+﻿fobench.database.utils.windowing
 ================================
 
 .. automodule:: fobench.database.utils.windowing
@@ -12,8 +12,8 @@ fobench.database.utils.windowing
       files2windows
       files2windows_groups
       files_window_vector
+      inter_windowing
       overlap_seconds
       time_windows
-      inter_windowing
       windows_file_map
    

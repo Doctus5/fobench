@@ -444,14 +444,15 @@ class Fiber(object):
 
     @utils._update_processing
     def fk_filter(self, bands=[{}], propagation="both", alpha=0.3, plot_mode=None,
-                  verbose=False, results=False, mode="pass"):
+                  verbose=False, results=False, mode="pass", export=None, show=True):
         """Applies frequency wavenumber filter to data.
         See :func:`~fobench.core.tools.filters.fk_filter`.
         """
         out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
                                 bands=bands, propagation=propagation, alpha=alpha,
                                 plot_mode=plot_mode, verbose=verbose, mode=mode,
-                                t_axis=self.__axis__("t"), d_axis=self.__axis__("d"))
+                                t_axis=self.__axis__("t"), d_axis=self.__axis__("d"),
+                                export=export, show=show)
         self.data = out[0] if verbose else out
         if results:
             return (out[0], out[1], out[2]) if verbose else (out[0])
@@ -486,7 +487,7 @@ class Fiber(object):
 
         return self
 
-    def SNR(self, dim="t", results=False, plot_mode="pyqt"):
+    def SNR(self, dim="t", results=False, plot_mode="pyqt", export=None, show=True):
         """Computes signal to noise ratio, defined as ratio between mean and standard
         deviation of signal.
         """
@@ -499,12 +500,13 @@ class Fiber(object):
 
         if plot_mode == "pyqt":
             plot_pyqt.plot_distance(distances=self.distances, channels=self.channels,
-                                       data=snr, y_label="SNR [-]", title="SNR Profile")
+                                       data=snr, y_label="SNR [-]", title="SNR Profile",
+                                       export=export, show=show)
         if results:
             return snr
 
     def rmsa(self, window=None, dim="t", plot_mode="pyqt", results=False,
-          vmin=None, vmax=None):
+          vmin=None, vmax=None, export=None, show=True):
         """Computes root mean square amplitude for record, dependign on dimension,
         window is either seconds ("t") or number of channels ("d").
         See :func:`~fobench.core.tools.wavefield.rmsa`.
@@ -518,11 +520,11 @@ class Fiber(object):
         rmsa = wavefield.rmsa(data=self.data, axis=axis, window=window, dim=dim,
                             times=self.times("unix"), distances = self.distances,
                             channels=self.channels, vmin=vmin, vmax=vmax,
-                            plot_mode=plot_mode)
+                            plot_mode=plot_mode, export=export, show=show)
         if results:
             return rmsa
 
-    def p2p_amp(self, dim="t", results=False, plot_mode="pyqt"):
+    def p2p_amp(self, dim="t", results=False, plot_mode="pyqt", export=None, show=True):
         """Computes peak-to-peak amplitude of data in time or space.
         See :func:`~fobench.core.fiber.tools.wavefield.peak_to_peak_amp`.
         """
@@ -532,7 +534,7 @@ class Fiber(object):
         if plot_mode=="pyqt" and dim=="t":
                 plot_pyqt.plot_distance(distances=self.distances, channels=self.channels,
                             data=p2p_amplitude, y_label="P2P Amplitude", x_label="Channel",
-                              title="Peak-to-Peak Amplitude Profile")
+                              title="Peak-to-Peak Amplitude Profile", export=export, show=show)
         if plot_mode=="pyqt" and dim=="d":
                 plot_pyqt.plot_timeseries(timestamps=self.times(time_type="unix"), data=p2p_amplitude,
                                     y_label="Amplitude",
@@ -545,7 +547,7 @@ class Fiber(object):
 
     def fx_plot(self, norm=False, vmin=None, vmax=None, order=1, nfft=None, figsize=None,
                  show=True, cmap="viridis", results=False, file_name=None,
-                 where=None, plot_mode="pyqt", **kwargs):
+                 where=None, plot_mode="pyqt", export=None,**kwargs):
         """Computes frequency-distance plot.
         See :func:`~fobench.core.tools.wavefield.frequency_content`,
         :func:`~fobench.core.plotting.plotting_mpl.mpl_fx_plot` and
@@ -562,7 +564,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_distance(distances=self.distances, channels=np.array(self.channels),
                               y_ticks=freqs, data=fx if axis else fx.T,
                               cmap=cmap, vmin=vmin, vmax=vmax, y_label="Frequency [Hz]",
-                              title="Frequency content", cbar_label=self.units)
+                              title="Frequency content", cbar_label=self.units,
+                              export=export, show=show)
         elif plot_mode == "mpl":
             plot.mpl_fx_plot(spec_matrix=np.rot90(fx) if axis else fx[::-1], freqs=freqs, x=self.channels,
                      units_y="Energy", figsize=figsize, title=str(self.start_time.date),
@@ -573,7 +576,8 @@ class Fiber(object):
 
     def spectrum(self, channel, plot_mode="pyqt", norm=False, pre_processing=True,
                  order=1, pad=0, nfft=None, mode="spectrum", figsize=None,
-                 nperseg=None, file_name=None, legend=True, results=False, **kwargs):
+                 nperseg=None, file_name=None, legend=True, results=False,
+                 export=None, show=True, **kwargs):
         """Computes and plots spectrum of channel(s), mode can be ``'spectrum'``
         or ``'psd'``. See :func:`~fobench.core.tools.signals.signal_spectrum`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_spectral`
@@ -599,7 +603,8 @@ class Fiber(object):
         if plot_mode=="pyqt":
             units = self.units if mode == "spectrum" else f"{self.units.split(' ')[-1]}²/Hz"
             plot_pyqt.plot_spectral(frequencies=f, amplitudes=spec, y_label =f"{units.title()}",
-                                title= f"{mode.title()}" if mode=="spectrum" else f"{mode.upper()}", labels=channel)
+                                title= f"{mode.title()}" if mode=="spectrum" else f"{mode.upper()}",
+                                labels=channel, export=export, show=show)
         elif plot_mode=="mpl":
             units = self.units if mode == "spectrum" else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
             plot.simple_spectrum(spectra=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
@@ -609,7 +614,7 @@ class Fiber(object):
             return f, spec
 
     def channel_plot(self, channel, max_value=None, figsize=None, file_name=None,
-                    plot_mode="pyqt", **kwargs):
+                    plot_mode="pyqt", export=None, show=True, **kwargs):
         """Generates simple plot of channel data.
         See :func:`~fobench.core.plotting.plotting_pyqt.plot_timeseries`.
         and :func:`~fobench.core.plotting.plotting_mpl.simple_plot`.
@@ -627,7 +632,8 @@ class Fiber(object):
         if plot_mode=="pyqt":
             t = self.times(time_type="unix")
             plot_pyqt.plot_timeseries(data=selected, timestamps=t, y_label=self.units,
-                             dt=self.dt, title="Channel Plot", labels=channel)
+                             dt=self.dt, title="Channel Plot", labels=channel,
+                             export=export, show=show)
         elif plot_mode=="mpl":
             t = self.times("matplotlib")
             plot.simple_plot(data=selected.T, t=t, channel=channel, units_y=self.units,
@@ -635,7 +641,8 @@ class Fiber(object):
                     file_name=file_name, **kwargs)
 
     def plot(self, vmin=None, vmax=None, figsize=None, show=True, cmap="seismic",
-          file_name=None, where=None, add_data=None, plot_mode="pyqt", **kwargs):
+          file_name=None, where=None, add_data=None, plot_mode="pyqt", export=None,
+          **kwargs):
         """Generates plot of data. See :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries`
         and :func:`~fobench.core.plotting.plotting_mpl.gen_DAS_plot`
         """
@@ -647,7 +654,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels),
                         data=self.data.T if self.__axis__("t") else self.data,
                         y_label="Channel", dt=self.dt, title="Data Plot", vmin=vmin,
-                        vmax=vmax, cbar_label=self.units, distances=self.distances)
+                        vmax=vmax, cbar_label=self.units, distances=self.distances,
+                        export=export, show=show)
         elif plot_mode == "mpl":
             t = self.times(time_type="matplotlib")
             plot.gen_DAS_plot(data=self.data.T if self.__axis__("t") else self.data, t=t,
@@ -656,8 +664,9 @@ class Fiber(object):
                         vmin=vmin, vmax=vmax, add_data=add_data, **kwargs)
 
     def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-                        cmap="viridis", file_name=None,     freq_lim=None,  results=False,
-                        plot_mode="pyqt", vmin=None, vmax=None, **kwargs):
+                        cmap="viridis", file_name=None, freq_lim=None, results=False,
+                        plot_mode="pyqt", vmin=None, vmax=None, export=None, show=True,
+                        **kwargs):
         """Computes and plots spectrogram for a ``"channel"``.
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
@@ -676,7 +685,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
                         data=np.rot90(Sxx, k=-1), y_label="Frequency [Hz]",
                         title=f"Spectrogram channel {channel}", cmap="viridis",
-                        vmin=vmin, vmax=vmax, cbar_label=self.units)
+                        vmin=vmin, vmax=vmax, cbar_label=self.units, export=export,
+                        show=show)
         elif plot_mode == "mpl":
             t = self.times(time_type="matplotlib")
             plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
@@ -687,7 +697,7 @@ class Fiber(object):
         if results:
             return Sxx, f, t
 
-    def record_section(self, channels, plot_mode="pyqt"):
+    def record_section(self, channels, plot_mode="pyqt", export=None, show=True):
         """Plots record section of multiple channels. If channels is tuple the range
         between lower and upper limit will be plotted, if list only channels in list
         will be plotted.
@@ -710,13 +720,14 @@ class Fiber(object):
         if plot_mode=="pyqt":
             plot_pyqt.plot_record_section(timestamps=self.times("unix"), data=das_data,
                                  title="Record Section", numbers=das_channels, dt=self.dt,
-                                 y_label="Channel")
+                                 y_label="Channel", export=export, show=show)
         elif plot_mode=="mpl":
             plot.plot_record_section(signals=das_data, t=self.times("matplotlib"),
                             channels=das_channels, date=str(self.start_time.date))
 
     def acf_profile(self, max_lag, plot_mode="pyqt", deconvolve=False,
-                    window_size=None, results=False, vmin=None, vmax=None, **imshow_kwargs):
+                    window_size=None, results=False, vmin=None, vmax=None,
+                    export=None, show=True, **imshow_kwargs):
         """Computes autocorrelation profile.
         See :func:`~fobench.core.tools.wavefield.autocorrelation_profile`.
         """
@@ -729,13 +740,14 @@ class Fiber(object):
                                                 self.distances, self.channels,
                                                 self.sampling_rate,
                                                 window_size=window_size, vmin=vmin,
-                                                vmax=vmax, **imshow_kwargs)
+                                                vmax=vmax, export=export, show=show,
+                                                **imshow_kwargs)
 
         if results:
             return acf
 
     def spatial_coherence(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
-                       vmax=None):
+                       vmax=None, export=None, show=True):
         """Computes sptial coherence matrix.
         See :func:`~fobench.core.tools.wavefield.spatial_coherence_matrix`
         """
@@ -745,7 +757,7 @@ class Fiber(object):
                                            fs=self.sampling_rate,
                                            channels=self.channels,
                                            plot_mode=plot_mode, results=results,
-                                           vmin=vmin, vmax=vmax)
+                                           vmin=vmin, vmax=vmax, export=export, show=show)
         if results:
             return coh
 
