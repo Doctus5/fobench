@@ -139,7 +139,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.spin_box.valueChanged.connect(self.on_spin_box_changed)
         self.dock_3.addWidget(self.spin_box, row=1, col=0)
 
-        # distancer indicator
+        # distance indicator
         self.distance_indicator = QtWidgets.QLabel(f"Distance: {self.selected_distance}")
         self.dock_3.addWidget(self.distance_indicator, row=2, col=0)
 
@@ -162,23 +162,30 @@ class Viewer(QtWidgets.QMainWindow):
 
         # dropdown data analysis menu
         self.dropdown_data = QtWidgets.QComboBox()
-        self.dropdown_data.addItems(["Data Analysis", "RMSA", "P2PA", "fx-Plot"])
+        self.dropdown_data.addItems(["Data Analysis", "RMSA", "P2PA", "SNR", "fx-Plot", "ACFs"])
         self.dropdown_data.setToolTip("Basic Data Analysis Methods")
         self.dropdown_data.currentIndexChanged.connect(self.on_dropdown_data_changed)
         self.dock_3.addWidget(self.dropdown_data, row=5, col=0)
+
+        # dropdown measure tools
+        self.dropdown_measure = QtWidgets.QComboBox()
+        self.dropdown_measure.addItems(["Measure", "Time-Space", "Velocity"])
+        self.dropdown_measure.setToolTip("Measurement Tools")
+        self.dropdown_measure.currentIndexChanged.connect(self.on_dropdown_measure_changed)
+        self.dock_3.addWidget(self.dropdown_measure, row=6, col=0)
 
         # link-unlink button
         self.link_button = QtWidgets.QPushButton("Unlink X-Axis")
         self.link_button.setToolTip("Toggle X-axis linking between main and channel plot")
         self.link_button.setCheckable(True)
         self.link_button.clicked.connect(self.on_link_button_clicked)
-        self.dock_3.addWidget(self.link_button, row=6, col=0)
+        self.dock_3.addWidget(self.link_button, row=7, col=0)
 
         # y-axis switch button
         self.y_axis_button = QtWidgets.QPushButton("Channel")
         self.y_axis_button.setToolTip("Switch Y-axis between Optical Distance and Channel Number")
         self.y_axis_button.clicked.connect(self.on_y_axis_button_clicked)
-        self.dock_3.addWidget(self.y_axis_button, row=7, col=0)
+        self.dock_3.addWidget(self.y_axis_button, row=8, col=0)
 
         # make enough space on the left
         self.matrix_plot.getAxis("left").setWidth(70)
@@ -244,12 +251,22 @@ class Viewer(QtWidgets.QMainWindow):
 
     def on_dropdown_data_changed(self, index:int) -> None:
         """Detects selection of method in dropdown data menu."""
-        actions = {"RMSA": self.plot_rmsa,
-                   "P2PA": self.plot_p2pa,
-                   "fx-Plot": self.plot_fx,}
+        actions = {"RMSA":  lambda: self.plot_data_over_distance(mode="rmsa"),
+                   "P2PA":  lambda: self.plot_data_over_distance(mode="p2p_amp"),
+                   "SNR":  lambda: self.plot_data_over_distance(mode="snr"),
+                   "fx-Plot": self.plot_fx,
+                   "ACFs": self.acf_dialog}
         action = actions.get(self.dropdown_data.currentText())
         if action: action()
         self.dropdown_data.setCurrentIndex(0)
+
+    def on_dropdown_measure_changed(self, index:int) -> None:
+        """Detects selection of method in dropdown measure menu."""
+        actions = {"Time-Space":  self.add_rect_roi,
+                   "Velocity": self.add_velocity_line}
+        action = actions.get(self.dropdown_measure.currentText())
+        self.dropdown_measure.setCurrentIndex(0)
+        if action: action()
 
     def update_plots(self) -> None:
         """Updates all plots."""
@@ -328,6 +345,60 @@ class Viewer(QtWidgets.QMainWindow):
         self.area.addDock(self.dock_fx, "above", self.dock_1)
         self.dock_fx.addWidget(fx_plot_widget)
 
+    def acf_dialog(self) -> None:
+        "Plot the Autocorrelation profile"
+        @_busy_cursor
+        def calc(max_lag_val, deconvolve, window_size):
+            return self.Fiber.acf_profile(max_lag=max_lag_value,
+                                          deconvolve=deconvolve,
+                                          window_size=window_size,
+                                          plot_mode=None, results=True)
+        dialog = QtWidgets.QDialog(self)
+        dialog.setWindowTitle("Autocorrelation Settings")
+        dialog.setFixedWidth(400)
+        layout = QtWidgets.QFormLayout(dialog)
+        layout.setSpacing(10)
+
+        max_lag = QtWidgets.QLineEdit("")
+        layout.addRow("Maximum Lag (s):", max_lag)
+        deconvolve = QtWidgets.QCheckBox("Deconvolve Source term?")
+        win_size = QtWidgets.QLineEdit("Full Cable")
+        win_size.setEnabled(False)  # start disabled
+        layout.addRow(deconvolve)
+        layout.addRow("Window size (number of channels)", win_size)
+        deconvolve.toggled.connect(win_size.setEnabled)
+        buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.StandardButton.Ok
+            | QtWidgets.QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addRow(buttons)
+        if dialog.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+            max_lag_value = float(max_lag.text())
+            window = None if win_size.text() == "Full Cable" else int(win_size.text())
+            acfs = calc(max_lag_value, deconvolve.isChecked(), window)
+            x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
+            y_min, y_max = 0, max_lag_value
+            acf_plot_widget = pg.GraphicsLayoutWidget()
+            acf_plot = acf_plot_widget.addPlot()
+            acf_plot.setAspectLocked(False)
+            acf_plot.setLabel("left", "Lag/TWT [s]")
+            acf_plot.setLabel("bottom", "Optical Distance [m]")
+            cmap = pg.colormap.get("seismic", source="matplotlib")
+            acf_image = pg.ImageItem()
+            acf_image.setImage(acfs.T)
+            acf_image.setLookupTable(cmap.getLookupTable())
+            acf_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
+            acf_plot.addItem(acf_image)
+            bar = pg.ColorBarItem(colorMap=cmap, values=(-0.8, 0.8),
+                                  interactive=True, rounding=0.001,
+                                  label="Correlation Coefficient")
+            bar.setImageItem(acf_image, insert_in=acf_plot)
+            acf_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)
+            acf_plot.getViewBox().invertY(True)
+            self.dock_acf = Dock("Autocorrelation Profile", size=(1200, 600), closable=True)
+            self.area.addDock(self.dock_acf, "above", self.dock_1)
+            self.dock_acf.addWidget(acf_plot_widget)
+
     def make_plot_dock(self, title: str, x_label: str, y_label: str,
                        dock_ref: Dock = None) -> tuple[pg.PlotItem, Dock]:
         """Returns dock with plot widget."""
@@ -341,28 +412,26 @@ class Viewer(QtWidgets.QMainWindow):
         return plot, dock
 
     @_busy_cursor
-    def plot_rmsa(self) -> None:
-        """RMS amplitude plot."""
-        rmsa_data = self.Fiber.rmsa(results=True, plot_mode=None)[0, :]
-        x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
-        plot, self.dock_rmsa = self.make_plot_dock("RMS Amplitude", "Optical Distance [m]",
-                                                   "RMS Amplitude")
-        plot.plot(self.Fiber.distances, rmsa_data, pen="k")
-        plot.setXRange(x_min, x_max, padding=0)
-        plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
-                                    yMin=rmsa_data.min(), yMax=rmsa_data.max())
+    def plot_data_over_distance(self, mode) -> None:
+        """Plots P2PA-, RMSA-, and SNR-profile."""
+        if mode == "rmsa":
+            data = self.Fiber.rmsa(results=True, plot_mode=None)[0, :]
+            plot, self.dock_rmsa = self.make_plot_dock("RMS Amplitude", "Optical Distance [m]",
+                                                       "RMS Amplitude")
+        elif mode == "p2p_amp":
+            data, _, _ = self.Fiber.p2p_amp(plot_mode=None, results=True)
+            plot, self.dock_p2p = self.make_plot_dock("P2P Amplitude", "Optical Distance [m]",
+                                                       "P2P Amplitude")
+        elif mode == "snr":
+            data = self.Fiber.SNR(plot_mode=None, results=True)
+            plot, self.dock_snr = self.make_plot_dock("SNR", "Optical Distance [m]",
+                                                       "SNR")
 
-    @_busy_cursor
-    def plot_p2pa(self) -> None:
-        """Peak-to-Peak amplitude plot."""
-        p2pa_data, _, _ = self.Fiber.p2p_amp(plot_mode=None, results=True)
         x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
-        plot, self.dock_p2p = self.make_plot_dock("P2P Amplitude", "Optical Distance [m]",
-                                                   "P2P Amplitude")
-        plot.plot(self.Fiber.distances, p2pa_data, pen="k")
+        plot.plot(self.Fiber.distances, data, pen="k")
         plot.setXRange(x_min, x_max, padding=0)
         plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
-                                    yMin=min(p2pa_data), yMax=max(p2pa_data))
+                                    yMin=min(data), yMax=max(data))
 
     def plot_spectrum(self, mode: str = None) -> None:
         """Amplitude spectrum or PSD plot."""
@@ -394,3 +463,118 @@ class Viewer(QtWidgets.QMainWindow):
         else:
             self.line_plot.setXLink(self.matrix_plot)
             self.link_button.setText("Unlink X-Axis")
+
+    def add_rect_roi(self) -> pg.RectROI:
+        """Adds a rectangular ROI to the matrix plot to measure time and distance
+        and displays its time range on the line plot.
+        """
+
+        roi = pg.RectROI([self.times[0], self.Fiber.distances[0]],  # x, y
+                         [(self.times[-1] - self.times[0]) * 0.1,       # width
+                          (self.Fiber.distances[-1] - self.Fiber.distances[0]) * 0.1],  # height
+                         pen=pg.mkPen("k", width=2),
+                         handlePen=pg.mkPen("k", width=2),
+                         hoverPen=pg.mkPen("k", width=2, style=pg.QtCore.Qt.DashLine,),
+                         movable=True, resizable=True, removable=True,
+                         maxBounds=pg.QtCore.QRectF(self.times[0],
+                                                    self.Fiber.distances[0],
+                                                    self.times[-1] - self.times[0],
+                                                    self.Fiber.distances[-1] - self.Fiber.distances[0]))
+        roi.addScaleHandle([0,0], center=[1,1])
+        self.matrix_plot.addItem(roi)
+
+        label = pg.TextItem(color="k", anchor=(0, 0),
+                            fill=pg.mkBrush(255, 255, 255, 200))
+        self.matrix_plot.addItem(label)
+
+        line_roi = pg.LinearRegionItem(values=[self.times[0],
+                self.times[0] + (self.times[-1] - self.times[0]) * 0.1],
+                                       orientation="vertical",
+                                       brush=pg.mkBrush(0, 0, 0, 40),
+                                       pen=pg.mkPen("k", width=1), movable=False)
+        self.line_plot.addItem(line_roi)
+
+        def update_roi():
+            """Updates ROI label and secondary ROI"""
+            pos, size = roi.pos(), roi.size()
+            x0 = pos.x()
+            x1 = x0 + size.x()
+            label.setText(f"Duration: {self.format_time(size.x())}\n"
+                          f"Distance: {self.format_distance(size.y())}")
+            label.setPos(pos.x(), pos.y() + size.y())
+            line_roi.setRegion([x0, x1])
+
+        def remove_roi():
+            """Handles removing everything upon context menu click"""
+            self.matrix_plot.removeItem(roi)
+            self.matrix_plot.removeItem(label)
+            self.line_plot.removeItem(line_roi)
+
+        roi.sigRegionChanged.connect(update_roi)
+        update_roi()
+        roi.sigRemoveRequested.connect(remove_roi)
+
+    def add_velocity_line(self) -> pg.LineSegmentROI:
+        """Add a line to the matrix plot to measure velocity."""
+        x0, y0 = self.times[0], self.Fiber.distances[0]
+        x1 = x0 + (self.times[-1] - self.times[0]) * 0.1
+        y1 = y0 + (self.Fiber.distances[-1] - self.Fiber.distances[0]) * 0.1
+
+        line = pg.LineSegmentROI([[x0, y0], [x1, y1]],
+                                 pen=pg.mkPen("k", width=2),
+                                 handlePen=pg.mkPen("k", width=2),
+                                 hoverPen=pg.mkPen("k", width=2, style=pg.QtCore.Qt.DashLine),
+                                 movable=True, removable=True)
+        self.matrix_plot.addItem(line)
+        label = pg.TextItem(color="k", anchor=(0, 1),
+                            fill=pg.mkBrush(255, 255, 255, 200))
+        self.matrix_plot.addItem(label)
+
+        def update_label():
+            """Updates label that displays velocity"""
+            handles = line.getSceneHandlePositions()
+            p1, p2 = handles[0][1], handles[1][1]
+            p1 = self.matrix_plot.vb.mapSceneToView(p1)
+            p2 = self.matrix_plot.vb.mapSceneToView(p2)
+            dx = p2.x() - p1.x()
+            dy = p2.y() - p1.y()
+            if abs(dx) < 1e-12:
+                velocity = float("inf")
+            else:
+                velocity = abs(dy/dx)
+            label.setText(f"Velocity: {velocity:.5g} m/s\n"
+                          f"Δt: {self.format_time(abs(dx))}\n"
+                          f"Δd: {self.format_distance(abs(dy))}")
+
+            label.setPos((p1.x() + p2.x()) / 2,
+                         (p1.y() + p2.y()) / 2)
+
+        line.sigRegionChanged.connect(update_label)
+        update_label()
+
+        def remove_line():
+            """Handles removing everything upon context menu click"""
+            self.matrix_plot.removeItem(line)
+            self.matrix_plot.removeItem(label)
+        line.sigRemoveRequested.connect(remove_line)
+
+    def format_time(self, seconds):
+        """Formats time string"""
+        if seconds < 1: return f"{seconds * 1000:.3g} ms"
+        if seconds < 60: return f"{seconds:.3g} s"
+        if seconds < 3600:
+            minutes = int(seconds // 60)
+            secs = seconds % 60
+            if secs < 0.01:
+                return f"{minutes} min"
+            return f"{minutes} min {secs:.3g} s"
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        if minutes == 0:
+            return f"{hours} h"
+        return f"{hours} h {minutes} min"
+
+    def format_distance(self, meters):
+        """Formats distance string"""
+        if meters < 1000: return f"{meters:.3g} m"
+        return f"{meters/1000:.3g} km"

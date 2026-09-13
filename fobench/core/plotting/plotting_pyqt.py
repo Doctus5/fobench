@@ -7,13 +7,42 @@ from pathlib import Path
 import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
+from pyqtgraph.exporters import ImageExporter
 from pyqtgraph.Qt import QtWidgets, QtGui
 import matplotlib.pyplot as plt
+import functools
+
+def exportable(func):
+    """Decorator that saves plots to files and prevents showing the
+    plot on screen. Call any of the decorated functions with passing a filepath string
+    to ```export`` to save the plot, set ``show=False`` to prevent display of the plot.
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        export_path = kwargs.pop("export", None)
+        show = kwargs.pop("show", True)
+        plot, win = func(*args, **kwargs)
+        if export_path is not None:
+            if isinstance(plot, (list, tuple)): #handle multiple panel case
+                win.show()
+                QtWidgets.QApplication.processEvents()
+                win.grab().save(str(export_path))
+                if not show:
+                    win.hide()
+            else:
+                ImageExporter(plot).export(str(export_path))
+        if show:
+            win.show()
+            pg.exec()
+        return plot
+    return wrapper
 
 """Line Plot Functions"""
 
+@exportable
 def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
-                    y_label: str = "", title: str = "", labels: list[str] | None = None) -> None:
+                    y_label: str = "", title: str = "",
+                    labels: list[str] | None = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Generate generic time series plot using PyQtGraph, ideal for channel plots.
 
@@ -34,7 +63,10 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
 
     Returns
     -------
-    None
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
 
     """
 
@@ -63,10 +95,12 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
     label_text = "Time: {x} | "+y_label+": {y:1e}"
     mouse_moved = tracker_factory(plot=plot, label=label_item, dt=dt, label_text=label_text)
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-    pg.exec()
+    return plot, win
 
+@exportable
 def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
-                        numbers: np.ndarray, y_label: str = "", title: str = "") -> None:
+                        numbers: np.ndarray, y_label: str = "",
+                        title: str = "") -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Extended version of timeseries plot for multi-channel data.
 
@@ -87,7 +121,10 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
 
     Returns
     -------
-    None
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
 
     """
 
@@ -113,12 +150,12 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     win.addItem(label, row=2, col=0)
     mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text="Time: {x}")
     proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
-    pg.exec()
+    return plot, win
 
-
+@exportable
 def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
                   y_label: str = "", x_label: str = "Channel",
-                  title: str = "") -> None:
+                  title: str = "") -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Generate generic distances series plot.
 
@@ -139,8 +176,10 @@ def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
 
     Returns
     -------
-    None
-
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
     """
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
@@ -177,11 +216,12 @@ def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
-    pg.exec()
+    return plot, win
 
+@exportable
 def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.ndarray,
-                  y_label: str = "Amplitude", x_label: str = "Frequency [Hz]",
-                  title: str = "", labels: list[str] | None = None) -> None:
+                  y_label: str = "Amplitude", x_label: str = "Frequency [Hz]", title: str = "",
+                  labels: list[str] | None = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Generate generic amplitude over frequency plot.
 
@@ -201,8 +241,10 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
         Legend labels for each amplitude array. If None, no legend is shown.
     Returns
     -------
-    None
-
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
     """
 
     win, app, plot, y_axis, x_axis = get_layout(size=(1200, 500), win_title=title)
@@ -227,15 +269,16 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
-    pg.exec()
+    return plot, win
 
 
 """Matrix Plot Functions"""
 
+@exportable
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                        dt: float, vmin: float = None, vmax: float = None, y_label: str = "",
-                       title: str = "", cmap: str = "seismic",
-                       cbar_label: str = "", distances: np.ndarray = None) -> None:
+                       title: str = "", cmap: str = "seismic", cbar_label: str = "",
+                       distances: np.ndarray = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Generate generic matrix plot where x-axis represents time.
 
@@ -264,8 +307,10 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 
     Returns
     -------
-    None
-
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
     """
 
     cbar_label = cbar_label.title()
@@ -327,12 +372,14 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
-    pg.exec()
+    return plot, win
 
+@exportable
 def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
                      data: np.ndarray, y_ticks: list, vmin: float = None, vmax: float = None,
                      y_label: str = "", x_label: str = "Channel", title: str = "",
-                     cmap: str = "seismic", cbar_label: str = "", invert_y=False) -> None:
+                     cmap: str = "seismic", cbar_label: str = "",
+                     invert_y=False) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Generate generic matrix plot where x-axis represents distance.
 
@@ -363,8 +410,10 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
 
     Returns
     -------
-    None
-
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
     """
 
     cbar_label=cbar_label.title()
@@ -427,7 +476,7 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
-    pg.exec()
+    return plot, win
 
 """Helper Functions"""
 
@@ -576,9 +625,10 @@ def get_colors(n: int, colormap:str = "tab10") -> list[tuple[int, int, int]]:
 
 """Special Plotting Functions"""
 
+@exportable
 def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
             mask: np.ndarray, f: np.ndarray, k: np.ndarray,
-            dt: float) -> None:
+            dt: float) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
     """Plots the in- and outputs of fk filter: initial and filtered wavefield,
     the fk spectrum and the fk mask.
@@ -602,7 +652,10 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
 
     Returns
     -------
-    None
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
 
     """
 
@@ -682,4 +735,4 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
     plots[3].setXLink(plots[2])
     plots[3].setYLink(plots[2])
 
-    pg.exec()
+    return plots, win

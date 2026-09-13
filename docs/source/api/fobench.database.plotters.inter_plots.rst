@@ -1,5 +1,5 @@
-fobench.database.plotters.inter\_plots
-=====================================
+﻿fobench.database.plotters.inter\_plots
+======================================
 
 .. automodule:: fobench.database.plotters.inter_plots
 
