@@ -561,7 +561,6 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
 
     return f, t, Sxx
 
-
 def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
         wavelet: pywt.Wavelet | str = "cmor1.5-1.0", fmin: float = 1.0,
         fmax: float | None = None, n_scales: int = 100, times: np.array = None,

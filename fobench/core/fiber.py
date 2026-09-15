@@ -177,11 +177,13 @@ class Fiber(object):
 
         return self
 
-    def restrict_channels(self, ch0, chf):
+    def restrict_channels(self, ch0=None, chf=None):
         """Trims data in space, between ch0 and chf, a single channel is returned
         when ch0 = chf, updates all class attributes.
         """
         d_axis = self.__axis__("d")
+        ch0 = self.channels[0] if ch0 is None else ch0
+        chf = self.channels[-1] if chf is None else chf
         ch0, chf = int(min(ch0, chf)), int(max(ch0, chf))
         channels_list = self.channels.tolist()
         ch0, chf = channels_list.index(ch0), channels_list.index(chf)
