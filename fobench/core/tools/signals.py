@@ -504,7 +504,8 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
             magnitude = 2/n * np.abs(fft)[:, :n//2]
 
     elif mode == "psd":
-        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis)
+        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis,
+                                                 detrend=False if pre_processing else "linear")
 
     else:
         raise ValueError("⚠️ Invalid mode. Choose one of:\n"
