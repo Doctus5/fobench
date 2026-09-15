@@ -98,47 +98,62 @@ class Interrogator(object):
 		"""Defines the metadata structure and returns dictionary with metadata parameters."""
 
 		metadata = {
-					"Attributes": {
-						"interrogator_id": None,
-						"manufacturer": 'NA',
-						"sensing": 'NA',
-						"earliest_usage": None,
-						"latest_usage": None,
-						"n_files": 0,
-						"model": 'NA',
-						"serial_number": None,
-						"firmware_version": None,
-						"comment": None,
-						"interrogator_path": 'NA'
-						},
-					"AttributeDefinitions": {
-						"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
-						"manufacturer": "Manufacturer name of the unit.",
-						"sensing": 'Sensing technique of the unit. Determines the type of data.',
-						"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
-						"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
-						"n_files": "Total number of files produced by this unit.",
-						"model": "Model number of the interrogator.",
-						"serial_number": "Serial number of the interrogator.",
-						"firmware_version": "Firmware version of the software used within the interrogator.",
-						"comment": "Additional comments",
-						"interrogator_path": "Folder path of the files adquired with this interrogator or unit."
-						},
-					"AttributeRequirements": {
-						"interrogator_id": True,
-						"manufacturer": True,
-						"sensing": True,
-						"earliest_usage": True,
-						"latest_usage": True,
-						"n_files": True,
-						"model": True,
-						"serial_number": False,
-						"firmware_version": False,
-						"comment": False,
-						"interrogator_path": True
-						},
-					"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
-					}
+			"interrogator_id": "",
+			"manufacturer": "",
+			"model": "",
+			"serial_number": "",
+			"firmware_version": "",
+			"comment": "",
+			"acquisitions": [],
+			"sensing": "",
+			"earliest_usage": "",
+			"latest_usage": "",
+			"n_files": 0,
+			"interrogator_path": ""
+		}
+
+		# metadata = {
+		# 			"Attributes": {
+		# 				"interrogator_id": None,
+		# 				"manufacturer": 'NA',
+		# 				"sensing": 'NA',
+		# 				"earliest_usage": None,
+		# 				"latest_usage": None,
+		# 				"n_files": 0,
+		# 				"model": 'NA',
+		# 				"serial_number": None,
+		# 				"firmware_version": None,
+		# 				"comment": None,
+		# 				"interrogator_path": 'NA'
+		# 				},
+		# 			"AttributeDefinitions": {
+		# 				"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
+		# 				"manufacturer": "Manufacturer name of the unit.",
+		# 				"sensing": 'Sensing technique of the unit. Determines the type of data.',
+		# 				"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
+		# 				"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
+		# 				"n_files": "Total number of files produced by this unit.",
+		# 				"model": "Model number of the interrogator.",
+		# 				"serial_number": "Serial number of the interrogator.",
+		# 				"firmware_version": "Firmware version of the software used within the interrogator.",
+		# 				"comment": "Additional comments",
+		# 				"interrogator_path": "Folder path of the files adquired with this interrogator or unit."
+		# 				},
+		# 			"AttributeRequirements": {
+		# 				"interrogator_id": True,
+		# 				"manufacturer": True,
+		# 				"sensing": True,
+		# 				"earliest_usage": True,
+		# 				"latest_usage": True,
+		# 				"n_files": True,
+		# 				"model": True,
+		# 				"serial_number": False,
+		# 				"firmware_version": False,
+		# 				"comment": False,
+		# 				"interrogator_path": True
+		# 				},
+		# 			"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
+		# 			}
 
 		return metadata
 
@@ -157,13 +172,16 @@ class Interrogator(object):
 		# Initialize/Fill the Interrogator attributes.
 		self.metadata = meta_dict
 		self.__metadata_to_attributes__()
+  
+		# Initialise the Datasets
+		self.datasets = [Dataset(metadata_file=item) for item in meta_dict.get("acquisitions", [])]
 
 		# Initialize the Datasets.
-		if meta_dict['Datasets']: # check Datasets.
+		# if meta_dict["acquisition"]: # check Datasets.
 
-			for meta_dataset in meta_dict['Datasets']:
-				self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Interrogators. )
-			self.n_datasets = len(self.datasets)
+		# 	for meta_dataset in meta_dict["acquisition"]:
+		# 		self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Interrogators. )
+		# 	self.n_datasets = len(self.datasets)
 
 		return self
 
@@ -173,12 +191,13 @@ class Interrogator(object):
 		"""
 
 		# Fill values in attributes
-		self.__folder_path__ = self.metadata['Attributes']['interrogator_path'] # central folder path of files.
-		self.sensing = self.metadata['Attributes']['sensing']
-		self.company = self.metadata['Attributes']['manufacturer']
-		self.n_files = self.metadata['Attributes']['n_files']
-		self.earliest_usage = UTC(self.metadata['Attributes']['earliest_usage']) # earliest start date of meassurements with the interrogator.
-		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the interrogator.
+		self.__folder_path__ = self.metadata.get("interrogator_path") # central folder path of files.
+		self.sensing = self.metadata.get("sensing") or "das"
+		self.company = self.metadata["manufacturer"]
+		self.n_files = self.metadata.get("n_files", 0)
+		start, end  = self.metadata.get("earliest_usage"), self.metadata.get("latest_usage")
+		self.earliest_usage = UTC(start) if start else None # earliest start date of meassurements with the interrogator.
+		self.latest_usage = UTC(end) if end else None # latest end date of meassurements with the interrogator.
 
 		return self
 
@@ -188,17 +207,17 @@ class Interrogator(object):
 		"""
 
 		# Fill values in metadata file
-		self.metadata['Attributes']["interrogator_id"] = None
-		self.metadata['Attributes']["manufacturer"] = self.company
-		self.metadata['Attributes']["sensing"] = self.sensing
-		self.metadata['Attributes']["earliest_usage"] = self.earliest_usage.isoformat()
-		self.metadata['Attributes']["latest_usage"] = self.latest_usage.isoformat()
-		self.metadata['Attributes']["n_files"] = self.n_files
-		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
-		# self.metadata['Attributes']["model"] = 'NA'
-		# self.metadata['Attributes']["serial_number"] = 'NA'
-		# self.metadata['Attributes']["firmware_version"] = 'NA'
-		self.metadata['Datasets'] = [data_set.metadata for data_set in self.datasets] # populate with metadata
+		# self.metadata["interrogator_id"] = None
+		self.metadata["manufacturer"] = self.company
+		self.metadata["sensing"] = self.sensing
+		self.metadata["earliest_usage"] = (self.earliest_usage.isoformat() + "Z" if self.self.earliest_usage is not None else "")
+		self.metadata["latest_usage"] = (self.latest_usage.isoformat() + "Z" if self.self.latest_usage is not None else "")
+		self.metadata["n_files"] = self.n_files
+		self.metadata["interrogator_path"] = self.__folder_path__
+		# self.metadata["model"] = 'NA'
+		# self.metadata["serial_number"] = 'NA'
+		# self.metadata["firmware_version"] = 'NA'
+		self.metadata["acquisition"] = [data_set.metadata for data_set in self.datasets] # populate with metadata
 
 	def __metadates_2_isoformat__(self, reverse=False):
 		"""Define metadata structure for JSON. Transforms the dates of the ``Dataset``
@@ -208,8 +227,8 @@ class Interrogator(object):
 		"""
 
 		if self.datasets:
-			for dataset_meta in self.metadata['Datasets']:
-				dataset_meta['Database'] = manager.metadates_2_isoformat(dataset_meta['Database'], reverse=reverse)
+			for dataset_meta in self.metadata["acquisition"]:
+				dataset_meta["Database"] = manager.metadates_2_isoformat(dataset_meta["Database"], reverse=reverse)
 
 		return self
 

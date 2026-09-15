@@ -85,62 +85,83 @@ class Project(object):
 		"""Define the metadata structure. Returns dict with the metadata parameters."""
 
 		metadata = {
-					"Attributes": {
-						"network_code": "NA",
-						"location": "NA",
-						"country": "NA",
-						"principal_investigator_name": "NA",
-						"principal_investigator_email": "NA",
-						"principal_investigator_address": "NA",
-						"point_of_contact": "NA",
-						"point_of_contact_email": "NA",
-						"point_of_contact_address": "NA",
-						"start_date": "NA",
-						"end_date": "NA",
-						"funding_agency": "NA",
-						"project_number": "NA",
-						"digital_object_identifier": "NA",
-						"purpose_of_data_collection": "NA",
-						"comment": None
-						},
-					"AttributeDefinitions": {
-						"network_code": "Unique network name for the installation with a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
-						"location": "Name of the geographic location of the installation.",
-						"country": "Country where the installation is located. Use ISO 3166-1 alpha-3 three-letter country code.",
-						"principle_investigator_name": "Name of principal investigator (last name, first name) for the installation.",
-						"principle_investigator_email": "Email address of principal investigator.",
-						"principle_investigator_address": "Physical address and institution of principal investigator.",
-						"point_of_contact": "Point of contact (last name, first name) for the metadata.",
-						"point_of_contact_email": "Email address of point of contact.",
-						"point_of_contact_address": "Physical address and institution of point of contact.",
-						"start_date": "Start date of data collection at the installation in UTC.",
-						"end_date": "End date of data collection at the installation in UTC. If installation is still in operation, use a future date (e.g. 2999-01-01).",
-						"funding_agency": "Name(s) of agency that funded the experiment.",
-						"project_number": "Funding project number. Should be supplied if a number has been assigned by funding agency(s).",
-						"digital_object_identifier": "Digital Object Identifier that uniquely identifies the metadata, this identifier may only become available following archiving.",
-						"purpose_of_data_collection": "Brief explanation of the purpose of the experiment.",
-						"comment": "Additional comments."
-						},
-					"AttributeRequirements": {
-						"network_code": True,
-						"location": True,
-						"country": True,
-						"principle_investigator_name": True,
-						"principle_investigator_email": True,
-						"principle_investigator_address": True,
-						"point_of_contact": True,
-						"point_of_contact_email": True,
-						"point_of_contact_address": True,
-						"start_date": True,
-						"end_date": True,
-						"funding_agency": True,
-						"project_number": True,
-						"digital_object_identifier": True,
-						"purpose_of_data_collection": True,
-						"comment": False
-						},
-					"Interrogator": []
-					}
+			"schema":"https://www.fdsn.org/schemas/DAS-Metadata-FDSN/2.0",
+			"schema_version": "2.0",
+			"network_code": "",
+			"location": "",
+			"country": None, # string
+			"principal_investigator": [{"name":"", "email":"", "address":""}],
+			"point_of_contact": "",
+			"point_of_contact_email": "",
+			"point_of_contact_address": "",
+			"start_date": None, # string
+			"end_date": None, # string
+			"funding_agency": None,
+			"project_number": None,
+			"digital_object_identifier": None,
+			"purpose_of_data_collection": None,
+			"comment": None,
+			"interrogators": [],
+			"cables": []
+		}
+
+		# metadata = {
+		# 			"Attributes": {
+		# 				"network_code": "NA",
+		# 				"location": "NA",
+		# 				"country": "NA",
+		# 				"principal_investigator_name": "NA",
+		# 				"principal_investigator_email": "NA",
+		# 				"principal_investigator_address": "NA",
+		# 				"point_of_contact": "NA",
+		# 				"point_of_contact_email": "NA",
+		# 				"point_of_contact_address": "NA",
+		# 				"start_date": "NA",
+		# 				"end_date": "NA",
+		# 				"funding_agency": "NA",
+		# 				"project_number": "NA",
+		# 				"digital_object_identifier": "NA",
+		# 				"purpose_of_data_collection": "NA",
+		# 				"comment": None
+		# 				},
+		# 			"AttributeDefinitions": {
+		# 				"network_code": "Unique network name for the installation with a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
+		# 				"location": "Name of the geographic location of the installation.",
+		# 				"country": "Country where the installation is located. Use ISO 3166-1 alpha-3 three-letter country code.",
+		# 				"principle_investigator_name": "Name of principal investigator (last name, first name) for the installation.",
+		# 				"principle_investigator_email": "Email address of principal investigator.",
+		# 				"principle_investigator_address": "Physical address and institution of principal investigator.",
+		# 				"point_of_contact": "Point of contact (last name, first name) for the metadata.",
+		# 				"point_of_contact_email": "Email address of point of contact.",
+		# 				"point_of_contact_address": "Physical address and institution of point of contact.",
+		# 				"start_date": "Start date of data collection at the installation in UTC.",
+		# 				"end_date": "End date of data collection at the installation in UTC. If installation is still in operation, use a future date (e.g. 2999-01-01).",
+		# 				"funding_agency": "Name(s) of agency that funded the experiment.",
+		# 				"project_number": "Funding project number. Should be supplied if a number has been assigned by funding agency(s).",
+		# 				"digital_object_identifier": "Digital Object Identifier that uniquely identifies the metadata, this identifier may only become available following archiving.",
+		# 				"purpose_of_data_collection": "Brief explanation of the purpose of the experiment.",
+		# 				"comment": "Additional comments."
+		# 				},
+		# 			"AttributeRequirements": {
+		# 				"network_code": True,
+		# 				"location": True,
+		# 				"country": True,
+		# 				"principle_investigator_name": True,
+		# 				"principle_investigator_email": True,
+		# 				"principle_investigator_address": True,
+		# 				"point_of_contact": True,
+		# 				"point_of_contact_email": True,
+		# 				"point_of_contact_address": True,
+		# 				"start_date": True,
+		# 				"end_date": True,
+		# 				"funding_agency": True,
+		# 				"project_number": True,
+		# 				"digital_object_identifier": True,
+		# 				"purpose_of_data_collection": True,
+		# 				"comment": False
+		# 				},
+		# 			"Interrogator": []
+		# 			}
 
 		return metadata
 
@@ -149,16 +170,25 @@ class Project(object):
 		Returns dictionary with metadata parameters.
 		"""
 
-		# Fill values in metadata file
-		# self.metadata['Attributes']["model"] = 'NA'
-		# self.metadata['Attributes']["serial_number"] = 'NA'
-		# self.metadata['Attributes']["firmware_version"] = 'NA'
-		self.metadata['Interrogator'] = [inter.metadata for inter in self.inters] # populate with metadata
-		self.metadata["Attributes"]["network_code"] = self.network_code
-		self.metadata["Attributes"]["location"] = self.location
-		self.metadata["Attributes"]["country"] = self.country
-		self.metadata["Attributes"]["start_date"] = self.start_time.isoformat()
-		self.metadata["Attributes"]["end_date"] = self.end_time.isoformat()
+		self.metadata["network_code"] = self.network_code
+		self.metadata["location"] = self.location
+		self.metadata["country"] = self.country
+		self.metadata["start_date"] = self.start_time.date.isoformat()
+		self.metadata["start_time"] = self.start_time.isoformat() + "Z"
+		self.metadata["end_date"] = (self.end_time.date.isoformat() if self.end_time is not None else "")
+		self.metadata["end_time"] = (self.end_time.isoformat() + "Z" if self.end_time is not None else "")
+		self.metadata["interrogators"] = [inter.metadata for inter in self.inters]
+
+		# # Fill values in metadata file
+		# # self.metadata['Attributes']["model"] = 'NA'
+		# # self.metadata['Attributes']["serial_number"] = 'NA'
+		# # self.metadata['Attributes']["firmware_version"] = 'NA'
+		# self.metadata['Interrogator'] = [inter.metadata for inter in self.inters] # populate with metadata
+		# self.metadata["Attributes"]["network_code"] = self.network_code
+		# self.metadata["Attributes"]["location"] = self.location
+		# self.metadata["Attributes"]["country"] = self.country
+		# self.metadata["Attributes"]["start_date"] = self.start_time.isoformat()
+		# self.metadata["Attributes"]["end_date"] = self.end_time.isoformat()
 
 
 	def __build_from_metafile__(self, json_file=None):
@@ -169,17 +199,21 @@ class Project(object):
 		# Check if just the path of the metadata is being indicated.
 		if isinstance(json_file, str):
 			meta_dict = manager.open_metadatafile(json_file)
-
-		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+		elif isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
 			meta_dict = json_file
+		else:
+			raise TypeError("metadata_file must be a path string or dictionary")
 
 		self.metadata = meta_dict
 		self.__metadata_to_attributes__()
 
-		if meta_dict['Interrogator']:
-			for mes_inter in meta_dict['Interrogator']:
-				ind_inter = Interrogator(self, metadata_file=mes_inter) # Initialize the Interrogators.
-				self.add_inter(ind_inter)
+		# Initialise the Interrogators
+		self.inters = [Interrogator(metadata_file=item) for item in meta_dict.get("interrogators", [])]
+
+		# if meta_dict['interrogators']:
+		# 	for mes_inter in meta_dict['interrogators']:
+		# 		ind_inter = Interrogator(self, metadata_file=mes_inter) # Initialize the Interrogators.
+		# 		self.add_inter(ind_inter)
 
 		self.n_inters = len(self.inters)
 
@@ -191,11 +225,12 @@ class Project(object):
 
 		# Fill values in attributes
 		# self.__folder_path__ = self.metadata['Attributes']['interrogator_path']
-		self.network_code = self.metadata["Attributes"]["network_code"]
-		self.location = self.metadata["Attributes"]["location"]
-		self.country = self.metadata["Attributes"]["country"]
-		self.start_time = UTC(self.metadata["Attributes"]["start_date"])
-		self.end_time = UTC(self.metadata["Attributes"]["end_date"])
+		self.network_code = self.metadata["network_code"]
+		self.location = self.metadata["location"]
+		self.country = self.metadata.get("country") or ""
+		self.start_time = UTC(self.metadata.get("start_time") or self.metadata["start_date"])
+		end_time = self.metadata.get("end_time") or self.metadata.get("end_date")
+		self.end_time = UTC(end_time) if end_time else None
 
 		return self
 
@@ -244,7 +279,7 @@ class Project(object):
 
 		return self
 
-	def save_metadata(self, filename : str = 'project_meta.json'):
+	def save_metadata(self, filename : str = "project_meta.json", format : str = "fobench"):
 		"""Saves the metadata file for future usage and toin order to having to
 		build the project again.
 
@@ -254,6 +289,10 @@ class Project(object):
 			File name with complete path and format of the metadata file.
 			If not given, Default = 'project_meta.json', which means it is saved
 			in the local folder of code execution.
+		format : str
+			Format of the metadata file. If not given, Default = "fobench" is used, and useful for fobench utilities (recommended).
+			Option "fdsn" gives the current standard fields required by FDSN. Useful for staying within the standard format, 
+			but throws out filepaths necessary to keep track of the databases.
 
 		Returns
 		-------
