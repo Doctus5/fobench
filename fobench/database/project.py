@@ -85,6 +85,7 @@ class Project(object):
 		"""Define the metadata structure. Returns dict with the metadata parameters."""
 
 		metadata = {
+			# FDSN fields
 			"schema":"https://www.fdsn.org/schemas/DAS-Metadata-FDSN/2.0",
 			"schema_version": "2.0",
 			"network_code": "",
@@ -102,7 +103,11 @@ class Project(object):
 			"purpose_of_data_collection": None,
 			"comment": None,
 			"interrogators": [],
-			"cables": []
+			"cables": [],
+
+			# Fobench fields
+			"start_time": "",
+			"end_time": ""
 		}
 
 		# metadata = {
@@ -266,8 +271,9 @@ class Project(object):
 
 		start_time_list, end_time_list = [], []
 
-		for inter in self.inters:
+		for inter_index, inter in enumerate(self.inters):
 
+			inter.metadata["interrogator_id"] = str(inter_index)
 			inter.build(parallels=parallels)
 			start_time_list.append(inter.earliest_usage)
 			end_time_list.append(inter.latest_usage)

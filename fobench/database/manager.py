@@ -266,8 +266,9 @@ def metadates_2_isoformat(dataframe, reverse=False):
         dataframe["end_time"] = dataframe["end_time"].apply(lambda x: x.isoformat())
 
     else:
-        dataframe["start_time"] = pd.to_datetime(dataframe["start_time"])
-        dataframe["end_time"] = pd.to_datetime(dataframe["end_time"])
+        # apply ISO8601 for accepting the fractional precision produced during calling .isoformat() function in obspy UTC
+        dataframe["start_time"] = pd.to_datetime(dataframe["start_time"], format="ISO8601")
+        dataframe["end_time"] = pd.to_datetime(dataframe["end_time"], format="ISO8601")
 
     return dataframe
 

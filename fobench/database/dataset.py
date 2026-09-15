@@ -83,6 +83,7 @@ class Dataset(object):
         """Define the metadata structure. Returns dict with the metadata parameters."""
 
         metadata = {
+            # FDSN fields
             "acquisition_id": "",
             "acquisition_start_time": "",
             "acquisition_end_time": "",
@@ -100,8 +101,16 @@ class Dataset(object):
             "pulse_width": None,
             "pulse_width_unit": "meter",
             "comment": "",
+            "channel_groups": [],
+            "native_headers": {},
+            
+            # Fobench fields
+            "company": "",
+            "sensing": "",
+            "time_stamp": "",
+            "channel_offset": 0,
             "database_path": "",
-            "channel_groups": []
+            "database": None
         }
         
         # metadata = {
@@ -186,7 +195,7 @@ class Dataset(object):
 
         """
 
-        self.metadata["Database"] = manager.metadates_2_isoformat(self.metadata["Database"], reverse=reverse)
+        self.metadata["database"] = manager.metadates_2_isoformat(self.metadata["database"], reverse=reverse)
 
         return self
 
@@ -208,11 +217,17 @@ class Dataset(object):
 
         # Initialize Database
         self.metadata = meta_dict
-        self.database = manager.init_dataframe(meta_dict["Database"]) # initialize the Dataframe of the database.
+        self.database = manager.init_dataframe(meta_dict["database"]) # initialize the Dataframe of the database.
         self.__database_to_attributes__()
 
         # Fill attributes
-        self.__filepath__ = meta_dict["Attributes"]["database_path"]
+        # FoBench fields
+        self.__filepath__ = meta_dict["database_path"]
+        self.units = self.metadata.get("unit_of_measure") or None # units of meassure.
+        self.pulse_rate = self.metadata.get("pulse_rate")
+        self.pulse_width = self.metadata.get("pulse_width")
+        self.company = self.metadata["company"]
+        self.sensing = self.metadata["sensing"]
 
         return 0
 
@@ -226,11 +241,8 @@ class Dataset(object):
         self.sampling_rate = self.database["sampling_rate"].iloc[0]
         self.dt = self.database["dt"].iloc[0]
         self.gauge_length = self.database["gauge_length"].iloc[0]
-        self.units = None # units of meassure.
         self.n_channels = self.database["n_channels"].iloc[0]
         self.spatial_interval = self.database["spatial_interval"].iloc[0]
-        self.pulse_rate = None
-        self.pulse_width = None
         self.channel_offset = self.database["channel_offset"].iloc[0]
 
         return self
@@ -242,26 +254,37 @@ class Dataset(object):
 
         self.__database_to_attributes__()
 
-        self.metadata["Attributes"]["interrogator_id"] = None
-        self.metadata["Attributes"]["acquisition_start_time"] = self.start_time.isoformat()
-        self.metadata["Attributes"]["acquisition_end_time"] = self.end_time.isoformat()
-        self.metadata["Attributes"]["acquisition_sample_rate"] = self.sampling_rate
-        self.metadata["Attributes"]["acquisition_sample_rate_unit"] = "Hz"
-        self.metadata["Attributes"]["time_stamp"] = self.dt
-        self.metadata["Attributes"]["gauge_length"] = self.gauge_length
-        self.metadata["Attributes"]["gauge_length_unit"] = "meter"
-        self.metadata["Attributes"]["unit_of_measure"] = None
-        self.metadata["Attributes"]["number_of_channels"] = self.n_channels
-        self.metadata["Attributes"]["spatial_sampling_interval"] = self.spatial_interval
-        self.metadata["Attributes"]["spatial_sampling_interval_unit"] = "meter"
-        self.metadata["Attributes"]["pulse_rate"] = "NA"
-        self.metadata["Attributes"]["pulse_rate_unit"] = "Hz"
-        self.metadata["Attributes"]["pulse_width"] = self.pulse_width
-        self.metadata["Attributes"]["channel_offset"] = self.channel_offset
-        self.metadata["Attributes"]["pulse_width_unit"] = "meter"
-        self.metadata["Attributes"]["comment"] = "NA"
-        self.metadata["Attributes"]["database_path"] = self.__filepath__
-        self.metadata["Database"] = manager.metadates_2_isoformat(self.database, reverse=False).to_dict(orient="list")
+        # self.metadata["acquisition_id"] = None
+        self.metadata["acquisition_start_time"] = self.start_time.isoformat() + "Z"
+        self.metadata["acquisition_end_time"] = self.end_time.isoformat() + "Z"
+        self.metadata["acquisition_sample_rate"] = self.sampling_rate
+        self.metadata["acquisition_sample_rate_unit"] = "Hz"
+        self.metadata["gauge_length"] = self.gauge_length
+        self.metadata["gauge_length_unit"] = "meter"
+        self.metadata["unit_of_measure"] = self.units
+        self.metadata["scale_factor"] = None
+        self.metadata["number_of_channels"] = self.n_channels
+        self.metadata["spatial_sampling_interval"] = self.spatial_interval
+        self.metadata["spatial_sampling_interval_unit"] = "meter"
+        self.metadata["pulse_rate"] = "NA"
+        self.metadata["pulse_rate_unit"] = "Hz"
+        self.metadata["pulse_width"] = self.pulse_width
+        self.metadata["pulse_width_unit"] = "meter"
+        # self.metadata["comment"] = "NA"
+        
+
+        # Fobench fields
+        self.metadata["time_stamp"] = self.dt
+        self.metadata["company"] = self.company
+        self.metadata["sensing"] = self.sensing
+        self.metadata["channel_offset"] = self.channel_offset
+        self.metadata["database_path"] = self.__filepath__
+        self.metadata["database"] = manager.metadates_2_isoformat(self.database.copy(deep=False), reverse=False).to_dict(orient="list")
+
+        # inventory = self.database.to_dict(orient=list)
+        # for key in ("start_time", "end_time"):
+        #     inventory[key] = [value.isoformat() for value in inventory[key]]
+        # self.metadata["database"] = inventory
 
     """Public Functions"""
 

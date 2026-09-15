@@ -98,18 +98,21 @@ class Interrogator(object):
 		"""Defines the metadata structure and returns dictionary with metadata parameters."""
 
 		metadata = {
+			# FDSN fields
 			"interrogator_id": "",
 			"manufacturer": "",
 			"model": "",
 			"serial_number": "",
 			"firmware_version": "",
-			"comment": "",
 			"acquisitions": [],
+			"comment": "",
+   
+			# Fobench fields
 			"sensing": "",
+			"interrogator_path": "",
 			"earliest_usage": "",
 			"latest_usage": "",
 			"n_files": 0,
-			"interrogator_path": ""
 		}
 
 		# metadata = {
@@ -210,14 +213,14 @@ class Interrogator(object):
 		# self.metadata["interrogator_id"] = None
 		self.metadata["manufacturer"] = self.company
 		self.metadata["sensing"] = self.sensing
-		self.metadata["earliest_usage"] = (self.earliest_usage.isoformat() + "Z" if self.self.earliest_usage is not None else "")
-		self.metadata["latest_usage"] = (self.latest_usage.isoformat() + "Z" if self.self.latest_usage is not None else "")
+		self.metadata["earliest_usage"] = (self.earliest_usage.isoformat() + "Z" if self.earliest_usage is not None else "")
+		self.metadata["latest_usage"] = (self.latest_usage.isoformat() + "Z" if self.latest_usage is not None else "")
 		self.metadata["n_files"] = self.n_files
 		self.metadata["interrogator_path"] = self.__folder_path__
 		# self.metadata["model"] = 'NA'
 		# self.metadata["serial_number"] = 'NA'
 		# self.metadata["firmware_version"] = 'NA'
-		self.metadata["acquisition"] = [data_set.metadata for data_set in self.datasets] # populate with metadata
+		self.metadata["acquisitions"] = [data_set.metadata for data_set in self.datasets] # populate with metadata
 
 	def __metadates_2_isoformat__(self, reverse=False):
 		"""Define metadata structure for JSON. Transforms the dates of the ``Dataset``
@@ -290,8 +293,9 @@ class Interrogator(object):
 			earlier, later = [], []
 			self.n_files = 0 # reset the variable to start summing.
 
-			for dataset in self.datasets: # loop over existing datasets.
+			for dataset_index, dataset in enumerate(self.datasets): # loop over existing datasets.
 
+				dataset.metadata["acquisition_id"] = str(dataset_index) # asignin id's
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
 				self.n_files += dataset.n_files # adding to total number of files.
