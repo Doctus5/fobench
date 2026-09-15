@@ -160,29 +160,42 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     return new_signal
 
 
-def demean_signal(o_signal: np.ndarray, axis: int = None)-> np.ndarray:
-
-    """Removes mean from signal(s),
+def demean_signal(o_signal: np.ndarray, axis: int = None, mode: str = "mean") -> np.ndarray:
+    """Removes mean or median from signal(s).
 
     Parameters
     ----------
     o_signal : np.ndarray
         Signal(s) to demean.
-    axis : int, optional
-        Axis along which to apply demeaning.
+    axis : int
+        Axis along which to apply operation.
+    mode : str
+        Centering method to use: "mean" or "median".
+
+    Raises
+    ------
+    ValueError
+        Invalid mode chosen.
 
     Returns
     -------
-    Demeaned signal(s).
+    Demeaned (or de-medianed) signal(s).
 
     """
 
     o_signal = np.asarray(o_signal)
 
+    if mode == "mean":
+        center_func = np.mean
+    elif mode == "median":
+        center_func = np.median
+    else:
+        raise ValueError(f"⚠️ Invalid mode '{mode}'. Choose 'mean' or 'median'.")
+
     if o_signal.ndim == 1:
-        return o_signal - np.mean(o_signal)
+        return o_signal - center_func(o_signal)
     elif o_signal.ndim == 2:
-        return o_signal - np.mean(o_signal, axis=axis, keepdims=True)
+        return o_signal - center_func(o_signal, axis=axis, keepdims=True)
 
 
 def get_tukey_window(M: int, alpha: float, sym: bool)-> np.ndarray:

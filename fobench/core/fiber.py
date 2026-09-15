@@ -316,13 +316,18 @@ class Fiber(object):
         return self
 
     @utils._update_processing
-    def demean(self, dim="t"):
-        """Remove mean of signal along specified dimension.See :func:`~fiber.core.tools.signals.demean_signal`.
+    def demean(self, mode="mean", dim="t"):
+        """Remove mean or median of signal along specified dimension. S
+        See :func:`~fiber.core.tools.signals.demean_signal`.
         """
         axis = self.__axis__(dim)
-        self.data = signals.demean_signal(self.data, axis=axis)
+        self.data = signals.demean_signal(self.data, mode=mode, axis=axis)
 
         return self
+
+    def remove_common_mode(self, mode="median"):
+        """Convenience method, removes common mode using '`median`' or '`mean`'"""
+        return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
     def taper(self, alpha=0.05, dim="t", detaper=False):
