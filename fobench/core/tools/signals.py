@@ -515,9 +515,10 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
     return positive_freqs, magnitude
 
 def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
-                       norm: bool)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                       norm: bool, nfft: int = None, nperseg: int = None,
+                       noverlap: int = None)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
-    """Computes spectrogram of signal.
+    """Computes spectrogram of signal. Wraps :func:`~scipy.signal.spectrogram`
 
     Parameters
     ----------
@@ -529,6 +530,13 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
         Time axis index.
     norm : bool
         Toggles normalization of results by maximum value.
+    nfft : int
+        Length of the FFT used
+    nperseg : int
+        Length of each segment.
+    noverlap : int
+        Number of points to overlap between segments.
+
 
     Returns
     -------
@@ -540,9 +548,13 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
         Spectrogram image.
 
     """
-    nyquist = sampling_rate/2
-    nfft, nperseg = nyquist*2, int(sampling_rate/5)
-    noverlap = int(nperseg/2)
+
+    if nperseg is None:
+        nperseg = int(sampling_rate)
+    if nfft is None:
+        nfft = int(sampling_rate * 2)
+    if noverlap is None:
+        noverlap = int(nperseg/2)
     f, t, Sxx = signal.spectrogram(data, sampling_rate, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
     Sxx = np.flip(Sxx, axis=axis)
     Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx

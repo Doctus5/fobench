@@ -664,9 +664,9 @@ class Fiber(object):
                         vmin=vmin, vmax=vmax, add_data=add_data, **kwargs)
 
     def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-                        cmap="viridis", file_name=None, freq_lim=None, results=False,
-                        plot_mode="pyqt", vmin=None, vmax=None, export=None, show=True,
-                        **kwargs):
+                        cmap="viridis", file_name=None, freq_lim=None, nfft=None,
+                        noverlap=None, nperseg=None, results=False, plot_mode="pyqt",
+                        vmin=None, vmax=None, export=None, show=True, **kwargs):
         """Computes and plots spectrogram for a ``"channel"``.
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
@@ -677,7 +677,8 @@ class Fiber(object):
         index = self.channels.tolist().index(channel)
         data = self.data[:, index]
         f, t, Sxx = signals.signal_spectrogram(data=data, sampling_rate=self.sampling_rate,
-                                         axis=axis, norm=norm)
+                                         axis=axis, norm=norm, nfft=nfft,
+                                         noverlap=noverlap, nperseg=nperseg)
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
             if vmin is None: vmin = 0
