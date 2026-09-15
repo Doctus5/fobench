@@ -157,6 +157,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			gauge_samples = 1 if gauge_samples < 1 else gauge_samples
 			gl = gauge_samples * attributes["spatial_interval"]
 			print(f"\n⚠️ Applying the nearest possible gauge length: {gl}m")
+			factor = 1
 			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl if axis == 1 else (data[gauge_samples:, :] - data[:-gauge_samples, :]) / gl
 			n_left = gauge_samples // 2
 			n_right = gauge_samples - n_left
@@ -170,7 +171,8 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 
 	elif (format == "h5"	 or format == "hdf5"	) and company == "asn": # ASN OptoDAS HDF5 (It can be a bit more complex, so I"	m trying to make it simple!)
 		if units == "rad/(strain*m)" and target == "strain-rate":
-			data = data / attributes["conv_factor"] # divide by sensitivities. It seems they already provide the conversion factor
+			factor = 1 / attributes["conv_factor"]
+			data = data * factor # divide by sensitivities. It seems they already provide the conversion factor
 
 	elif (format == "h5" or format == "hdf5") and company == "quantx": # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
 		if target == "strain-rate":
