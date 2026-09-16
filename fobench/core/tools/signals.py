@@ -517,6 +517,13 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
             magnitude = 2/n * np.abs(fft)[:, :n//2]
 
     elif mode == "psd":
+        n_samples = o_signal.shape[axis]
+        if nperseg is None:
+            if n_samples < 256:
+                nperseg = n_samples
+            else:
+                nperseg = n_samples // 8
+                nperseg = 2 ** int(np.floor(np.log2(nperseg)))
         positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis,
                                                  detrend=False if pre_processing else "linear")
 
