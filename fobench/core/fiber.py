@@ -552,9 +552,9 @@ class Fiber(object):
 
     """Plotting methods"""
 
-    def fx_plot(self, norm=False, vmin=None, vmax=None, order=1, nfft=None, figsize=None,
-                 show=True, cmap="viridis", results=False, file_name=None,
-                 where=None, plot_mode="pyqt", export=None,**kwargs):
+    def fx_plot(self, norm=False, mode="spectrum", vmin=None, vmax=None, order=1,
+                nfft=None, figsize=None, show=True, cmap="viridis", results=False,
+                file_name=None, where=None, plot_mode="pyqt", export=None,**kwargs):
         """Computes frequency-distance plot.
         See :func:`~fobench.core.tools.wavefield.frequency_content`,
         :func:`~fobench.core.plotting.plotting_mpl.mpl_fx_plot` and
@@ -563,7 +563,8 @@ class Fiber(object):
         axis = self.__axis__("t")
 
         fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_rate,
-                                           order=order, nfft=nfft, norm=norm, axis=axis)
+                                           order=order, nfft=nfft, norm=norm, axis=axis,
+                                           mode=mode)
         p95 = np.percentile(fx, 95)
         if vmin is None: vmin = 0
         if vmax is None: vmax = p95
@@ -571,7 +572,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_distance(distances=self.distances, channels=np.array(self.channels),
                               y_ticks=freqs, data=fx if axis else fx.T,
                               cmap=cmap, vmin=vmin, vmax=vmax, y_label="Frequency [Hz]",
-                              title="Frequency content", cbar_label=self.units,
+                              title="Frequency content",
+                              cbar_label=self.units if mode == "spectrum" else f"{self.units}²/Hz",
                               export=export, show=show)
         elif plot_mode == "mpl":
             plot.mpl_fx_plot(spec_matrix=np.rot90(fx) if axis else fx[::-1], freqs=freqs, x=self.channels,

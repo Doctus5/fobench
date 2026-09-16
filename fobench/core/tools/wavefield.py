@@ -5,6 +5,7 @@ from warnings import warn
 from tqdm import trange
 from obspy.signal.cross_correlation import correlate
 from scipy.signal import correlate as scipy_correlate, correlation_lags
+import scipy.signal as signal
 from fobench.core.tools import signals
 from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.plotting_mpl import plot_acfs
@@ -279,7 +280,7 @@ def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, n
     return pp_amp, up_index, down_index
 
 def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: bool,
-                      axis: int):
+                      mode: str, axis: int):
     """Computes the frequency-domain amplitude spectrum of detrended data via FFT.
 
     Parameters
@@ -307,12 +308,27 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
 
     data = signals.filt_preprocess(data, axis=axis, order=order)
 
-    n = data.shape[axis] if nfft is None else nfft
-    fft = np.fft.rfft(data, n=n, axis=axis)
-    freq = np.fft.rfftfreq(n, 1/fs)
-    amp = np.abs(fft) / fft.max() if norm else np.abs(fft)
+    if mode == "spectrum":
+        n = data.shape[axis] if nfft is None else nfft
 
-    return amp, freq
+        fft = np.fft.rfft(data, n=n, axis=axis)
+        freq = np.fft.rfftfreq(n, 1 / fs)
+        values = np.abs(fft)
+
+    elif mode == "psd":
+        n_samples = data.shape[axis]
+        if n_samples < 256:
+            nperseg = n_samples
+        else:
+            nperseg = n_samples // 8
+            nperseg = 2 ** int(np.floor(np.log2(nperseg)))
+        freq, values = signal.welch(data, fs=fs, nperseg=nperseg, nfft=nfft,
+                                    axis=axis, detrend=False)
+    else:
+        raise ValueError(f"⚠️ Unknown mode {mode!r}. Choose 'spectrum' or 'psd'!")
+    if norm:
+        values = values / np.max(values, axis=axis, keepdims=True)
+    return values, freq
 
 def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
                 mode: str = 'full', demean: bool = True, normalize: bool = True,
