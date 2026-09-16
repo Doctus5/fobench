@@ -9,7 +9,7 @@ from fobench.core.tools import signals
 from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.plotting_mpl import plot_acfs
 
-def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
+def similarity_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
                              channels: np.ndarray = None, plot_mode: str = "pyqt",
                              results: bool = False, vmin: float = None, vmax: float = None,
                              export=None, show=True) ->  np.ndarray:
@@ -42,15 +42,14 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
     """
 
     n_ch, _ = data.shape
-    data = (data - data.mean(axis=1, keepdims=True)) / data.std(axis=1, keepdims=True)
-    coherence_matrix = np.zeros((n_ch, n_ch))
+    similarity_matrix = np.zeros((n_ch, n_ch))
     for i in trange(n_ch, desc="Computing Correlation Matrix", leave=False):
         for j in range(i+1, n_ch):
-            ccf = correlate(data[i], data[j], shift=int(max_lag*fs))
-            max_corr = np.max(np.abs(ccf))
-            coherence_matrix[i, j] = max_corr
-            coherence_matrix[j, i] = max_corr
-    np.fill_diagonal(coherence_matrix, 1.0)
+            ccf = correlate(data[i], data[j], shift=int(max_lag*fs), normalize="naive")
+            peak_idx = np.argmax(np.abs(ccf))
+            similarity_matrix[i, j] = ccf[peak_idx]
+            similarity_matrix[j, i] = ccf[peak_idx]
+    np.fill_diagonal(similarity_matrix, 1.0)
 
     if plot_mode == "mpl":
         warn("⚠️ matplotlib plotting not implemented for this method, "
@@ -61,15 +60,15 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         if channels is None: channels = np.arange(0, n_ch)
         vmin = vmin if vmin is not None else -1
         vmax = vmax if vmax is not None else 1
-        plot_pyqt.plot_2d_distance(distances=distances, data=coherence_matrix,
+        plot_pyqt.plot_2d_distance(distances=distances, data=similarity_matrix,
                          y_ticks=channels, channels=channels,
                          y_label = "Channel #", x_label = "Channel #",
-                         title = "Spatial Coherence Matrix",
+                         title = "Spatial Similarity Matrix",
                          cmap = "viridis", cbar_label = "Correlation Coefficient",
                          vmin=vmin, vmax=vmax, export=export, show=show)
 
     if results:
-        return coherence_matrix
+        return similarity_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,
                             deconvolve: bool, n_channels: int, distances: list, channels: list,

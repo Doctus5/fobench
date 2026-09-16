@@ -317,7 +317,7 @@ class Fiber(object):
 
     @utils._update_processing
     def demean(self, mode="mean", dim="t"):
-        """Remove mean or median of signal along specified dimension. S
+        """Remove mean or median of signal along specified dimension.
         See :func:`~fiber.core.tools.signals.demean_signal`.
         """
         axis = self.__axis__(dim)
@@ -326,7 +326,7 @@ class Fiber(object):
         return self
 
     def remove_common_mode(self, mode="median"):
-        """Convenience method, removes common mode using '`median`' or '`mean`'"""
+        """Removes common mode using `'median'` or `'mean'`"""
         return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
@@ -754,13 +754,13 @@ class Fiber(object):
         if results:
             return acf
 
-    def spatial_coherence(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
+    def spatial_similarity(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
                        vmax=None, export=None, show=True):
-        """Computes sptial coherence matrix.
-        See :func:`~fobench.core.tools.wavefield.spatial_coherence_matrix`
+        """Computes spatial similarity matrix.
+        See :func:`~fobench.core.tools.wavefield.similarity_matrix`
         """
         data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
-        coh = wavefield.spatial_coherence_matrix(data=data_input, max_lag=max_lag,
+        coh = wavefield.similarity_matrix(data=data_input, max_lag=max_lag,
                                            distances=self.distances,
                                            fs=self.sampling_rate,
                                            channels=self.channels,
