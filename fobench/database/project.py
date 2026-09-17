@@ -236,6 +236,4 @@ class Project(object):
 		None
 		"""
 
-		with open(filename, 'w') as file:
-			dump_metadata = manager.convert_types(self.metadata)
-			json.dump(dump_metadata, file, indent=4)
+		manager.dump_metadatafile(meta=self.metadata, filename=filename, format=format)

@@ -26,7 +26,7 @@ except ModuleNotFoundError:
     from ..fobench.core.fiber import Fiber
 
 
-def scan_folder(folder_path, format=None, storage_opts=None):
+def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
     """Function that scans all within a folder to find all files inside.
 
     Parameters
@@ -37,6 +37,8 @@ def scan_folder(folder_path, format=None, storage_opts=None):
         If a format extension is specified (without the point), only the files with such an extension will be returned.
     storage_opts : dict, optional
         Options passed to the S3 filesystems (profile, endpoint, anonymous access settings, etc.).
+    skip_files : list or str, optional
+        File paths or file names to not take into account.
 
     Returns
     -------
@@ -67,6 +69,9 @@ def scan_folder(folder_path, format=None, storage_opts=None):
         # Use glob to recursively match files ending with the given extension
         search_pattern = os.path.join(folder_path, '**', f'*{format}')
         files = glob.glob(search_pattern, recursive=True)
+        
+    skip_files = {str(file) for file in (skip_files or [])}
+    files = [file for file in files if file not in skip_files and os.path.basename(file) not in skip_files]
 
     if not files:
         warnings.warn(f"⚠️ No files with the specified format {format} or files at all were found.",
@@ -356,3 +361,105 @@ def df_time_filtering(df: pd.DataFrame, range: tuple, start_label: str = "start_
         condition = (start_times >= start_bound) & (end_times <= end_bound)
 
     return df.loc[condition].copy()
+
+
+def dump_metadatafile(meta : dict, filename : str, format : str = "fobench"):
+    """Saves the metadata dictionary as json file and manages which fileds to be saved depending on the format chosen (FoBench or FDSN)
+
+    Parameters
+    ----------
+    meta : dict
+        dicitonary which usually is the metadata.
+    filename : str
+        file name (with path) for the name of the produced metadata file.
+    format : str, optional
+        format on how to save the metadata. Options are the "fdsn" and "fobench". 
+        For working in future projects and exploring file, use fobench as fdsn do not share databases. Default value is "fobench"
+    """
+    
+    inter_rev_fields = ["sensing", "interrogator_path", "earliest_usage", "latest_usage", "n_files"]
+    acqui_rev_fields = ["company", "sensing", "time_stamp", "channel_offset", "database_path", "database"]
+    optional_fields = ["country", "end_date", "digital_object_identifier"]
+    
+    # required fields by fdsn
+    required_proj_fields = ["schema_version", "network_code", "location", "principal_investigator", "point_of_contact",
+                                "point_of_contact_email", "point_of_contact_address", "start_date"]
+    required_inter_fields = ["interrogator_id", "manufacturer", "model"]
+    required_acqui_fields = ["acquisition_id", "acquisition_start_time", "acquisition_end_time", "acquisition_sample_rate", "acquisition_sample_rate_unit",
+                            "gauge_length", "gauge_length_unit", "unit_of_measure", "number_of_channels", "spatial_sampling_interval", "spatial_sampling_interval_unit"]
+    valid_fdsn_units = ("count", "m/m", "m/m/s", "m/s", "rad/s", "rad/m/s") # to be honest, i don't agree with mucch that is here but ok
+    
+    format = format.lower()
+    
+    if format not in ("fobench","fdsn"):
+        raise ValueError('format not recognised. Use either "fobench" or "fdsn".')
+    
+    dump_meta = convert_types(meta)
+    
+    if format == "fdsn":
+
+        # VALIDATION PART -> Project
+        missing_proj_fields = [field for field in required_proj_fields if dump_meta.get(field) in (None, "", [])] # Mandatory for FDSN!
+
+        if missing_proj_fields:
+            raise ValueError(f"Missing required FDSN Project fields:"
+                            f"{missing_proj_fields}")
+        
+        # removing Project level fobench fields
+        dump_meta.pop("start_time", None)
+        dump_meta.pop("end_time", None)
+
+        # to prevent empty optional values to reach the json format and making it invalid.
+        for field in optional_fields:
+            if dump_meta.get(field) in (None, "", "NA"):
+                dump_meta.pop(field, None)
+
+        if not dump_meta.get("cables"):
+            dump_meta.pop("cables", None)
+
+        if not dump_meta.get("interrogators"):
+            dump_meta.pop("interrogators", None)
+        
+        for interrogator in dump_meta.get("interrogators", []):
+            
+            # VALIDATION PART -> Interrogator
+            missing_inter_fields = [field for field in required_inter_fields if interrogator.get(field) in (None, "")]
+
+            if missing_inter_fields:
+                raise ValueError(f"Missing required FDSN Interrogator fields:" 
+                                f"{missing_inter_fields}")
+            
+            for field1 in inter_rev_fields:
+                
+                # remove Interrogator level fobench fields
+                interrogator.pop(field1, None)
+                
+            for acquisition in interrogator.get("acquisitions", []):
+                
+                # VALIDATION PART -> Dataset
+                missing_acqui_fields = [field for field in required_acqui_fields if acquisition.get(field) in (None, "")]
+
+                if missing_acqui_fields:
+                    raise ValueError(f"Missing required FDSN Acquisition fields: "
+                                    f"{missing_acqui_fields}")
+                if acquisition["unit_of_measure"] not in valid_fdsn_units:
+                    raise ValueError("Invalid FDSN unit_of_measure: "
+                                    f'{acquisition["unit_of_measure"]}')
+                    
+                for field2 in acqui_rev_fields:
+                    # remove Dataset level fobench fields
+                    acquisition.pop(field2, None)
+                    
+                if acquisition.get("scale_factor") in (None, "", "NA"):
+                    acquisition.pop("scale_factor", None)
+
+                if acquisition.get("pulse_rate") in (None, "", "NA"):
+                    acquisition.pop("pulse_rate", None)
+                    acquisition.pop("pulse_rate_unit", None)
+
+                if acquisition.get("pulse_width") in (None, "", "NA"):
+                    acquisition.pop("pulse_width", None)
+                    acquisition.pop("pulse_width_unit", None)
+                        
+    with open(filename, 'w') as file: # finally dumping the metadata in the JSON file.
+        json.dump(dump_meta, file, indent=4)

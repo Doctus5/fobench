@@ -115,49 +115,6 @@ class Interrogator(object):
 			"n_files": 0,
 		}
 
-		# metadata = {
-		# 			"Attributes": {
-		# 				"interrogator_id": None,
-		# 				"manufacturer": 'NA',
-		# 				"sensing": 'NA',
-		# 				"earliest_usage": None,
-		# 				"latest_usage": None,
-		# 				"n_files": 0,
-		# 				"model": 'NA',
-		# 				"serial_number": None,
-		# 				"firmware_version": None,
-		# 				"comment": None,
-		# 				"interrogator_path": 'NA'
-		# 				},
-		# 			"AttributeDefinitions": {
-		# 				"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
-		# 				"manufacturer": "Manufacturer name of the unit.",
-		# 				"sensing": 'Sensing technique of the unit. Determines the type of data.',
-		# 				"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
-		# 				"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
-		# 				"n_files": "Total number of files produced by this unit.",
-		# 				"model": "Model number of the interrogator.",
-		# 				"serial_number": "Serial number of the interrogator.",
-		# 				"firmware_version": "Firmware version of the software used within the interrogator.",
-		# 				"comment": "Additional comments",
-		# 				"interrogator_path": "Folder path of the files adquired with this interrogator or unit."
-		# 				},
-		# 			"AttributeRequirements": {
-		# 				"interrogator_id": True,
-		# 				"manufacturer": True,
-		# 				"sensing": True,
-		# 				"earliest_usage": True,
-		# 				"latest_usage": True,
-		# 				"n_files": True,
-		# 				"model": True,
-		# 				"serial_number": False,
-		# 				"firmware_version": False,
-		# 				"comment": False,
-		# 				"interrogator_path": True
-		# 				},
-		# 			"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
-		# 			}
-
 		return metadata
 
 	def __build_from_metafile__(self, json_file: str = None):
