@@ -5,11 +5,12 @@ from warnings import warn
 from tqdm import trange
 from obspy.signal.cross_correlation import correlate
 from scipy.signal import correlate as scipy_correlate, correlation_lags
+import scipy.signal as signal
 from fobench.core.tools import signals
 from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.plotting_mpl import plot_acfs
 
-def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
+def similarity_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.ndarray,
                              channels: np.ndarray = None, plot_mode: str = "pyqt",
                              results: bool = False, vmin: float = None, vmax: float = None,
                              export=None, show=True) ->  np.ndarray:
@@ -42,15 +43,14 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
     """
 
     n_ch, _ = data.shape
-    data = (data - data.mean(axis=1, keepdims=True)) / data.std(axis=1, keepdims=True)
-    coherence_matrix = np.zeros((n_ch, n_ch))
+    similarity_matrix = np.zeros((n_ch, n_ch))
     for i in trange(n_ch, desc="Computing Correlation Matrix", leave=False):
         for j in range(i+1, n_ch):
-            ccf = correlate(data[i], data[j], shift=int(max_lag*fs))
-            max_corr = np.max(np.abs(ccf))
-            coherence_matrix[i, j] = max_corr
-            coherence_matrix[j, i] = max_corr
-    np.fill_diagonal(coherence_matrix, 1.0)
+            ccf = correlate(data[i], data[j], shift=int(max_lag*fs), normalize="naive")
+            peak_idx = np.argmax(np.abs(ccf))
+            similarity_matrix[i, j] = ccf[peak_idx]
+            similarity_matrix[j, i] = ccf[peak_idx]
+    np.fill_diagonal(similarity_matrix, 1.0)
 
     if plot_mode == "mpl":
         warn("⚠️ matplotlib plotting not implemented for this method, "
@@ -61,15 +61,15 @@ def spatial_coherence_matrix(data: np.ndarray, max_lag: int, fs: int, distances:
         if channels is None: channels = np.arange(0, n_ch)
         vmin = vmin if vmin is not None else -1
         vmax = vmax if vmax is not None else 1
-        plot_pyqt.plot_2d_distance(distances=distances, data=coherence_matrix,
+        plot_pyqt.plot_2d_distance(distances=distances, data=similarity_matrix,
                          y_ticks=channels, channels=channels,
                          y_label = "Channel #", x_label = "Channel #",
-                         title = "Spatial Coherence Matrix",
+                         title = "Spatial Similarity Matrix",
                          cmap = "viridis", cbar_label = "Correlation Coefficient",
                          vmin=vmin, vmax=vmax, export=export, show=show)
 
     if results:
-        return coherence_matrix
+        return similarity_matrix
 
 def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mode: str,
                             deconvolve: bool, n_channels: int, distances: list, channels: list,
@@ -280,7 +280,7 @@ def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, n
     return pp_amp, up_index, down_index
 
 def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: bool,
-                      axis: int):
+                      mode: str, axis: int):
     """Computes the frequency-domain amplitude spectrum of detrended data via FFT.
 
     Parameters
@@ -308,12 +308,27 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
 
     data = signals.filt_preprocess(data, axis=axis, order=order)
 
-    n = data.shape[axis] if nfft is None else nfft
-    fft = np.fft.rfft(data, n=n, axis=axis)
-    freq = np.fft.rfftfreq(n, 1/fs)
-    amp = np.abs(fft) / fft.max() if norm else np.abs(fft)
+    if mode == "spectrum":
+        n = data.shape[axis] if nfft is None else nfft
 
-    return amp, freq
+        fft = np.fft.rfft(data, n=n, axis=axis)
+        freq = np.fft.rfftfreq(n, 1 / fs)
+        values = np.abs(fft)
+
+    elif mode == "psd":
+        n_samples = data.shape[axis]
+        if n_samples < 256:
+            nperseg = n_samples
+        else:
+            nperseg = n_samples // 8
+            nperseg = 2 ** int(np.floor(np.log2(nperseg)))
+        freq, values = signal.welch(data, fs=fs, nperseg=nperseg, nfft=nfft,
+                                    axis=axis, detrend=False)
+    else:
+        raise ValueError(f"⚠️ Unknown mode {mode!r}. Choose 'spectrum' or 'psd'!")
+    if norm:
+        values = values / np.max(values, axis=axis, keepdims=True)
+    return values, freq
 
 def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
                 mode: str = 'full', demean: bool = True, normalize: bool = True,

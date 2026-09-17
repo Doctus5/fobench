@@ -160,29 +160,42 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     return new_signal
 
 
-def demean_signal(o_signal: np.ndarray, axis: int = None)-> np.ndarray:
-
-    """Removes mean from signal(s),
+def demean_signal(o_signal: np.ndarray, axis: int = None, mode: str = "mean") -> np.ndarray:
+    """Removes mean or median from signal(s).
 
     Parameters
     ----------
     o_signal : np.ndarray
         Signal(s) to demean.
-    axis : int, optional
-        Axis along which to apply demeaning.
+    axis : int
+        Axis along which to apply operation.
+    mode : str
+        Centering method to use: "mean" or "median".
+
+    Raises
+    ------
+    ValueError
+        Invalid mode chosen.
 
     Returns
     -------
-    Demeaned signal(s).
+    Demeaned (or de-medianed) signal(s).
 
     """
 
     o_signal = np.asarray(o_signal)
 
+    if mode == "mean":
+        center_func = np.mean
+    elif mode == "median":
+        center_func = np.median
+    else:
+        raise ValueError(f"⚠️ Invalid mode '{mode}'. Choose 'mean' or 'median'.")
+
     if o_signal.ndim == 1:
-        return o_signal - np.mean(o_signal)
+        return o_signal - center_func(o_signal)
     elif o_signal.ndim == 2:
-        return o_signal - np.mean(o_signal, axis=axis, keepdims=True)
+        return o_signal - center_func(o_signal, axis=axis, keepdims=True)
 
 
 def get_tukey_window(M: int, alpha: float, sym: bool)-> np.ndarray:
@@ -504,7 +517,15 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
             magnitude = 2/n * np.abs(fft)[:, :n//2]
 
     elif mode == "psd":
-        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis)
+        n_samples = o_signal.shape[axis]
+        if nperseg is None:
+            if n_samples < 256:
+                nperseg = n_samples
+            else:
+                nperseg = n_samples // 8
+                nperseg = 2 ** int(np.floor(np.log2(nperseg)))
+        positive_freqs, magnitude = signal.welch(o_signal, fs, nperseg=nperseg, axis=axis,
+                                                 detrend=False if pre_processing else "linear")
 
     else:
         raise ValueError("⚠️ Invalid mode. Choose one of:\n"
@@ -515,9 +536,10 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
     return positive_freqs, magnitude
 
 def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
-                       norm: bool)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                       norm: bool, nfft: int = None, nperseg: int = None,
+                       noverlap: int = None)-> tuple[np.ndarray, np.ndarray, np.ndarray]:
 
-    """Computes spectrogram of signal.
+    """Computes spectrogram of signal. Wraps :func:`~scipy.signal.spectrogram`
 
     Parameters
     ----------
@@ -529,6 +551,13 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
         Time axis index.
     norm : bool
         Toggles normalization of results by maximum value.
+    nfft : int
+        Length of the FFT used
+    nperseg : int
+        Length of each segment.
+    noverlap : int
+        Number of points to overlap between segments.
+
 
     Returns
     -------
@@ -540,15 +569,18 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
         Spectrogram image.
 
     """
-    nyquist = sampling_rate/2
-    nfft, nperseg = nyquist*2, int(sampling_rate/5)
-    noverlap = int(nperseg/2)
+
+    if nperseg is None:
+        nperseg = int(sampling_rate)
+    if nfft is None:
+        nfft = int(sampling_rate * 2)
+    if noverlap is None:
+        noverlap = int(nperseg/2)
     f, t, Sxx = signal.spectrogram(data, sampling_rate, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
     Sxx = np.flip(Sxx, axis=axis)
     Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 
     return f, t, Sxx
-
 
 def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
         wavelet: pywt.Wavelet | str = "cmor1.5-1.0", fmin: float = 1.0,

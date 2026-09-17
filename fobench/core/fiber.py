@@ -177,11 +177,13 @@ class Fiber(object):
 
         return self
 
-    def restrict_channels(self, ch0, chf):
+    def restrict_channels(self, ch0=None, chf=None):
         """Trims data in space, between ch0 and chf, a single channel is returned
         when ch0 = chf, updates all class attributes.
         """
         d_axis = self.__axis__("d")
+        ch0 = self.channels[0] if ch0 is None else ch0
+        chf = self.channels[-1] if chf is None else chf
         ch0, chf = int(min(ch0, chf)), int(max(ch0, chf))
         channels_list = self.channels.tolist()
         ch0, chf = channels_list.index(ch0), channels_list.index(chf)
@@ -314,13 +316,18 @@ class Fiber(object):
         return self
 
     @utils._update_processing
-    def demean(self, dim="t"):
-        """Remove mean of signal along specified dimension.See :func:`~fiber.core.tools.signals.demean_signal`.
+    def demean(self, mode="mean", dim="t"):
+        """Remove mean or median of signal along specified dimension.
+        See :func:`~fiber.core.tools.signals.demean_signal`.
         """
         axis = self.__axis__(dim)
-        self.data = signals.demean_signal(self.data, axis=axis)
+        self.data = signals.demean_signal(self.data, mode=mode, axis=axis)
 
         return self
+
+    def remove_common_mode(self, mode="median"):
+        """Removes common mode using `'median'` or `'mean'`"""
+        return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
     def taper(self, alpha=0.05, dim="t", detaper=False):
@@ -545,9 +552,9 @@ class Fiber(object):
 
     """Plotting methods"""
 
-    def fx_plot(self, norm=False, vmin=None, vmax=None, order=1, nfft=None, figsize=None,
-                 show=True, cmap="viridis", results=False, file_name=None,
-                 where=None, plot_mode="pyqt", export=None,**kwargs):
+    def fx_plot(self, norm=False, mode="spectrum", vmin=None, vmax=None, order=1,
+                nfft=None, figsize=None, show=True, cmap="viridis", results=False,
+                file_name=None, where=None, plot_mode="pyqt", export=None,**kwargs):
         """Computes frequency-distance plot.
         See :func:`~fobench.core.tools.wavefield.frequency_content`,
         :func:`~fobench.core.plotting.plotting_mpl.mpl_fx_plot` and
@@ -556,7 +563,8 @@ class Fiber(object):
         axis = self.__axis__("t")
 
         fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_rate,
-                                           order=order, nfft=nfft, norm=norm, axis=axis)
+                                           order=order, nfft=nfft, norm=norm, axis=axis,
+                                           mode=mode)
         p95 = np.percentile(fx, 95)
         if vmin is None: vmin = 0
         if vmax is None: vmax = p95
@@ -564,7 +572,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_distance(distances=self.distances, channels=np.array(self.channels),
                               y_ticks=freqs, data=fx if axis else fx.T,
                               cmap=cmap, vmin=vmin, vmax=vmax, y_label="Frequency [Hz]",
-                              title="Frequency content", cbar_label=self.units,
+                              title="Frequency content",
+                              cbar_label=self.units if mode == "spectrum" else f"{self.units}²/Hz",
                               export=export, show=show)
         elif plot_mode == "mpl":
             plot.mpl_fx_plot(spec_matrix=np.rot90(fx) if axis else fx[::-1], freqs=freqs, x=self.channels,
@@ -664,9 +673,9 @@ class Fiber(object):
                         vmin=vmin, vmax=vmax, add_data=add_data, **kwargs)
 
     def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-                        cmap="viridis", file_name=None, freq_lim=None, results=False,
-                        plot_mode="pyqt", vmin=None, vmax=None, export=None, show=True,
-                        **kwargs):
+                        cmap="viridis", file_name=None, freq_lim=None, nfft=None,
+                        noverlap=None, nperseg=None, results=False, plot_mode="pyqt",
+                        vmin=None, vmax=None, export=None, show=True, **kwargs):
         """Computes and plots spectrogram for a ``"channel"``.
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
@@ -677,7 +686,8 @@ class Fiber(object):
         index = self.channels.tolist().index(channel)
         data = self.data[:, index]
         f, t, Sxx = signals.signal_spectrogram(data=data, sampling_rate=self.sampling_rate,
-                                         axis=axis, norm=norm)
+                                         axis=axis, norm=norm, nfft=nfft,
+                                         noverlap=noverlap, nperseg=nperseg)
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
             if vmin is None: vmin = 0
@@ -746,13 +756,13 @@ class Fiber(object):
         if results:
             return acf
 
-    def spatial_coherence(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
+    def spatial_similarity(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
                        vmax=None, export=None, show=True):
-        """Computes sptial coherence matrix.
-        See :func:`~fobench.core.tools.wavefield.spatial_coherence_matrix`
+        """Computes spatial similarity matrix.
+        See :func:`~fobench.core.tools.wavefield.similarity_matrix`
         """
         data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
-        coh = wavefield.spatial_coherence_matrix(data=data_input, max_lag=max_lag,
+        coh = wavefield.similarity_matrix(data=data_input, max_lag=max_lag,
                                            distances=self.distances,
                                            fs=self.sampling_rate,
                                            channels=self.channels,
