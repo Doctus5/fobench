@@ -61,6 +61,7 @@ class Dataset(object):
         self.dt = None
         self.gauge_length = None
         self.units = None #units of meassure.
+        self.scale_factor = None
         self.n_channels = None
         self.spatial_interval = None
         self.pulse_rate = None
@@ -228,6 +229,8 @@ class Dataset(object):
         self.pulse_width = self.metadata.get("pulse_width")
         self.company = self.metadata["company"]
         self.sensing = self.metadata["sensing"]
+        if self.scale_factor is None:
+            self.scale_factor = self.metadata.get("scale_factor")
 
         return 0
 
@@ -244,6 +247,9 @@ class Dataset(object):
         self.n_channels = self.database["n_channels"].iloc[0]
         self.spatial_interval = self.database["spatial_interval"].iloc[0]
         self.channel_offset = self.database["channel_offset"].iloc[0]
+        self.units = self.database["units"].iloc[0] if "units" in self.database.columns else None
+        scale_factor = self.database["scale_factor"].iloc[0] if "scale_factor" in self.database.columns else None
+        self.scale_factor = float(scale_factor) if scale_factor is not None and pd.notna(scale_factor) else None
 
         return self
 
@@ -261,12 +267,36 @@ class Dataset(object):
         self.metadata["acquisition_sample_rate_unit"] = "Hz"
         self.metadata["gauge_length"] = self.gauge_length
         self.metadata["gauge_length_unit"] = "meter"
-        self.metadata["unit_of_measure"] = self.units
-        self.metadata["scale_factor"] = None
+        # self.metadata["unit_of_measure"] = self.units
+        
+        # units of measure
+        fdsn_units = {
+            "counts": "count",
+            "count": "count",
+            "strain": "m/m",
+            "strain-rate": "m/m/s",
+            "m/s": "m/s",
+            "rad/s": "rad/s",
+            "rad/m/s": "rad/m/s"
+        }
+        fdsn_unit = fdsn_units.get(self.units)
+
+        if fdsn_unit is not None:
+            self.metadata["unit_of_measure"] = fdsn_unit
+        else:
+            # Preserve the exact original value without pretending it is FDSN-compatible.
+            self.metadata["unit_of_measure"] = self.units
+            self.metadata["native_headers"]["original_unit_of_measure"] = self.units
+            
+        # scale factor
+        if self.scale_factor is not None:
+            self.metadata["scale_factor"] = self.scale_factor  
+        else:
+            self.metadata.pop("scale_factor", None)
         self.metadata["number_of_channels"] = self.n_channels
         self.metadata["spatial_sampling_interval"] = self.spatial_interval
         self.metadata["spatial_sampling_interval_unit"] = "meter"
-        self.metadata["pulse_rate"] = "NA"
+        self.metadata["pulse_rate"] = None
         self.metadata["pulse_rate_unit"] = "Hz"
         self.metadata["pulse_width"] = self.pulse_width
         self.metadata["pulse_width_unit"] = "meter"

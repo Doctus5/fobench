@@ -95,7 +95,7 @@ def files2database(files, company, storage_opts=None):
 
     N = len(files) # number of data files.
     filtered_keys = ["start_time", "end_time", "dt", "sampling_rate", "n_channels",
-                     "spatial_interval", "gauge_length", "channel_offset"] # attributes of interest for holding consistency.
+                     "spatial_interval", "gauge_length", "channel_offset", "units", "scale_factor"] # attributes of interest for holding consistency.
     #filtered_keys = ["start_time", "end_time", "dt"] # attributes of interest for holding consistency.
 
     database = []
@@ -109,6 +109,7 @@ def files2database(files, company, storage_opts=None):
         d_file = Fiber(file, company=company, load_data=False, storage_opts=storage_opts)
 
         info = d_file.metadata(meta_dict=True) # getting public relevant attributes.
+        info["scale_factor"] = d_file.instr_correct(return_factor=True)
         info = {key: info[key] for key in filtered_keys if key in info}  # Filter
         info["file"] = d_file.__filepath__ # we also take the filepath.
 
@@ -198,17 +199,21 @@ def database_discontinuities(df, split=True):
 
     Returns
     -------
-    continuity : pandas.Dataframe
-        If ``split == True``, returns a boolean pandas.DataFrame indicating
-        dicontinuities. ``False`` objects mark the beginning of a dicontinuity along the data.
-    database_chunks : list
-    If ``split == False``, returns a List of dataframes indicating paths and essential
-        metadata from each file.
-
+    database_chunks : list of pandas.DataFrame
+        Database divided into continuous acquisitions when ``split=True``.
+    continuity : pandas.Series
+        Boolean continuity indicator when ``split=False``. A ``False`` value
+        indicates the beginning of a new acquisition.
 	"""
 
     # attributes of metadata to evaluate continuity.
-    var_conditions = ["sampling_rate", "n_channels", "spatial_interval", "gauge_length", "channel_offset"]
+    var_conditions = ["sampling_rate", "n_channels", "spatial_interval", "gauge_length", "channel_offset", "units", "scale_factor"]
+    
+    # if database is empty
+    if df.empty:
+        if split:
+            return []
+        return pd.Series(dtype=bool, index=df.index)
 
     # Initialize continuity check by checking time.
     # End time of file i + dt must match the start time of file i+1
@@ -219,29 +224,39 @@ def database_discontinuities(df, split=True):
     expected_start = df["end_time"] + pd.to_timedelta(df["dt"], unit="s")
     continuity = expected_start.shift(1) == df["start_time"]
     continuity.iloc[0] = True
-    continuity.iloc[-1] = True
+    # continuity.iloc[-1] = True
 
     # # check discontinuities in others properties.
-    for variable in var_conditions[1:]:
+    for variable in var_conditions:
+        
+        previous = df[variable].shift(1)
+        same_val = (df[variable] == previous) | (df[variable].isna() & previous.isna())
+        continuity &= same_val
 
-        continuity *= df[variable].shift(1, fill_value=df[variable].iloc[0]) == df[variable]
+        # continuity *= df[variable].shift(1, fill_value=df[variable].iloc[0]) == df[variable]
 
+    continuity.iloc[0] = True #first file always starets a Dataset
     # Evaluate if the user wants the databse to be splitted in discontinuous parameters (see selected parameters).
-    if split == False:
+    if not split:
         return continuity
+    
+    # every false value marks the beginning of a Dataset
+    break_indices = [i for i in range(1,len(df)) if not continuity.iloc[i]]
+    limits = [0] + break_indices + [len(df)]
+    database_chunks = [df.iloc[start:end].copy() for start, end in zip(limits[:-1], limits[1:])]
 
-    else:
-        database_chunks = []
-        last_incident = 0
+    # else:
+    #     database_chunks = []
+    #     last_incident = 0
 
-        for i in range(continuity.size):
-            # Evaluate when there is a chunk.
-            if (continuity.iloc[i] == False) or (i == continuity.size-1):
+    #     for i in range(continuity.size):
+    #         # Evaluate when there is a chunk.
+    #         if (continuity.iloc[i] == False) or (i == continuity.size-1):
 
-                database_chunks.append( df.iloc[last_incident:i] ) # we add the detected chunk.
-                last_incident = i
+    #             database_chunks.append( df.iloc[last_incident:i] ) # we add the detected chunk.
+    #             last_incident = i
 
-        return database_chunks
+    return database_chunks
 
 def metadates_2_isoformat(dataframe, reverse=False):
     """Transforms the dates of the ``Dataset`` files metadata into isoformat.
