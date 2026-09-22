@@ -1,0 +1,16 @@
+LICENSE
+README.md
+setup.py
+fobench/__init__.py
+fobench/fiber.py
+fobench/filter.py
+fobench/plotting.py
+fobench/plotting_pyqt.py
+fobench/pyqt_explorer.py
+fobench/read_data.py
+fobench/tools.py
+fobench.egg-info/PKG-INFO
+fobench.egg-info/SOURCES.txt
+fobench.egg-info/dependency_links.txt
+fobench.egg-info/requires.txt
+fobench.egg-info/top_level.txt
