@@ -1,6 +1,6 @@
-Visualizations
+Visualisations
 ==============
-FoBench focuses on high-speed visualizations and interactivity to make data exploration more efficient. Therefore, instead of relying on *matplotlib*, FoBench leverages *PyQtGraph* for generating plots. While not offering the same polished look, the difference in speed is significant, especially for larger data matrices. 
+FoBench focuses on high-speed visualisations and interactivity to make data exploration more efficient. Therefore, instead of relying on *matplotlib*, FoBench leverages *PyQtGraph* for generating plots. While not offering the same polished look, the difference in speed is significant, especially for larger data matrices. 
 
 Whenever a function or method can generate a plot, the ``plot_mode`` parameter can be set. It defaults to ``"pyqt"`` and *matplotlib* plotting is chosen by setting ``plot_mode = "mpl"``. Not all functions and methods offer a *matplotlib* plot output however, in these cases FoBench falls back to ``"pyqt"``. If ``plot_mode`` is set to anything else than these two keywords, e.g. ``plot_mode = None``, no plot is generated.
 
@@ -40,13 +40,9 @@ Exporting Plots
 ---------------
 There are two options to save a PyQtGraph figure to your computer, from the GUI or through the API.
 
-Exporting from the GUI
-^^^^^^^^^^^^^^^^^^^^^^
-To **save a plot as a file to your computer**, right click anywhere in the open window, and choose :guilabel:`Export`. In the dialog that opens choose what part of the plot you would like to export and the file format (most likely ``Image File``), adjust the other parameters if necessary and finally click :guilabel:`Export`. Plots from the Data Viewer can only be exported through the GUI. 
+- **Exporting from the GUI**: To save a plot as a file to your computer, right click anywhere in the open window, and choose :guilabel:`Export`. In the dialog that opens choose what part of the plot you would like to export and the file format (most likely ``Image File``), adjust the other parameters if necessary and finally click :guilabel:`Export`. Plots from the Data Viewer can only be exported through the GUI.
 
-Exporting through the API
-^^^^^^^^^^^^^^^^^^^^^^^^^
-Every function or method that generates a PyQtGraph figure can be called with the ``export`` parameter. If you pass a filepath string, the figure will be saved in that location, e.g. ``export="/home/user/Desktop/earthquake.png"``. Additionally you can disable displaying the plot by setting ``show=False``, this is especially useful when batch processing.
+- **Exporting through the API**: Every function or method that generates a PyQtGraph figure can be called with the ``export`` parameter. If you pass a filepath string, the figure will be saved in that location, e.g. ``export="/home/user/Desktop/earthquake.png"``. Additionally you can disable displaying the plot by setting ``show=False``, this is especially useful when batch processing.
 
 
 Data Viewer

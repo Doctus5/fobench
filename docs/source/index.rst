@@ -1,7 +1,7 @@
 Welcome to FoBench!
 =====================
 
-FoBench is a toolbox for reading, processing and visualizing Fiber Optic Sensing data.
+FoBench is a toolbox for reading, processing and visualising Fibre Optic Sensing data.
 
 .. admonition:: What FoBench offers:
 
@@ -28,7 +28,7 @@ Follow the :doc:`Installation Guide <getting_started/download_installation>` and
    Download & Installation <getting_started/download_installation>
    Supported Data Formats <getting_started/formats>
    Processing Quickstart Guide <getting_started/quickstart>
-   Visualizations <visualizations>
+   Visualisations <visualisations>
    Contribute <getting_started/contribute>
    How to Cite <getting_started/cite>
    
