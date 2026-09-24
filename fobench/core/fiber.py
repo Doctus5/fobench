@@ -100,7 +100,7 @@ class Fiber(object):
         self.units = self.attributes["units"]
         self.conv_factor = self.attributes["conv_factor"] # Extra variables (ONLY FOR ASN HDF5)
         self.processing = [{"instance creation" : UTC.utcnow().ctime()}]
-        self.distances = (self.channels + self.channel_offset) * self.spatial_interval
+        self.distances = (self.channels - self.channel_offset) * self.spatial_interval
 
         self.ch_coord = None # coordinates of channels, requires more input ot be filled
 
@@ -383,7 +383,7 @@ class Fiber(object):
             self.data = filters.decimate(data=self.data, factor=factor, f_type=f_type, axis=axis)
             self.spatial_interval *=  factor
             self.channels = self.channels[::factor]
-            self.distances = (self.channels -self.channel_offset) * self.spatial_interval
+            self.distances = (self.channels - self.channel_offset) * self.spatial_interval
             self.n_channels = len(self.channels)
 
         return self
