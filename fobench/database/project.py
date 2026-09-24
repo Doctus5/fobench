@@ -20,6 +20,7 @@ from obspy.core import UTCDateTime as UTC
 
 # Inner functions
 from .interrogator import Interrogator
+from .cable import Cable
 from . import manager as manager
 
 
@@ -61,7 +62,9 @@ class Project(object):
 		self.location = ""
 		self.country = ""
 		self.inters : list[Interrogator] = [] # list of interrogators used. Each one is an Interrogator class that contains Datasets class.
+		self.cables : list[Cable] = [] # list of cables used in the project
 		self.n_inters = len(self.inters)
+		self.n_cables = len(self.cables)
 		self.start_time = None
 		self.end_time = None
 
@@ -125,6 +128,7 @@ class Project(object):
 		self.metadata["end_date"] = (self.end_time.date.isoformat() if self.end_time is not None else "")
 		self.metadata["end_time"] = (self.end_time.isoformat() + "Z" if self.end_time is not None else "")
 		self.metadata["interrogators"] = [inter.metadata for inter in self.inters]
+		self.metadata["cables"] = [cable.metadata for cable in self.cables]
 
 
 	def __build_from_metafile__(self, json_file=None):
@@ -145,6 +149,8 @@ class Project(object):
 
 		# Initialise the Interrogators
 		self.inters = [Interrogator(metadata_file=item) for item in meta_dict.get("interrogators", [])]
+		# Initialise the Cables
+		self.cables = [Cable(metadata_file=item) for item in meta_dict.get("cables", [])]
 
 		# if meta_dict['interrogators']:
 		# 	for mes_inter in meta_dict['interrogators']:
@@ -152,6 +158,7 @@ class Project(object):
 		# 		self.add_inter(ind_inter)
 
 		self.n_inters = len(self.inters)
+		self.n_cables = len(self.cables)
 
 		return self
 
@@ -185,6 +192,16 @@ class Project(object):
 
 		return self
 
+
+	def add_cable(self, cable: Cable):
+		"""Add ``Cable`` class to the project. One needs to fill out the parameters"""
+
+		self.cables.append(cable)
+		self.n_cables = len(self.cables)
+
+		return self
+
+
 	def build(self, parallels=None):
 		"""Builds the ``Project`` object and parameters. Builds from a given metadata file.
 
@@ -200,21 +217,91 @@ class Project(object):
 
 		"""
 
-		start_time_list, end_time_list = [], []
-
 		for inter_index, inter in enumerate(self.inters):
-
-			inter.metadata["interrogator_id"] = str(inter_index)
+			
+			inter.id = str(inter_index)
 			inter.build(parallels=parallels)
-			start_time_list.append(inter.earliest_usage)
-			end_time_list.append(inter.latest_usage)
 
-		self.start_time, self.end_time = min(start_time_list), max(end_time_list)
+		self.update()
+
+		return self
+
+
+	def update(self):
+		"""Update Project metadata without scanning data files.
+
+		This method uses the Datasets and file databases already stored in the
+		Project. It updates time ranges, Cable and Fibre metadata, automatic
+		Channel Groups, and the final Project metadata dictionary.
+
+		Returns
+		-------
+		Project
+			Current updated Project.
+		"""
+
+		self.n_inters = len(self.inters)
+		self.n_cables = len(self.cables)
+
+		# update all existing Datasets and Interrogators without scanning.
+		for inter_index, inter in enumerate(self.inters):
+      
+			inter.id = str(inter_index)
+			inter.update()
+
+		start_time_list = [inter.earliest_usage for inter in self.inters if inter.earliest_usage is not None]
+		end_time_list = [inter.latest_usage for inter in self.inters if inter.latest_usage is not None]
+
+		self.start_time = min(start_time_list) if start_time_list else None
+		self.end_time = max(end_time_list) if end_time_list else None
+
+		# Cable and Fibre building does not scan measurement files.
+		for cable_index, cable in enumerate(self.cables):
+
+			cable.id = str(cable_index)
+			cable.build()
+
+		# linking existing Channel Groups to the single Cable and Fibre.
+		if len(self.cables) == 1 and len(self.cables[0].fibres) == 1:
+
+			cable = self.cables[0]
+			fibre = cable.fibres[0]
+
+			for inter in self.inters:
+				for dataset in inter.datasets:
+					for channel_group in dataset.metadata["channel_groups"]:
+
+						channel_group["cable_id"] = cable.metadata["cable_id"]
+						channel_group["fiber_id"] = fibre.metadata["fiber_id"]
 
 		self.__fill_metadata__()
 		self.__built__ = True
 
 		return self
+
+
+	def merge_datasets(self, max_gap:float):
+		"""Merge compatible Datasets within every Interrogator.
+
+		Parameters
+		----------
+		max_gap : float
+			Maximum accepted interruption in seconds.
+
+		Returns
+		-------
+		Project
+			Current Project with compatible Datasets merged.
+		"""
+
+		for inter in self.inters:
+    
+			inter.merge_datasets(max_gap=max_gap)
+
+		self.__fill_metadata__()
+
+		return self
+
 
 	def save_metadata(self, filename : str = "project_meta.json", format : str = "fobench"):
 		"""Saves the metadata file for future usage and toin order to having to

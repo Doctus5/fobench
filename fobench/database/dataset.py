@@ -12,6 +12,7 @@ files part of a campaign. Can be continuous data in many files, and may have dis
 """
 
 import copy
+import numpy as np
 import pandas as pd
 from obspy.core import UTCDateTime as UTC
 
@@ -51,6 +52,7 @@ class Dataset(object):
         self.__storage_opts__ = storage_opts
 
         # This variable might be redundant with the variables in metadata. Check this to reduce memory!
+        self.id = ""
         self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the curent Dataset.
         self.n_files = 0
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
@@ -91,16 +93,16 @@ class Dataset(object):
             "acquisition_sample_rate": None,
             "acquisition_sample_rate_unit": "Hz",
             "gauge_length": None,
-            "gauge_length_unit": "meter",
+            "gauge_length_unit": "m",
             "unit_of_measure": "",
             "scale_factor": None,
             "number_of_channels": None,
             "spatial_sampling_interval": None,
-            "spatial_sampling_interval_unit": "meter",
+            "spatial_sampling_interval_unit": "m",
             "pulse_rate": None,
             "pulse_rate_unit": "Hz",
             "pulse_width": None,
-            "pulse_width_unit": "meter",
+            "pulse_width_unit": "m",
             "comment": "",
             "channel_groups": [],
             "native_headers": {},
@@ -152,6 +154,7 @@ class Dataset(object):
         # Initialize Database
         self.metadata = meta_dict
         self.database = manager.init_dataframe(meta_dict["database"]) # initialize the Dataframe of the database.
+        self.id = self.metadata.get("acquisition_id", "")
         self.__database_to_attributes__()
 
         # Fill attributes
@@ -193,13 +196,13 @@ class Dataset(object):
 
         self.__database_to_attributes__()
 
-        # self.metadata["acquisition_id"] = None
+        self.metadata["acquisition_id"] = self.id
         self.metadata["acquisition_start_time"] = self.start_time.isoformat() + "Z"
         self.metadata["acquisition_end_time"] = self.end_time.isoformat() + "Z"
         self.metadata["acquisition_sample_rate"] = self.sampling_rate
         self.metadata["acquisition_sample_rate_unit"] = "Hz"
         self.metadata["gauge_length"] = self.gauge_length
-        self.metadata["gauge_length_unit"] = "meter"
+        self.metadata["gauge_length_unit"] = "m"
         # self.metadata["unit_of_measure"] = self.units
         
         # units of measure
@@ -228,11 +231,11 @@ class Dataset(object):
             self.metadata.pop("scale_factor", None)
         self.metadata["number_of_channels"] = self.n_channels
         self.metadata["spatial_sampling_interval"] = self.spatial_interval
-        self.metadata["spatial_sampling_interval_unit"] = "meter"
+        self.metadata["spatial_sampling_interval_unit"] = "m"
         self.metadata["pulse_rate"] = None
         self.metadata["pulse_rate_unit"] = "Hz"
         self.metadata["pulse_width"] = self.pulse_width
-        self.metadata["pulse_width_unit"] = "meter"
+        self.metadata["pulse_width_unit"] = "m"
         # self.metadata["comment"] = "NA"
         
 
@@ -255,6 +258,83 @@ class Dataset(object):
         """Returns a deep copy of the class in the moment of execution."""
 
         return copy.deepcopy(self)
+    
+    
+    def add_ch_group(self, n_ch, cable_id="", fiber_id=""):
+        """Add the Channel Group metadata to the Dataset.
+
+        Parameters
+        ----------
+        n_ch : array-like
+            Channel indices belonging to this Channel Group.
+        cable_id : str, optional
+            Identifier of the associated Cable.
+        fiber_id : str, optional
+            Identifier of the associated Fibre.
+
+        Returns
+        -------
+        Dataset
+            Current Dataset with its Channel Group metadata.
+        """
+        
+        channels = np.asarray(n_ch, dtype=int)
+        distances = (channels - self.channel_offset) * self.spatial_interval
+        
+        ch_group_meta = {
+        # Mandatory Channel Group fields
+        "channel_group_id": str(len(self.metadata["channel_groups"])),
+        "cable_id": cable_id,
+        "fiber_id": fiber_id,
+        "coordinate_generation_date": "",
+        "coordinate_system": "",  # "geographic", "UTM", or "local"
+        "reference_frame": "",
+        "distance_along_fiber_unit": "m",
+        "x_coordinate_unit": "",
+        "y_coordinate_unit": "",
+
+        # Optional Channel Group fields
+        "location_method": "",
+        "uncertainty_in_x_coordinate": None,
+        "uncertainty_in_x_coordinate_unit": "",
+        "uncertainty_in_y_coordinate": None,
+        "uncertainty_in_y_coordinate_unit": "",
+        "elevation_above_sea_level_unit": "m",
+        "uncertainty_in_elevation": None,
+        "uncertainty_in_elevation_unit": "m",
+        "depth_below_surface_unit": "",
+        "uncertainty_in_depth": None,
+        "uncertainty_in_depth_unit": "m",
+        "strike_unit": "",
+        "uncertainty_in_strike": None,
+        "uncertainty_in_strike_unit": "",
+        "dip_unit": "",
+        "uncertainty_in_dip": None,
+        "uncertainty_in_dip_unit": "",
+        "first_usable_channel_id": channels[0],
+        "last_usable_channel_id": channels[-1],
+        "comment": "",
+
+        # Optional Channels block
+        "channels": {
+                # Mandatory when the Channels block is included
+                "channel_ids": channels,
+                "distances_along_fiber": distances,
+                "x_coordinates": [],
+                "y_coordinates": [],
+
+                # Optional channel arrays
+                "elevations_above_sea_level": [],
+                "depths_below_surface": [],
+                "strikes": [],
+                "dips": []
+            }
+        }
+    
+        self.metadata["channel_groups"].append(ch_group_meta)
+        
+        return self
+    
 
     def build(self, format=None, parallels=None):
         """Builds from a given metadata file.
@@ -290,6 +370,22 @@ class Dataset(object):
         self.__built__ = True # its now built.
 
         return self
+
+
+    def update(self):
+        """Update Dataset attributes and metadata without scanning files.
+
+        Returns
+        -------
+        Dataset
+            Current updated Dataset.
+        """
+
+        self.__fill_metadata__()
+        self.__built__ = True
+
+        return self
+
 
     def trim(self, time_range: tuple, include_overlap : bool = True):
         """Trim the dataset based on date ranges.

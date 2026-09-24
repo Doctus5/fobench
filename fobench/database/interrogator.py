@@ -13,6 +13,8 @@ A ``Project`` is understood as a field campaing in an specific location where se
 
 import copy
 import pandas as pd
+import numpy as np
+from datetime import date
 from obspy.core import UTCDateTime as UTC
 
 from .dataset import Dataset
@@ -21,6 +23,7 @@ from .parallel import Parallel
 from . import manager as manager
 from .plotters import inter_plots as inter_plots
 from .utils.windowing import inter_windowing
+from .utils import utils
 
 
 
@@ -70,6 +73,7 @@ class Interrogator(object):
 		self.__storage_opts__ = storage_opts # credentials of S3 to look at the bucket
 
 		# Public attributes
+		self.id = ""
 		self.sensing = sensing
 		self.format = format
 		self.company = company
@@ -152,6 +156,7 @@ class Interrogator(object):
 
 		# Fill values in attributes
 		self.__folder_path__ = self.metadata.get("interrogator_path") # central folder path of files.
+		self.id = self.metadata.get("interrogator_id")
 		self.sensing = self.metadata.get("sensing") or "das"
 		self.company = self.metadata["manufacturer"]
 		self.n_files = self.metadata.get("n_files", 0)
@@ -167,7 +172,7 @@ class Interrogator(object):
 		"""
 
 		# Fill values in metadata file
-		# self.metadata["interrogator_id"] = None
+		self.metadata["interrogator_id"] = self.id
 		self.metadata["manufacturer"] = self.company
 		self.metadata["sensing"] = self.sensing
 		self.metadata["earliest_usage"] = (self.earliest_usage.isoformat() + "Z" if self.earliest_usage is not None else "")
@@ -252,7 +257,8 @@ class Interrogator(object):
 
 			for dataset_index, dataset in enumerate(self.datasets): # loop over existing datasets.
 
-				dataset.metadata["acquisition_id"] = str(dataset_index) # asignin id's
+				dataset.id = str(dataset_index)
+				dataset.update() # asignin id's
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
 				self.n_files += dataset.n_files # adding to total number of files.
@@ -263,6 +269,107 @@ class Interrogator(object):
 
 		self.__fill_metadata__()
 		self.__built__ = True # its now built.
+
+		return self
+
+
+	def update(self):
+		"""Update Interrogator attributes and metadata without scanning files.
+
+		Returns
+		-------
+		Interrogator
+			Current updated Interrogator.
+		"""
+
+		self.n_files = 0
+		self.n_datasets = len(self.datasets)
+
+		for dataset_index, dataset in enumerate(self.datasets):
+      
+			dataset.id = str(dataset_index)
+
+			for group_index, channel_group in enumerate(dataset.metadata["channel_groups"]):
+       
+				channel_group["channel_group_id"] = str(group_index)
+
+			dataset.update()
+			self.n_files += dataset.n_files
+
+		if self.datasets:
+      
+			self.earliest_usage = min(dataset.start_time for dataset in self.datasets)
+			self.latest_usage = max(dataset.end_time for dataset in self.datasets)
+		else:
+      
+			self.earliest_usage = None
+			self.latest_usage = None
+
+		self.__fill_metadata__()
+		self.__built__ = True
+
+		return self
+
+
+	def merge_datasets(self, max_gap:float):
+		"""Merge consecutive compatible Datasets separated by short gaps.
+
+		Parameters
+		----------
+		max_gap : float
+			Maximum accepted interruption in seconds.
+
+		Returns
+		-------
+		Interrogator
+			Current Interrogator with its compatible Datasets merged.
+		"""
+		
+		# secutiry checks
+		if max_gap < 0:
+			raise ValueError("max_gap cannot be negative.")
+		if len(self.datasets) < 2: # no datasets to merge
+			return self
+    
+		# these are the constants that must always remain so Dataset can be merged.
+		constants = (
+			"sampling_rate",
+			"n_channels",
+			"spatial_interval",
+			"gauge_length",
+			"channel_offset",
+			"units",
+			"scale_factor",
+		)
+
+		groups = [[self.datasets[0]]]
+
+		# grouping adjacent compatible Datasets
+		for dataset in self.datasets[1:]:
+			
+			previous = groups[-1][-1]
+			gap = dataset.start_time - (previous.end_time + previous.dt)
+			condition = all([getattr(dataset, constant) == getattr(previous, constant) for constant in constants]) # all must be True.
+
+			if 0 <= gap <= max_gap and condition:
+				groups[-1].append(dataset)
+			else:
+				groups.append([dataset])
+    
+		# concatenate
+		merged_datasets = []
+		for group in groups:
+
+			dataset = group[0]
+   
+			if len(group) > 1:
+				
+				dataset.database = pd.concat([item.database for item in group], ignore_index=True)
+
+			merged_datasets.append(dataset)
+   
+		self.datasets = merged_datasets
+		self.update()
 
 		return self
 
@@ -350,6 +457,121 @@ class Interrogator(object):
 		else:
 			self.earliest_usage = None
 			self.latest_usage = None
+
+		return self
+
+
+	'''Tools'''
+
+	def append_coord(self, n_ch, x_ch, y_ch, z_ch, system, ref, which="all", coord_date=None):
+		"""Attaches channel coordinates for later plotting. Takes 1D arrays of
+		channel number (n_ch), longitude and latitude (x_ch and y_ch) and elevation in m (z_ch).
+		"""
+
+		datasets = utils.select_datasets(self, which)
+
+		n_ch = np.asarray(n_ch, dtype=int)
+		x_ch = np.zeros_like(n_ch, dtype=float) if x_ch is None else np.asarray(x_ch)
+		y_ch = np.zeros_like(n_ch, dtype=float) if y_ch is None else np.asarray(y_ch)
+		z_ch = np.zeros_like(n_ch, dtype=float) if z_ch is None else np.asarray(z_ch)
+  
+		if not (n_ch.size == x_ch.size == y_ch.size == z_ch.size):
+			raise ValueError("Channel and coordinate arrays must have the same length.")
+		if n_ch.size == 0:
+			raise ValueError("At least one channel must be provided.")
+		if np.unique(n_ch).size != n_ch.size:
+			raise ValueError("Channel indices cannot contain duplicates.")
+
+		# sorting channels and coordinates together. Just in case.
+		order = np.argsort(n_ch)
+		n_ch = n_ch[order]
+		x_ch = x_ch[order]
+		y_ch = y_ch[order]
+		z_ch = z_ch[order]
+
+		# now we split the coordinates wherever channel indices are discontinuous.
+		split_indices = np.where(np.diff(n_ch) > 1)[0] + 1
+		ch_sections = np.split(n_ch, split_indices)
+		x_sections = np.split(x_ch, split_indices)
+		y_sections = np.split(y_ch, split_indices)
+		z_sections = np.split(z_ch, split_indices)
+
+		coord_opts = {
+			"decimal": ("geographic", "degree"),
+			"geographic": ("geographic", "degree"),
+			"utm": ("UTM", "m"),
+			"local": ("local", "m")
+		}
+
+		system_key = system.lower()
+		if system_key not in coord_opts:
+			raise ValueError("system must be 'decimal', 'geographic', 'utm', or 'local'.")
+		coord_system, coord_unit = coord_opts[system_key]
+
+		if coord_date is None:
+			coord_date = date.today().isoformat()
+
+		for dataset in datasets:
+
+			invalid_channels = n_ch[(n_ch < 0) | (n_ch >= dataset.n_channels)]
+
+			if invalid_channels.size > 0:
+				raise ValueError(f"Some provided channels do not match channels in Dataset {dataset.id}.")
+
+			# preserving existing infrastructure references when replacing coordinates.
+			cable_id, fiber_id = "", ""
+
+			if dataset.metadata["channel_groups"]:
+				cable_id, fiber_id = dataset.metadata["channel_groups"][0].get("cable_id", ""), dataset.metadata["channel_groups"][0].get("fiber_id", "")
+
+			dataset.metadata["channel_groups"] = []
+
+			# creating one Channel Group for every continuous channel section.
+			for ch_section, x_section, y_section, z_section in zip(ch_sections, x_sections, y_sections, z_sections):
+
+				dataset.add_ch_group(n_ch=ch_section, cable_id=cable_id, fiber_id=fiber_id)
+
+				channel_group = dataset.metadata["channel_groups"][-1]
+				channels = channel_group["channels"]
+
+				channels["x_coordinates"], channels["y_coordinates"] = x_section, y_section
+				channels["elevations_above_sea_level"] = z_section
+
+				channel_group["coordinate_generation_date"] = coord_date
+				channel_group["coordinate_system"] = coord_system
+				channel_group["x_coordinate_unit"], channel_group["y_coordinate_unit"] = coord_unit, coord_unit
+				channel_group["reference_frame"] = ref
+
+		self.metadata["acquisitions"] = [dataset.metadata for dataset in self.datasets]
+
+		return self
+
+
+	def georeference(self, n_ch, x_ch, y_ch, z_ch, system="decimal", ref="WGS84", which="all", err=None, coord_date=None):
+		"""Takes known channel locations, e.g. from tap tests and interpolates channel locations
+		inbetween, attaches new coordinates.
+		takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+		and elevation in m (z_ch), coordinate system can be for lon and lat can be "decimal" or "utm"
+		"err" is maximum accepted interpolation error between original metadata location and new interpolated
+		location
+		"""
+  
+		datasets = utils.select_datasets(self, which)
+
+		n_ch = np.asarray(n_ch)
+		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
+		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
+		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
+
+		coords = None
+
+		for dataset in datasets:
+
+			coords = utils.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, dataset.spatial_interval)
+
+		if coords is not None:
+
+			self.append_coord(*coords, system=system, which=which, ref=ref, coord_date=coord_date)
 
 		return self
 

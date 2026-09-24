@@ -292,24 +292,40 @@ def metadates_2_isoformat(dataframe, reverse=False):
 
     return dataframe
 
-def convert_types(input_dict):
-    """Recursive function to convert types in a dictionary"""
+def convert_types(value):
+    """Convert NumPy values into JSON-compatible Python values.
 
-    output_dict = {}
-    for key, value in input_dict.items():
-        if isinstance(value, dict):
-            # Recursively convert nested dictionaries
-            output_dict[key] = convert_types(value)
-        elif isinstance(value, np.int64):
-            output_dict[key] = int(value)  # Convert to standard int
-        elif value is None:
-            output_dict[key] = None  # Keep as None (will be serialized as null in JSON)
-        elif isinstance(value, list):
-            # Convert any int64 or None in lists
-            output_dict[key] = [convert_types(v) if isinstance(v, dict) else int(v) if isinstance(v, np.int64) else v for v in value]
-        else:
-            output_dict[key] = value  # Keep other types as is
-    return output_dict
+    Parameters
+    ----------
+    value : object
+        Value or nested metadata structure to convert.
+
+    Returns
+    -------
+    object
+        JSON-compatible value or metadata structure.
+    """
+
+    if isinstance(value, dict):
+        return {key: convert_types(item) for key, item in value.items()}
+
+    if isinstance(value, (list, tuple)):
+        return [convert_types(item) for item in value]
+
+    if isinstance(value, np.ndarray):
+        return convert_types(value.tolist())
+
+    if isinstance(value, np.integer):
+        return int(value)
+
+    if isinstance(value, np.floating):
+        return float(value)
+
+    if isinstance(value, np.bool_):
+        return bool(value)
+
+    return value
+
 
 def df_time_filtering(df: pd.DataFrame, range: tuple, start_label: str = "start_time",
     end_label: str = "end_time", include_overlaps: bool = False) -> pd.DataFrame:
@@ -377,18 +393,6 @@ def dump_metadatafile(meta : dict, filename : str, format : str = "fobench"):
         For working in future projects and exploring file, use fobench as fdsn do not share databases. Default value is "fobench"
     """
     
-    inter_rev_fields = ["sensing", "interrogator_path", "earliest_usage", "latest_usage", "n_files"]
-    acqui_rev_fields = ["company", "sensing", "time_stamp", "channel_offset", "database_path", "database"]
-    optional_fields = ["country", "end_date", "digital_object_identifier"]
-    
-    # required fields by fdsn
-    required_proj_fields = ["schema_version", "network_code", "location", "principal_investigator", "point_of_contact",
-                                "point_of_contact_email", "point_of_contact_address", "start_date"]
-    required_inter_fields = ["interrogator_id", "manufacturer", "model"]
-    required_acqui_fields = ["acquisition_id", "acquisition_start_time", "acquisition_end_time", "acquisition_sample_rate", "acquisition_sample_rate_unit",
-                            "gauge_length", "gauge_length_unit", "unit_of_measure", "number_of_channels", "spatial_sampling_interval", "spatial_sampling_interval_unit"]
-    valid_fdsn_units = ("count", "m/m", "m/m/s", "m/s", "rad/s", "rad/m/s") # to be honest, i don't agree with mucch that is here but ok
-    
     format = format.lower()
     
     if format not in ("fobench","fdsn"):
@@ -397,69 +401,323 @@ def dump_metadatafile(meta : dict, filename : str, format : str = "fobench"):
     dump_meta = convert_types(meta)
     
     if format == "fdsn":
+        dump_meta = fdsn_proj_check(dump_meta)
 
-        # VALIDATION PART -> Project
-        missing_proj_fields = [field for field in required_proj_fields if dump_meta.get(field) in (None, "", [])] # Mandatory for FDSN!
-
-        if missing_proj_fields:
-            raise ValueError(f"Missing required FDSN Project fields:"
-                            f"{missing_proj_fields}")
-        
-        # removing Project level fobench fields
-        dump_meta.pop("start_time", None)
-        dump_meta.pop("end_time", None)
-
-        # to prevent empty optional values to reach the json format and making it invalid.
-        for field in optional_fields:
-            if dump_meta.get(field) in (None, "", "NA"):
-                dump_meta.pop(field, None)
-
-        if not dump_meta.get("cables"):
-            dump_meta.pop("cables", None)
-
-        if not dump_meta.get("interrogators"):
-            dump_meta.pop("interrogators", None)
-        
-        for interrogator in dump_meta.get("interrogators", []):
-            
-            # VALIDATION PART -> Interrogator
-            missing_inter_fields = [field for field in required_inter_fields if interrogator.get(field) in (None, "")]
-
-            if missing_inter_fields:
-                raise ValueError(f"Missing required FDSN Interrogator fields:" 
-                                f"{missing_inter_fields}")
-            
-            for field1 in inter_rev_fields:
-                
-                # remove Interrogator level fobench fields
-                interrogator.pop(field1, None)
-                
-            for acquisition in interrogator.get("acquisitions", []):
-                
-                # VALIDATION PART -> Dataset
-                missing_acqui_fields = [field for field in required_acqui_fields if acquisition.get(field) in (None, "")]
-
-                if missing_acqui_fields:
-                    raise ValueError(f"Missing required FDSN Acquisition fields: "
-                                    f"{missing_acqui_fields}")
-                if acquisition["unit_of_measure"] not in valid_fdsn_units:
-                    raise ValueError("Invalid FDSN unit_of_measure: "
-                                    f'{acquisition["unit_of_measure"]}')
-                    
-                for field2 in acqui_rev_fields:
-                    # remove Dataset level fobench fields
-                    acquisition.pop(field2, None)
-                    
-                if acquisition.get("scale_factor") in (None, "", "NA"):
-                    acquisition.pop("scale_factor", None)
-
-                if acquisition.get("pulse_rate") in (None, "", "NA"):
-                    acquisition.pop("pulse_rate", None)
-                    acquisition.pop("pulse_rate_unit", None)
-
-                if acquisition.get("pulse_width") in (None, "", "NA"):
-                    acquisition.pop("pulse_width", None)
-                    acquisition.pop("pulse_width_unit", None)
-                        
     with open(filename, 'w') as file: # finally dumping the metadata in the JSON file.
         json.dump(dump_meta, file, indent=4)
+        
+        
+"""Validation methods of metadata for FDSN""" # this is killing my brains
+
+
+def fdsn_fibre_check(fiber):
+    """Validate and clean Fibre metadata for FDSN export as fiber.
+
+    Parameters
+    ----------
+    fiber : dict
+        Fibre metadata to validate and clean.
+
+    Returns
+    -------
+    fiber : dict
+        Fibre metadata prepared for FDSN export.
+    """
+    
+    fiber_rev_fields = ["fiber_type", "fiber_reflector_interval", "fiber_reflector_interval_unit"]
+    required_fiber_fields = ["fiber_id", "fiber_geometry", "fiber_mode", "fiber_refraction_index"]
+    
+    missing_fiber_fields = [field for field in required_fiber_fields if fiber.get(field) in (None, "", [])]
+    
+    # check errors
+    if missing_fiber_fields:
+        raise ValueError(f"Missing required FDSN Fibre fields: "
+                        f"{missing_fiber_fields}")
+
+    # remove FoBench-only Fibre fields.
+    for field in fiber_rev_fields:
+        fiber.pop(field, None)
+
+    # remove unavailable optional values together with their units.
+    optional_fiber_pairs = (("fiber_winding_angle", "fiber_winding_angle_unit"),
+                            ("fiber_start_location", "fiber_start_location_unit"),
+                            ("fiber_end_location", "fiber_end_location_unit"),
+                            ("fiber_optic_length", "fiber_optic_length_unit"),
+                            ("fiber_one_way_attenuation", "fiber_one_way_attenuation_unit"))
+
+    for value_field, unit_field in optional_fiber_pairs:
+        if fiber.get(value_field) in (None, "", "NA"):
+            fiber.pop(value_field, None)
+            fiber.pop(unit_field, None)
+            
+    return fiber
+
+
+def fdsn_cable_check(cable):
+    """Validate and clean Cable metadata for FDSN export.
+
+    Parameters
+    ----------
+    cable : dict
+        Cable metadata to validate and clean.
+
+    Returns
+    -------
+    cable : dict
+        Cable metadata prepared for FDSN export.
+    """
+    
+    cable_rev_fields = ["cable_length", "cable_layers", "cable_layers_length", "n_fibres"]
+    required_cable_fields = ["cable_id", "cable_bounding_box", "cable_owner"]
+    
+    missing_cable_fields = [field for field in required_cable_fields if cable.get(field) in (None, "", [])]
+    
+    # check errors
+    if missing_cable_fields:
+        raise ValueError(f"Missing required FDSN Cable fields: "
+                        f"{missing_cable_fields}")
+    if len(cable["cable_bounding_box"]) != 4:
+        raise ValueError("FDSN cable_bounding_box must contain exactly four values.")
+
+    # remove FoBench-only Cable fields.
+    for field in cable_rev_fields:
+        cable.pop(field, None)
+
+    # empty dates are invalid date values in FDSN.
+    for field in ("cable_installation_date", "cable_removal_date"):
+        if cable.get(field) in (None, ""):
+            cable.pop(field, None)
+
+    # remove diameter and its unit when diameter is unavailable.
+    if cable.get("cable_outside_diameter") in (None, "", "NA"):
+        cable.pop("cable_outside_diameter", None)
+        cable.pop("cable_outside_diameter_unit", None)
+
+    # empty fibers array is invalid because it requires at least one entry.
+    if not cable.get("fibers"):
+        cable.pop("fibers", None)
+
+    for fiber in cable.get("fibers", []):
+        fdsn_fibre_check(fiber)
+        
+    return cable
+
+
+def fdsn_chgroup_check(ch_group):
+    """Validate Channel Group metadata for FDSN export.
+
+    Parameters
+    ----------
+    ch_group : dict
+        Channel Group metadata to validate.
+
+    Returns
+    -------
+    ch_group : dict
+        Channel Group metadata prepared for FDSN export.
+    """
+
+    required_group_fields = ["channel_group_id", "cable_id", "fiber_id", "coordinate_generation_date", "coordinate_system", "reference_frame",
+                                    "distance_along_fiber_unit", "x_coordinate_unit", "y_coordinate_unit"]
+    required_ch_fields = ["channel_ids", "distances_along_fiber", "x_coordinates", "y_coordinates"]
+
+    missing_group_fields = [field for field in required_group_fields if ch_group.get(field) in (None, "", [])]
+    
+    if missing_group_fields:
+        raise ValueError(f"Missing required FDSN Channel Group fields: "
+                        f"{missing_group_fields}")
+
+    if ch_group["coordinate_system"] not in ("geographic", "UTM", "local"):
+        raise ValueError("Invalid FDSN coordinate_system: "
+                        f'{ch_group["coordinate_system"]}')
+
+    # channels are optional, but their arrays are required when the channels block is included.
+    if "channels" in ch_group:
+
+        channels = ch_group["channels"]
+
+        if not isinstance(channels, dict):
+            raise ValueError("FDSN channels must be a dictionary.")
+
+        missing_ch_fields = [field for field in required_ch_fields if field not in channels]
+
+        if missing_ch_fields:
+            raise ValueError(f"Missing required FDSN Channel fields: "
+                            f"{missing_ch_fields}")
+    
+    # remove unavailable optional uncertainties and their units. If there are None values, they should not show up in the metadata. Not necessary.
+    uncertainty_pairs = (
+        ("uncertainty_in_x_coordinate", "uncertainty_in_x_coordinate_unit"),
+        ("uncertainty_in_y_coordinate", "uncertainty_in_y_coordinate_unit"),
+        ("uncertainty_in_elevation", "uncertainty_in_elevation_unit"),
+        ("uncertainty_in_depth", "uncertainty_in_depth_unit"),
+        ("uncertainty_in_strike", "uncertainty_in_strike_unit"),
+        ("uncertainty_in_dip", "uncertainty_in_dip_unit"),
+    )
+
+    for value_field, unit_field in uncertainty_pairs:
+        if ch_group.get(value_field) in (None, "", "NA"):
+            ch_group.pop(value_field, None)
+            ch_group.pop(unit_field, None)
+    
+    # convert channel identifiers to the FDSN string format.
+    for field in ("first_usable_channel_id", "last_usable_channel_id"):
+        if ch_group.get(field) not in (None, ""):
+            ch_group[field] = str(ch_group[field])
+
+    if "channels" in ch_group:
+        channels = ch_group["channels"]
+        channels["channel_ids"] = [str(channel_id) for channel_id in channels["channel_ids"]]
+            
+    return ch_group
+
+
+def fdsn_acqui_check(acqui):
+    """Validate and clean Acquisition metadata for FDSN export.
+
+    Parameters
+    ----------
+    acqui : dict
+        Acquisition metadata to validate and clean.
+
+    Returns
+    -------
+    acqui : dict
+        Acquisition metadata prepared for FDSN export.
+    """
+    
+    acqui_rev_fields = ["company", "sensing", "time_stamp", "channel_offset", "database_path", "database"]
+    required_acqui_fields = ["acquisition_id", "acquisition_start_time", "acquisition_end_time", "acquisition_sample_rate", "acquisition_sample_rate_unit",
+                                "gauge_length", "gauge_length_unit", "unit_of_measure", "number_of_channels", "spatial_sampling_interval", "spatial_sampling_interval_unit"]
+    
+    valid_fdsn_units = ("count", "m/m", "m/m/s", "m/s", "rad/s", "rad/m/s") # to be honest, i don't agree with mucch that is here but ok
+    
+    # VALIDATION PART -> Dataset
+    missing_acqui_fields = [field for field in required_acqui_fields if acqui.get(field) in (None, "")]
+
+    # check errors and missing fields
+    if missing_acqui_fields:
+        raise ValueError(f"Missing required FDSN Acquisition fields: "
+                        f"{missing_acqui_fields}")
+    if acqui["unit_of_measure"] not in valid_fdsn_units:
+        raise ValueError("Invalid FDSN unit_of_measure: "
+                        f'{acqui["unit_of_measure"]}')
+        
+    for field2 in acqui_rev_fields:
+        # remove Dataset level fobench fields
+        acqui.pop(field2, None)
+        
+    if acqui.get("scale_factor") in (None, "", "NA"):
+        acqui.pop("scale_factor", None)
+
+    if acqui.get("pulse_rate") in (None, "", "NA"):
+        acqui.pop("pulse_rate", None)
+        acqui.pop("pulse_rate_unit", None)
+
+    if acqui.get("pulse_width") in (None, "", "NA"):
+        acqui.pop("pulse_width", None)
+        acqui.pop("pulse_width_unit", None)
+        
+    # VALIDATION PART -> Channel groups
+    for ch_group in acqui.get("channel_groups", []):
+        fdsn_chgroup_check(ch_group)
+    
+    return acqui
+
+
+def fdsn_inter_check(inter):
+    """Validate and clean Interrogator metadata for FDSN export.
+
+    Parameters
+    ----------
+    inter : dict
+        Interrogator metadata to validate and clean.
+
+    Returns
+    -------
+    inter : dict
+        Interrogator metadata prepared for FDSN export.
+    """
+    
+    inter_rev_fields = ["sensing", "interrogator_path", "earliest_usage", "latest_usage", "n_files"]
+    required_inter_fields = ["interrogator_id", "manufacturer", "model"]
+    
+    # VALIDATION PART -> Interrogator
+    missing_inter_fields = [field for field in required_inter_fields if inter.get(field) in (None, "")]
+
+    if missing_inter_fields:
+        raise ValueError(f"Missing required FDSN Interrogator fields:" 
+                        f"{missing_inter_fields}")
+    
+    for field1 in inter_rev_fields:
+        
+        # remove Interrogator level fobench fields
+        inter.pop(field1, None)
+        
+    for acqui in inter.get("acquisitions", []):
+        fdsn_acqui_check(acqui)    
+    
+    return inter
+
+
+def fdsn_proj_check(proj):
+    """Validate and clean Project metadata for FDSN export.
+
+    Parameters
+    ----------
+    proj : dict
+        Project metadata to validate and clean.
+
+    Returns
+    -------
+    proj : dict
+        Project metadata prepared for FDSN export.
+    """
+    
+    proj_rev_fields = ["country", "end_date", "digital_object_identifier"]
+    required_proj_fields = ["schema_version", "network_code", "location", "principal_investigator", "point_of_contact",
+                            "point_of_contact_email", "point_of_contact_address", "start_date"]
+    required_pi_fields = ["name", "email", "address"]
+    
+    # VALIDATION PART -> Project
+    missing_proj_fields = [field for field in required_proj_fields if proj.get(field) in (None, "", [])] # Mandatory for FDSN!
+    
+    # check errors and missing fields that are mandatory
+    if missing_proj_fields:
+        raise ValueError(f"Missing required FDSN Project fields:"
+                        f"{missing_proj_fields}")
+        
+    for forscher in proj["principal_investigator"]:
+        if not isinstance(forscher, dict):
+            raise ValueError("Each FDSN principal_investigator must be a dictionary.")
+
+        missing_pi_fields = [field for field in required_pi_fields if forscher.get(field) in (None, "")]
+
+        if missing_pi_fields:
+            raise ValueError(f"Missing required FDSN Principal Investigator fields: "
+                            f"{missing_pi_fields}")
+    
+    # removing Project level fobench fields
+    proj.pop("start_time", None)
+    proj.pop("end_time", None)
+
+    # to prevent empty optional values to reach the json format and making it invalid.
+    for field in proj_rev_fields:
+        if proj.get(field) in (None, "", "NA"):
+            proj.pop(field, None)
+
+    if not proj.get("cables"):
+        proj.pop("cables", None)
+        
+    # VALIDATION PART -> Cable - Fibre
+    for cable in proj.get("cables", []):
+        fdsn_cable_check(cable)
+
+    if not proj.get("interrogators"):
+        proj.pop("interrogators", None)
+    
+    # VALIDATION PART -> Interrogator - Dataset - ...
+    for inter in proj.get("interrogators", []):
+        fdsn_inter_check(inter)
+        
+    return proj
