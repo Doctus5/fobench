@@ -354,7 +354,7 @@ class Fiber(object):
         """Modifies spatial sampling of the data by adding or removing channels.
         ``"upsampling"`` adds a channel between each channel pair by interpolating the values.
         ``"downsampling"`` removes every second channel.
-        See :func:`~fobench.core.tools.utils.spatial_upsampling` and .:func:`~fobench.core.tools.utils.spatial_downsampling`
+        See :func:`~fobench.core.tools.utils.spatial_upsampling` and :func:`~fobench.core.tools.utils.spatial_downsampling`
         """
         if rs_type in ["upsampling", "upsample"]:
             self.data, self.channels = utils.spatial_upsampling(self)
