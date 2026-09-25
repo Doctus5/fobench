@@ -79,6 +79,65 @@ class Fiber(object):
         self.attributes = file_io.read_data(self.__filepath__[0], self.company, range_ch,
                         self.format, load_data=load_data, show_progress=show_progress, storage_opts=storage_opts)
 
+        self._initialize(sensing)
+
+    @classmethod
+    def from_array(cls, data, *, sampling_rate, start_time, spatial_interval,
+                   units, gauge_length=None, channel_offset=0):
+        """Create a Fiber from data shaped ``(time samples, channels)``.
+
+        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in meters,
+        ``start_time`` as an ObsPy-compatible time, and the data's ``units``.
+        ``gauge_length`` is optional and measured in meters. ``channel_offset``
+        is measured in channel intervals, so the first channel's distance is
+        ``channel_offset * spatial_interval``.
+
+        Data is copied, channels are numbered from zero, and ``end_time`` is
+        the time of the last sample. No file is read or instrument correction
+        applied. Use :meth:`to_xarray` to export the data.
+        """
+        data = np.array(data, copy=True)
+        if data.ndim != 2 or 0 in data.shape:
+            raise ValueError("data must be a nonempty 2D array (samples, channels)")
+        if sampling_rate <= 0 or spatial_interval <= 0:
+            raise ValueError("sampling_rate and spatial_interval must be positive")
+        start_time = UTC(start_time)
+        n_samples, n_channels = data.shape
+        dt = 1 / sampling_rate
+        end_time = start_time + (n_samples - 1) * dt
+
+        instance = cls.__new__(cls)
+        instance.__filepath__ = []
+        instance.__storage_opts__ = None
+        instance.company = ""
+        instance.format = "array"
+        instance.attributes = {
+            "basefile": None,
+            "format": instance.format,
+            "company": instance.company,
+            "fiber": "",
+            "properties": {},
+            "channels": np.arange(n_channels),
+            "n_channels": n_channels,
+            "sampling_rate": sampling_rate,
+            "o_sampling_rate": sampling_rate,
+            "dt": dt,
+            "start_time": start_time,
+            "end_time": end_time,
+            "spatial_interval": spatial_interval,
+            "n_samples": n_samples,
+            "time_length": end_time - start_time,
+            "gauge_length": gauge_length,
+            "channel_offset": channel_offset,
+            "data": data,
+            "units": units,
+            "conv_factor": None,
+        }
+        instance._initialize("das")
+        return instance
+
+    def _initialize(self, sensing):
+        """Populate shared state from file or array attributes."""
         self.__basefile__ = self.attributes["basefile"] # changed to the structure of the file
         self.file_size = self.attributes["file_size"]
         self.fiber = self.attributes["fiber"]
@@ -86,7 +145,7 @@ class Fiber(object):
         self.channels = self.attributes["channels"] # list of channels as array
         self.n_channels = self.attributes["n_channels"]
         self.sampling_rate = self.attributes["sampling_rate"] # sampling rate of the data.
-        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] != None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
+        self.o_sampling_rate = self.attributes["o_sampling_rate"] if self.attributes["o_sampling_rate"] is not None else self.attributes["sampling_rate"] # original sampling frequency. Important for conversion factor.
         self.dt = 1 / self.sampling_rate # calculated time step.
         self.start_time = self.attributes["start_time"] # start time of the data in file.
         self.end_time = self.attributes["end_time"] # end time of the data in file.
@@ -182,11 +241,13 @@ class Fiber(object):
 
         return self
 
-    def restrict_channels(self, ch0, chf):
+    def restrict_channels(self, ch0=None, chf=None):
         """Trims data in space, between ch0 and chf, a single channel is returned
         when ch0 = chf, updates all class attributes.
         """
         d_axis = self.__axis__("d")
+        ch0 = self.channels[0] if ch0 is None else ch0
+        chf = self.channels[-1] if chf is None else chf
         ch0, chf = int(min(ch0, chf)), int(max(ch0, chf))
         channels_list = self.channels.tolist()
         ch0, chf = channels_list.index(ch0), channels_list.index(chf)
@@ -279,6 +340,8 @@ class Fiber(object):
         """Save data of Fiber in a new file in its the original format. See
         :func:`~fobench.core.tools.file_io.write_data`.
         """
+        if self.__basefile__ is None:
+            raise ValueError("Writing requires a source file template; use to_xarray() to export array data")
         if isinstance(self.__basefile__, str):
             self.__basefile__ = file_io.scan_template(self.__basefile__, company=self.company, format=self.format, storage_opts=self.__storage_opts__)
 
@@ -291,7 +354,7 @@ class Fiber(object):
         """Modifies spatial sampling of the data by adding or removing channels.
         ``"upsampling"`` adds a channel between each channel pair by interpolating the values.
         ``"downsampling"`` removes every second channel.
-        See :func:`~fobench.core.tools.utils.spatial_upsampling` and .:func:`~fobench.core.tools.utils.spatial_downsampling`
+        See :func:`~fobench.core.tools.utils.spatial_upsampling` and :func:`~fobench.core.tools.utils.spatial_downsampling`
         """
         if rs_type in ["upsampling", "upsample"]:
             self.data, self.channels = utils.spatial_upsampling(self)
@@ -316,13 +379,18 @@ class Fiber(object):
         return self
 
     @utils._update_processing
-    def demean(self, dim="t"):
-        """Remove mean of signal along specified dimension.See :func:`~fiber.core.tools.signals.demean_signal`.
+    def demean(self, mode="mean", dim="t"):
+        """Remove mean or median of signal along specified dimension.
+        See :func:`~fiber.core.tools.signals.demean_signal`.
         """
         axis = self.__axis__(dim)
-        self.data = signals.demean_signal(self.data, axis=axis)
+        self.data = signals.demean_signal(self.data, mode=mode, axis=axis)
 
         return self
+
+    def remove_common_mode(self, mode="median"):
+        """Removes common mode using `'median'` or `'mean'`"""
+        return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
     def taper(self, alpha=0.05, dim="t", detaper=False):
@@ -547,9 +615,9 @@ class Fiber(object):
 
     """Plotting methods"""
 
-    def fx_plot(self, norm=False, vmin=None, vmax=None, order=1, nfft=None, figsize=None,
-                 show=True, cmap="viridis", results=False, file_name=None,
-                 where=None, plot_mode="pyqt", export=None,**kwargs):
+    def fx_plot(self, norm=False, mode="spectrum", vmin=None, vmax=None, order=1,
+                nfft=None, figsize=None, show=True, cmap="viridis", results=False,
+                file_name=None, where=None, plot_mode="pyqt", export=None,**kwargs):
         """Computes frequency-distance plot.
         See :func:`~fobench.core.tools.wavefield.frequency_content`,
         :func:`~fobench.core.plotting.plotting_mpl.mpl_fx_plot` and
@@ -558,7 +626,8 @@ class Fiber(object):
         axis = self.__axis__("t")
 
         fx, freqs =  wavefield.frequency_content(data=self.data, fs=self.sampling_rate,
-                                           order=order, nfft=nfft, norm=norm, axis=axis)
+                                           order=order, nfft=nfft, norm=norm, axis=axis,
+                                           mode=mode)
         p95 = np.percentile(fx, 95)
         if vmin is None: vmin = 0
         if vmax is None: vmax = p95
@@ -566,7 +635,8 @@ class Fiber(object):
             plot_pyqt.plot_2d_distance(distances=self.distances, channels=np.array(self.channels),
                               y_ticks=freqs, data=fx if axis else fx.T,
                               cmap=cmap, vmin=vmin, vmax=vmax, y_label="Frequency [Hz]",
-                              title="Frequency content", cbar_label=self.units,
+                              title="Frequency content",
+                              cbar_label=self.units if mode == "spectrum" else f"{self.units}²/Hz",
                               export=export, show=show)
         elif plot_mode == "mpl":
             plot.mpl_fx_plot(spec_matrix=np.rot90(fx) if axis else fx[::-1], freqs=freqs, x=self.channels,
@@ -666,9 +736,9 @@ class Fiber(object):
                         vmin=vmin, vmax=vmax, add_data=add_data, **kwargs)
 
     def channel_spectrogram(self, channel, norm=False, trace=False, figsize=None,
-                        cmap="viridis", file_name=None, freq_lim=None, results=False,
-                        plot_mode="pyqt", vmin=None, vmax=None, export=None, show=True,
-                        **kwargs):
+                        cmap="viridis", file_name=None, freq_lim=None, nfft=None,
+                        noverlap=None, nperseg=None, results=False, plot_mode="pyqt",
+                        vmin=None, vmax=None, export=None, show=True, **kwargs):
         """Computes and plots spectrogram for a ``"channel"``.
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
@@ -679,7 +749,8 @@ class Fiber(object):
         index = self.channels.tolist().index(channel)
         data = self.data[:, index]
         f, t, Sxx = signals.signal_spectrogram(data=data, sampling_rate=self.sampling_rate,
-                                         axis=axis, norm=norm)
+                                         axis=axis, norm=norm, nfft=nfft,
+                                         noverlap=noverlap, nperseg=nperseg)
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
             if vmin is None: vmin = 0
@@ -748,13 +819,13 @@ class Fiber(object):
         if results:
             return acf
 
-    def spatial_coherence(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
+    def spatial_similarity(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
                        vmax=None, export=None, show=True):
-        """Computes sptial coherence matrix.
-        See :func:`~fobench.core.tools.wavefield.spatial_coherence_matrix`
+        """Computes spatial similarity matrix.
+        See :func:`~fobench.core.tools.wavefield.similarity_matrix`
         """
         data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
-        coh = wavefield.spatial_coherence_matrix(data=data_input, max_lag=max_lag,
+        coh = wavefield.similarity_matrix(data=data_input, max_lag=max_lag,
                                            distances=self.distances,
                                            fs=self.sampling_rate,
                                            channels=self.channels,
