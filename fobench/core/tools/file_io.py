@@ -817,7 +817,7 @@ def write_data(Fiber, filepath=None, company=None):
         with tdms.TdmsWriter(filepath, mode="w") as w:
             w.write_segment(objects)
 
-    if (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
 
         pbar = tqdm(total=1, leave=True, desc="Saving in Sintela HDF5 file")
         dataset_path = "/Acquisition/Raw[0]/RawData"
@@ -867,7 +867,7 @@ def write_data(Fiber, filepath=None, company=None):
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
 
-    if (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon H5 files.
 
         pbar = tqdm(total=1, leave=True, desc='Saving in Aragon HDF5 file')
         template = __clone_template__(Fiber.__basefile__)
@@ -925,7 +925,7 @@ def write_data(Fiber, filepath=None, company=None):
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
 
-    if (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN H5 files.
 
         pbar = tqdm(total=1, leave=True, desc='Saving in ASN HDF5 file')
         template = __clone_template__(Fiber.__basefile__)
@@ -1013,6 +1013,9 @@ def write_data(Fiber, filepath=None, company=None):
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
+            
+    else:
+        raise ValueError(f"Writing format '{format}' for company '{company}' is not supported")
 
     pbar.update(1)
     pbar.set_description("File Saved ✓")

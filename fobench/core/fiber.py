@@ -280,10 +280,7 @@ class Fiber(object):
         :func:`~fobench.core.tools.file_io.write_data`.
         """
         if isinstance(self.__basefile__, str):
-            self.__basefile__ = file_io.scan_template(self.__basefile__,
-                                                      company=self.company,
-                                                      format=self.format,
-                                                      storage_opts=self.__storage_opts__)
+            self.__basefile__ = file_io.scan_template(self.__basefile__, company=self.company, format=self.format, storage_opts=self.__storage_opts__)
 
         file_io.write_data(self, filepath=save_path, company=self.company)
 
