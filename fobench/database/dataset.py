@@ -55,6 +55,7 @@ class Dataset(object):
         self.id = ""
         self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the curent Dataset.
         self.n_files = 0
+        self.size = 0.0 # size in storage of the total amount fo files in the dataset (GB)
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
         self.sensing = sensing # sensing target of the dataset.
         self.start_time = None
@@ -104,14 +105,21 @@ class Dataset(object):
             "pulse_width": None,
             "pulse_width_unit": "m",
             "comment": "",
-            "channel_groups": [],
-            "native_headers": {},
             
             # Fobench fields
             "company": "",
             "sensing": "",
             "time_stamp": "",
             "channel_offset": 0,
+            "n_files": 0,
+            "size": 0.0,
+            "size_unit": "GB",
+            
+            # back to FDSN
+            "channel_groups": [],
+            "native_headers": {},
+            
+            # back to FoBench
             "database_path": "",
             "database": None
         }
@@ -186,6 +194,7 @@ class Dataset(object):
         self.units = self.database["units"].iloc[0] if "units" in self.database.columns else None
         scale_factor = self.database["scale_factor"].iloc[0] if "scale_factor" in self.database.columns else None
         self.scale_factor = float(scale_factor) if scale_factor is not None and pd.notna(scale_factor) else None
+        self.size = float(self.database["file_size"].sum() / 1e9) if len(self.database) > 0 else 0.0
 
         return self
 
@@ -203,6 +212,9 @@ class Dataset(object):
         self.metadata["acquisition_sample_rate_unit"] = "Hz"
         self.metadata["gauge_length"] = self.gauge_length
         self.metadata["gauge_length_unit"] = "m"
+        self.metadata["n_files"] = self.n_files
+        self.metadata["size"] = self.size
+        self.metadata["size_unit"] = "GB"
         # self.metadata["unit_of_measure"] = self.units
         
         # units of measure
@@ -408,6 +420,7 @@ class Dataset(object):
 
         self.database = manager.df_time_filtering(df=self.database, range=time_range, include_overlaps=include_overlap)
         self.n_files = len(self.database)
+        self.size = float(self.database["file_size"].sum()) / 1e9 if "file_size" in self.database.columns else 0.0
 
         if self.n_files == 0:
 

@@ -108,15 +108,19 @@ class Interrogator(object):
 			"model": "",
 			"serial_number": "",
 			"firmware_version": "",
-			"acquisitions": [],
 			"comment": "",
    
 			# Fobench fields
+			"company": "",
 			"sensing": "",
 			"interrogator_path": "",
+			"n_datasets": 0,
+			"n_files": 0,
 			"earliest_usage": "",
 			"latest_usage": "",
-			"n_files": 0,
+
+			# back to FDSN
+			"acquisitions": [],
 		}
 
 		return metadata
@@ -139,6 +143,7 @@ class Interrogator(object):
   
 		# Initialise the Datasets
 		self.datasets = [Dataset(metadata_file=item) for item in meta_dict.get("acquisitions", [])]
+		self.n_datasets = len(self.datasets)
 
 		# Initialize the Datasets.
 		# if meta_dict["acquisition"]: # check Datasets.
@@ -158,7 +163,7 @@ class Interrogator(object):
 		self.__folder_path__ = self.metadata.get("interrogator_path") # central folder path of files.
 		self.id = self.metadata.get("interrogator_id")
 		self.sensing = self.metadata.get("sensing") or "das"
-		self.company = self.metadata["manufacturer"]
+		self.company = self.metadata.get("company") or self.metadata["manufacturer"]
 		self.n_files = self.metadata.get("n_files", 0)
 		start, end  = self.metadata.get("earliest_usage"), self.metadata.get("latest_usage")
 		self.earliest_usage = UTC(start) if start else None # earliest start date of meassurements with the interrogator.
@@ -173,7 +178,8 @@ class Interrogator(object):
 
 		# Fill values in metadata file
 		self.metadata["interrogator_id"] = self.id
-		self.metadata["manufacturer"] = self.company
+		self.metadata["manufacturer"] = {"michele": "silixa"}.get(self.company, self.company)
+		self.metadata["company"] = self.company
 		self.metadata["sensing"] = self.sensing
 		self.metadata["earliest_usage"] = (self.earliest_usage.isoformat() + "Z" if self.earliest_usage is not None else "")
 		self.metadata["latest_usage"] = (self.latest_usage.isoformat() + "Z" if self.latest_usage is not None else "")
@@ -183,6 +189,7 @@ class Interrogator(object):
 		# self.metadata["serial_number"] = 'NA'
 		# self.metadata["firmware_version"] = 'NA'
 		self.metadata["acquisitions"] = [data_set.metadata for data_set in self.datasets] # populate with metadata
+		self.metadata["n_datasets"] = self.n_datasets
 
 	def __metadates_2_isoformat__(self, reverse=False):
 		"""Define metadata structure for JSON. Transforms the dates of the ``Dataset``
@@ -463,7 +470,7 @@ class Interrogator(object):
 
 	'''Tools'''
 
-	def append_coord(self, n_ch, x_ch, y_ch, z_ch, system, ref, which="all", coord_date=None):
+	def append_coord(self, n_ch, x_ch, y_ch, z_ch=None, system="geographic", ref="WGS84", which="all", coord_date=None):
 		"""Attaches channel coordinates for later plotting. Takes 1D arrays of
 		channel number (n_ch), longitude and latitude (x_ch and y_ch) and elevation in m (z_ch).
 		"""
@@ -489,13 +496,6 @@ class Interrogator(object):
 		y_ch = y_ch[order]
 		z_ch = z_ch[order]
 
-		# now we split the coordinates wherever channel indices are discontinuous.
-		split_indices = np.where(np.diff(n_ch) > 1)[0] + 1
-		ch_sections = np.split(n_ch, split_indices)
-		x_sections = np.split(x_ch, split_indices)
-		y_sections = np.split(y_ch, split_indices)
-		z_sections = np.split(z_ch, split_indices)
-
 		coord_opts = {
 			"decimal": ("geographic", "degree"),
 			"geographic": ("geographic", "degree"),
@@ -513,10 +513,23 @@ class Interrogator(object):
 
 		for dataset in datasets:
 
-			invalid_channels = n_ch[(n_ch < 0) | (n_ch >= dataset.n_channels)]
+			# Keep only coordinates belonging to channels available in this Dataset.
+			valid = (n_ch >= 0) & (n_ch < dataset.n_channels)
 
-			if invalid_channels.size > 0:
-				raise ValueError(f"Some provided channels do not match channels in Dataset {dataset.id}.")
+			if not np.any(valid):
+				raise ValueError(f"No provided channels match channels in Dataset {dataset.id}.")
+
+			dataset_n_ch = n_ch[valid]
+			dataset_x_ch = x_ch[valid]
+			dataset_y_ch = y_ch[valid]
+			dataset_z_ch = z_ch[valid]
+
+			# Split the available coordinates at channel discontinuities.
+			split_indices = np.where(np.diff(dataset_n_ch) > 1)[0] + 1
+			ch_sections = np.split(dataset_n_ch, split_indices)
+			x_sections = np.split(dataset_x_ch, split_indices)
+			y_sections = np.split(dataset_y_ch, split_indices)
+			z_sections = np.split(dataset_z_ch, split_indices)
 
 			# preserving existing infrastructure references when replacing coordinates.
 			cable_id, fiber_id = "", ""
@@ -547,7 +560,7 @@ class Interrogator(object):
 		return self
 
 
-	def georeference(self, n_ch, x_ch, y_ch, z_ch, system="decimal", ref="WGS84", which="all", err=None, coord_date=None):
+	def georeference(self, n_ch, x_ch, y_ch, z_ch=None, system="decimal", ref="WGS84", which="all", err=None, coord_date=None):
 		"""Takes known channel locations, e.g. from tap tests and interpolates channel locations
 		inbetween, attaches new coordinates.
 		takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)

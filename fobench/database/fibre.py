@@ -13,6 +13,7 @@ Class ``Fibre`` for listing the infrastructure to use in ``Cable``
 import copy
 
 from . import manager as manager
+from .utils import utils
 
 
 
@@ -47,12 +48,12 @@ class Fibre(object):
 
         self.id = ""
         self.geometry = "linear"
-        self.mode = ""
+        self.mode = "" # single-mode, multi-mode, other
         self.refr_index = 1.468 # fibre refractive index
         self.length = None
         
         self.type = "standard"
-        self.refr_interval = None
+        self.refr_interval = None # just in case the type is engineered
         
         self.metadata = self.__json_metadata__()
         
@@ -146,6 +147,8 @@ class Fibre(object):
         
         self.metadata["fiber_type"] = self.type
         self.metadata["fiber_reflector_interval"] = self.refr_interval
+        
+        self.metadata["fiber_one_way_attenuation"] = utils.power_loss(self.mode, self.type, self.refr_interval) # calculations assuming some values for the moment.
         
         return self
 

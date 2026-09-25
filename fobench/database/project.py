@@ -65,6 +65,7 @@ class Project(object):
 		self.cables : list[Cable] = [] # list of cables used in the project
 		self.n_inters = len(self.inters)
 		self.n_cables = len(self.cables)
+		self.size = 0.0 # total storage size of the project taking into account all files (GB).
 		self.start_time = None
 		self.end_time = None
 
@@ -105,12 +106,18 @@ class Project(object):
 			"digital_object_identifier": "",
 			"purpose_of_data_collection": "",
 			"comment": "",
-			"interrogators": [],
-			"cables": [],
 
 			# Fobench fields
 			"start_time": "",
-			"end_time": ""
+			"end_time": "",
+			"size": 0.0,
+			"size_unit": "GB",
+			"n_inters": 0,
+			"n_cables": 0,
+
+			# back to DFSN
+			"cables": [],
+			"interrogators": [],
 		}
 
 		return metadata
@@ -129,6 +136,16 @@ class Project(object):
 		self.metadata["end_time"] = (self.end_time.isoformat() + "Z" if self.end_time is not None else "")
 		self.metadata["interrogators"] = [inter.metadata for inter in self.inters]
 		self.metadata["cables"] = [cable.metadata for cable in self.cables]
+		self.metadata["n_inters"] = self.n_inters
+		self.metadata["n_cables"] = self.n_cables
+		self.metadata["size"] = self.size
+		self.metadata["size_unit"] = "GB"
+
+		# use the first principal investigator as the point of contact to avoid redundancy.
+		principal = self.metadata["principal_investigator"][0]
+		self.metadata["point_of_contact"] = principal.get("name", "")
+		self.metadata["point_of_contact_email"] = principal.get("email", "")
+		self.metadata["point_of_contact_address"] = principal.get("address", "")
 
 
 	def __build_from_metafile__(self, json_file=None):
@@ -174,6 +191,7 @@ class Project(object):
 		self.start_time = UTC(self.metadata.get("start_time") or self.metadata["start_date"])
 		end_time = self.metadata.get("end_time") or self.metadata.get("end_date")
 		self.end_time = UTC(end_time) if end_time else None
+		self.size = float(self.metadata.get("size", 0.0))
 
 		return self
 
@@ -255,6 +273,11 @@ class Project(object):
 		self.start_time = min(start_time_list) if start_time_list else None
 		self.end_time = max(end_time_list) if end_time_list else None
 
+		self.size = 0.0
+		for inter in self.inters:
+			for dataset in inter.datasets:
+				self.size += dataset.size
+
 		# Cable and Fibre building does not scan measurement files.
 		for cable_index, cable in enumerate(self.cables):
 
@@ -266,6 +289,8 @@ class Project(object):
 
 			cable = self.cables[0]
 			fibre = cable.fibres[0]
+			x_coord, y_coord = [], []
+			all_geogr = True # checks if the coordinate system is geographics. Cable bounding box needs this.
 
 			for inter in self.inters:
 				for dataset in inter.datasets:
@@ -273,6 +298,20 @@ class Project(object):
 
 						channel_group["cable_id"] = cable.metadata["cable_id"]
 						channel_group["fiber_id"] = fibre.metadata["fiber_id"]
+    
+						if channel_group.get("coordinate_system") != "geographic":
+							
+							all_geogr = False
+							continue # lets not convert for the moment.
+
+						channels = channel_group["channels"]
+						x_coord.extend(channels["x_coordinates"])
+						y_coord.extend(channels["y_coordinates"])
+    
+			if all_geogr and x_coord and y_coord:
+				
+				cable.bounding_box = [float(min(y_coord)), float(max(y_coord)), float(min(x_coord)), float(max(x_coord))]
+				cable.metadata["cable_bounding_box"] = list(cable.bounding_box)
 
 		self.__fill_metadata__()
 		self.__built__ = True

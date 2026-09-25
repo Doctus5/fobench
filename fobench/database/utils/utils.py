@@ -121,3 +121,38 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 				return None # Calculation is interrupted for not fulfilling standards.
 
 	return np.array(new_ch).astype(int), np.array(new_x), np.array(new_y), np.array(new_z)
+
+
+def power_loss(mode:str = "single-mode", fibre_type:str = "standard", refr_interval:float = 0):
+	"""power_loss _summary_
+
+	Parameters
+	----------
+	fibre_type : str, optional
+		Type of fibre. Can be "standard" or "engineered", by default "standard"
+	refr_interval : float, optional
+		In case of engineered fibre, it sepcifies the spacing between engineered reflectors, by default 0
+
+	Returns
+	-------
+	loss : float
+		Total power loss per meter
+
+	"""
+
+	# secutiry checks
+	if mode not in ("single-mode","multi-mode"):
+		raise ValueError("mode must be 'single-mode' or 'multi-mode'")
+	if fibre_type not in ("standard","engineered"):
+		raise ValueError("fibre_type must be 'standard' or 'engineered'")
+	if fibre_type == "engineered" and (refr_interval <= 0 or refr_interval == None):
+		raise ValueError("refr_interval must be greater than 0")
+
+	loss = 2e-4 if mode == "single-mode" else 2.5e-3 # dB/m, loss of standard telecom fibre (single-mode or multi-mode)
+	eng_loss = 4.34e-4 # power loss of transmitted light due to engineered reflector
+
+	if fibre_type == "engineered":
+
+		loss += eng_loss/refr_interval
+
+	return loss

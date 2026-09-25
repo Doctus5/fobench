@@ -59,7 +59,7 @@ class Cable(object):
         self.start_time = None
         self.end_time = None
         self.model = ""
-        self.env = ""
+        self.env = "" # trench, conduit
         self.diameter = None
         self.fibres : list[Fibre] = [] # list of cables used in the project
         self.n_fibres = len(self.fibres)
@@ -102,14 +102,14 @@ class Cable(object):
             "cable_model": "",
             "cable_outside_diameter": None,
             "cable_outside_diameter_unit": "",
-            "fibers": [],
             "comment": "",
 
             # FoBench fields
+            "n_fibres": 0,
             "cable_length": None,
             "cable_layers": [],
             "cable_layers_length": [],
-            "n_fibres": 0
+            "fibers": [],
         }
 
         return metadata

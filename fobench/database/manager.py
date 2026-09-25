@@ -100,7 +100,7 @@ def files2database(files, company, storage_opts=None):
 
     N = len(files) # number of data files.
     filtered_keys = ["start_time", "end_time", "dt", "sampling_rate", "n_channels",
-                     "spatial_interval", "gauge_length", "channel_offset", "units", "scale_factor"] # attributes of interest for holding consistency.
+                     "spatial_interval", "gauge_length", "channel_offset", "units", "scale_factor", "file_size"] # attributes of interest for holding consistency.
     #filtered_keys = ["start_time", "end_time", "dt"] # attributes of interest for holding consistency.
 
     database = []
@@ -586,7 +586,7 @@ def fdsn_acqui_check(acqui):
         Acquisition metadata prepared for FDSN export.
     """
     
-    acqui_rev_fields = ["company", "sensing", "time_stamp", "channel_offset", "database_path", "database"]
+    acqui_rev_fields = ["company", "sensing", "time_stamp", "channel_offset", "database_path", "database", "n_files", "size", "size_unit"]
     required_acqui_fields = ["acquisition_id", "acquisition_start_time", "acquisition_end_time", "acquisition_sample_rate", "acquisition_sample_rate_unit",
                                 "gauge_length", "gauge_length_unit", "unit_of_measure", "number_of_channels", "spatial_sampling_interval", "spatial_sampling_interval_unit"]
     
@@ -639,7 +639,7 @@ def fdsn_inter_check(inter):
         Interrogator metadata prepared for FDSN export.
     """
     
-    inter_rev_fields = ["sensing", "interrogator_path", "earliest_usage", "latest_usage", "n_files"]
+    inter_rev_fields = ["sensing", "company", "interrogator_path", "earliest_usage", "latest_usage", "n_files", "n_datasets"]
     required_inter_fields = ["interrogator_id", "manufacturer", "model"]
     
     # VALIDATION PART -> Interrogator
@@ -698,8 +698,8 @@ def fdsn_proj_check(proj):
                             f"{missing_pi_fields}")
     
     # removing Project level fobench fields
-    proj.pop("start_time", None)
-    proj.pop("end_time", None)
+    for field in ("start_time", "end_time", "size", "size_unit", "n_cables", "n_inters"):
+        proj.pop(field, None)
 
     # to prevent empty optional values to reach the json format and making it invalid.
     for field in proj_rev_fields:
