@@ -80,6 +80,7 @@ class Fiber(object):
                         self.format, load_data=load_data, show_progress=show_progress, storage_opts=storage_opts)
 
         self.__basefile__ = self.attributes["basefile"] # changed to the structure of the file
+        self.file_size = self.attributes["file_size"]
         self.fiber = self.attributes["fiber"]
         self.properties = self.attributes["properties"] # all metadata of input file
         self.channels = self.attributes["channels"] # list of channels as array

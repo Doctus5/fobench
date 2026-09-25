@@ -10,6 +10,7 @@
 """
 
 # Necessary packes to read the file formats
+import os
 import nptdms as tdms
 import logging
 import copy
@@ -63,7 +64,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
         return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data,
                         show_progress=show_progress, storage_opts=storage_opts)
-
+    
+    file_size = os.path.getsize(filepath) if isinstance(filepath, (str, os.PathLike)) else filepath.size
     template = None
 
     if format == "tdms" and company == "silixa": # Silixa TDMS
@@ -445,7 +447,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             #     if data is None:
             #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
-            fiber = properties["Fibre Type"].decode("UTF-8")
+            fiber = properties.get("Fibre Type", b"").decode("UTF-8") or "standard"
             dt = float(properties["Sampletime"][0])
             sampling_rate = 1 / dt
             o_sampling_rate = properties["SamplingFrequency[Hz]"][0]
@@ -484,7 +486,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         "channel_offset",
         "data",
         "units",
-        "conv_factor"
+        "conv_factor",
+        "file_size"
         ]
 
     # coonvert the type of the data to floating, ready for processing
@@ -510,7 +513,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
                 channel_offset,
                 data,
                 units,
-                conv_factor
+                conv_factor,
+                file_size
                 ]
 
     attributes = dict(zip(attr_keys,attributes))
