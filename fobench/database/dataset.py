@@ -12,6 +12,7 @@ files part of a campaign. Can be continuous data in many files, and may have dis
 """
 
 import copy
+import numpy as np
 import pandas as pd
 from obspy.core import UTCDateTime as UTC
 
@@ -31,12 +32,12 @@ class Dataset(object):
     ``.copy()`` method before performing any processing or changes.
     """
 
-    def __init__(self, folder_path, company="silixa", sensing="das", database=None, metadata_file=None, storage_opts=None):
+    def __init__(self, folder_path=None, company="silixa", sensing="das", database=None, metadata_file=None, storage_opts=None):
         """
 
         Parameters
         ----------
-        filepath : str
+        folder_path : str
             Folder/complete path where the data file(s) are located.
         company : str
                 Manufacturer or the instrument that generates the data.
@@ -51,8 +52,10 @@ class Dataset(object):
         self.__storage_opts__ = storage_opts
 
         # This variable might be redundant with the variables in metadata. Check this to reduce memory!
+        self.id = ""
         self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the curent Dataset.
         self.n_files = 0
+        self.size = 0.0 # size in storage of the total amount fo files in the dataset (GB)
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
         self.sensing = sensing # sensing target of the dataset.
         self.start_time = None
@@ -61,6 +64,7 @@ class Dataset(object):
         self.dt = None
         self.gauge_length = None
         self.units = None #units of meassure.
+        self.scale_factor = None
         self.n_channels = None
         self.spatial_interval = None
         self.pulse_rate = None
@@ -83,71 +87,42 @@ class Dataset(object):
         """Define the metadata structure. Returns dict with the metadata parameters."""
 
         metadata = {
-                        "Attributes": {
-                            "acquisition_id": None,
-                            "interrogator_id": None,
-                            "acquisition_start_time": None,
-                            "acquisition_end_time": None,
-                            "acquisition_sample_rate": None,
-                            "acquisition_sample_rate_unit": "Hz",
-                            "time_stamp": None,
-                            "gauge_length": None,
-                            "gauge_length_unit": "meter",
-                            "unit_of_measure": None,
-                            "number_of_channels": None,
-                            "spatial_sampling_interval": None,
-                            "spatial_sampling_interval_unit": "meter",
-                            "pulse_rate": "NA",
-                            "pulse_rate_unit": "Hz",
-                            "pulse_width": None,
-                            "pulse_width_unit": "meter",
-                            "comment": "NA",
-                            "database_path": "NA"
-                        },
-                        "AttributeDefinitions": {
-                            "acquisition_id": "Unique identifier of the data acquisition, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash). One identifier per acquisition settings.",
-                            "interrogator_id": "Unique identifier of the interrogator unit used in this data acquisition. The acquisition_id must nest within this interrogator_id.",
-                            "acquisition_start_time": "Start time of this data acquisition in UTC.",
-                            "acquisition_end_time": "End time of this data acquisition in UTC. if data acquisition is still in operation, use a date in the future (e.g. 2999-01-01T00:00:00.000Z).",
-                            "acquisition_sample_rate": "The rate at which the interrogator provides output data.",
-                            "acquisition_sample_rate_unit": "Unit of acquisition sample rate.",
-                            "time_stamp": "time stamp length.",
-                            "gauge_length": "The averaging length along the fiber for a measurement, determined at experiment setup and used during acquisition.",
-                            "gauge_length_unit": "Unit of gauge length.",
-                            "unit_of_measure": "Unit of measure of archived data set. This may be the same unit as the Interrogator Unit of Measure if the data are raw.",
-                            "number_of_channels": "The total number of sampling points along the fiber as output from the interrogator, referred to as NumberOfLoci in PRODML.",
-                            "spatial_sampling_interval": "The channel spacing, or offset, between channels.",
-                            "spatial_sampling_interval_unit": "Unit of spatial sampling interval.",
-                            "pulse_rate": "Rate at which the interrogator unit interrogates the fiber sensor.",
-                            "pulse_rate_unit": "Unit of pulse rate.",
-                            "pulse_width": "Width of the pulse sent down the fiber in unit of time.",
-                            "pulse_width_unit": "Unit of pulse width.",
-                            "comment": "Additional comments.",
-                            "database_path": "Central path fot he files of the Databse"
-                        },
-                        "AttributeRequirements": {
-                            "acquisition_id": True,
-                            "interrogator_id": True,
-                            "acquisition_start_time": True,
-                            "acquisition_end_time": True,
-                            "acquisition_sample_rate": True,
-                            "acquisition_sample_rate_unit": True,
-                            "time_stamp": True,
-                            "gauge_length": True,
-                            "gauge_length_unit": True,
-                            "unit_of_measure": True,
-                            "number_of_channels": True,
-                            "spatial_sampling_interval": True,
-                            "spatial_sampling_interval_unit": True,
-                            "pulse_rate": False,
-                            "pulse_rate_unit": False,
-                            "pulse_width": False,
-                            "pulse_width_unit": False,
-                            "comment": False,
-                            "database_path": True,
-                        },
-                        "Database": None # DataFrame of parameters and location of files. Only for processing.
-                    }
+            # FDSN fields
+            "acquisition_id": "",
+            "acquisition_start_time": "",
+            "acquisition_end_time": "",
+            "acquisition_sample_rate": None,
+            "acquisition_sample_rate_unit": "Hz",
+            "gauge_length": None,
+            "gauge_length_unit": "m",
+            "unit_of_measure": "",
+            "scale_factor": None,
+            "number_of_channels": None,
+            "spatial_sampling_interval": None,
+            "spatial_sampling_interval_unit": "m",
+            "pulse_rate": None,
+            "pulse_rate_unit": "Hz",
+            "pulse_width": None,
+            "pulse_width_unit": "m",
+            "comment": "",
+            
+            # Fobench fields
+            "company": "",
+            "sensing": "",
+            "time_stamp": "",
+            "channel_offset": 0,
+            "n_files": 0,
+            "size": 0.0,
+            "size_unit": "GB",
+            
+            # back to FDSN
+            "channel_groups": [],
+            "native_headers": {},
+            
+            # back to FoBench
+            "database_path": "",
+            "database": None
+        }
 
         return metadata
 
@@ -164,7 +139,7 @@ class Dataset(object):
 
         """
 
-        self.metadata["Database"] = manager.metadates_2_isoformat(self.metadata["Database"], reverse=reverse)
+        self.metadata["database"] = manager.metadates_2_isoformat(self.metadata["database"], reverse=reverse)
 
         return self
 
@@ -186,11 +161,20 @@ class Dataset(object):
 
         # Initialize Database
         self.metadata = meta_dict
-        self.database = manager.init_dataframe(meta_dict["Database"]) # initialize the Dataframe of the database.
+        self.database = manager.init_dataframe(meta_dict["database"]) # initialize the Dataframe of the database.
+        self.id = self.metadata.get("acquisition_id", "")
         self.__database_to_attributes__()
 
         # Fill attributes
-        self.__filepath__ = meta_dict["Attributes"]["database_path"]
+        # FoBench fields
+        self.__filepath__ = meta_dict["database_path"]
+        self.units = self.metadata.get("unit_of_measure") or None # units of meassure.
+        self.pulse_rate = self.metadata.get("pulse_rate")
+        self.pulse_width = self.metadata.get("pulse_width")
+        self.company = self.metadata["company"]
+        self.sensing = self.metadata["sensing"]
+        if self.scale_factor is None:
+            self.scale_factor = self.metadata.get("scale_factor")
 
         return 0
 
@@ -204,12 +188,13 @@ class Dataset(object):
         self.sampling_rate = self.database["sampling_rate"].iloc[0]
         self.dt = self.database["dt"].iloc[0]
         self.gauge_length = self.database["gauge_length"].iloc[0]
-        self.units = None # units of meassure.
         self.n_channels = self.database["n_channels"].iloc[0]
         self.spatial_interval = self.database["spatial_interval"].iloc[0]
-        self.pulse_rate = None
-        self.pulse_width = None
         self.channel_offset = self.database["channel_offset"].iloc[0]
+        self.units = self.database["units"].iloc[0] if "units" in self.database.columns else None
+        scale_factor = self.database["scale_factor"].iloc[0] if "scale_factor" in self.database.columns else None
+        self.scale_factor = float(scale_factor) if scale_factor is not None and pd.notna(scale_factor) else None
+        self.size = float(self.database["file_size"].sum() / 1e9) if len(self.database) > 0 else 0.0
 
         return self
 
@@ -220,26 +205,64 @@ class Dataset(object):
 
         self.__database_to_attributes__()
 
-        self.metadata["Attributes"]["interrogator_id"] = None
-        self.metadata["Attributes"]["acquisition_start_time"] = self.start_time.isoformat()
-        self.metadata["Attributes"]["acquisition_end_time"] = self.end_time.isoformat()
-        self.metadata["Attributes"]["acquisition_sample_rate"] = self.sampling_rate
-        self.metadata["Attributes"]["acquisition_sample_rate_unit"] = "Hz"
-        self.metadata["Attributes"]["time_stamp"] = self.dt
-        self.metadata["Attributes"]["gauge_length"] = self.gauge_length
-        self.metadata["Attributes"]["gauge_length_unit"] = "meter"
-        self.metadata["Attributes"]["unit_of_measure"] = None
-        self.metadata["Attributes"]["number_of_channels"] = self.n_channels
-        self.metadata["Attributes"]["spatial_sampling_interval"] = self.spatial_interval
-        self.metadata["Attributes"]["spatial_sampling_interval_unit"] = "meter"
-        self.metadata["Attributes"]["pulse_rate"] = "NA"
-        self.metadata["Attributes"]["pulse_rate_unit"] = "Hz"
-        self.metadata["Attributes"]["pulse_width"] = self.pulse_width
-        self.metadata["Attributes"]["channel_offset"] = self.channel_offset
-        self.metadata["Attributes"]["pulse_width_unit"] = "meter"
-        self.metadata["Attributes"]["comment"] = "NA"
-        self.metadata["Attributes"]["database_path"] = self.__filepath__
-        self.metadata["Database"] = manager.metadates_2_isoformat(self.database, reverse=False).to_dict(orient="list")
+        self.metadata["acquisition_id"] = self.id
+        self.metadata["acquisition_start_time"] = self.start_time.isoformat() + "Z"
+        self.metadata["acquisition_end_time"] = self.end_time.isoformat() + "Z"
+        self.metadata["acquisition_sample_rate"] = self.sampling_rate
+        self.metadata["acquisition_sample_rate_unit"] = "Hz"
+        self.metadata["gauge_length"] = self.gauge_length
+        self.metadata["gauge_length_unit"] = "m"
+        self.metadata["n_files"] = self.n_files
+        self.metadata["size"] = self.size
+        self.metadata["size_unit"] = "GB"
+        # self.metadata["unit_of_measure"] = self.units
+        
+        # units of measure
+        fdsn_units = {
+            "counts": "count",
+            "count": "count",
+            "strain": "m/m",
+            "strain-rate": "m/m/s",
+            "m/s": "m/s",
+            "rad/s": "rad/s",
+            "rad/m/s": "rad/m/s"
+        }
+        fdsn_unit = fdsn_units.get(self.units)
+
+        if fdsn_unit is not None:
+            self.metadata["unit_of_measure"] = fdsn_unit
+        else:
+            # Preserve the exact original value without pretending it is FDSN-compatible.
+            self.metadata["unit_of_measure"] = self.units
+            self.metadata["native_headers"]["original_unit_of_measure"] = self.units
+            
+        # scale factor
+        if self.scale_factor is not None:
+            self.metadata["scale_factor"] = self.scale_factor  
+        else:
+            self.metadata.pop("scale_factor", None)
+        self.metadata["number_of_channels"] = self.n_channels
+        self.metadata["spatial_sampling_interval"] = self.spatial_interval
+        self.metadata["spatial_sampling_interval_unit"] = "m"
+        self.metadata["pulse_rate"] = None
+        self.metadata["pulse_rate_unit"] = "Hz"
+        self.metadata["pulse_width"] = self.pulse_width
+        self.metadata["pulse_width_unit"] = "m"
+        # self.metadata["comment"] = "NA"
+        
+
+        # Fobench fields
+        self.metadata["time_stamp"] = self.dt
+        self.metadata["company"] = self.company
+        self.metadata["sensing"] = self.sensing
+        self.metadata["channel_offset"] = self.channel_offset
+        self.metadata["database_path"] = self.__filepath__
+        self.metadata["database"] = manager.metadates_2_isoformat(self.database.copy(deep=False), reverse=False).to_dict(orient="list")
+
+        # inventory = self.database.to_dict(orient=list)
+        # for key in ("start_time", "end_time"):
+        #     inventory[key] = [value.isoformat() for value in inventory[key]]
+        # self.metadata["database"] = inventory
 
     """Public Functions"""
 
@@ -247,6 +270,83 @@ class Dataset(object):
         """Returns a deep copy of the class in the moment of execution."""
 
         return copy.deepcopy(self)
+    
+    
+    def add_ch_group(self, n_ch, cable_id="", fiber_id=""):
+        """Add the Channel Group metadata to the Dataset.
+
+        Parameters
+        ----------
+        n_ch : array-like
+            Channel indices belonging to this Channel Group.
+        cable_id : str, optional
+            Identifier of the associated Cable.
+        fiber_id : str, optional
+            Identifier of the associated Fibre.
+
+        Returns
+        -------
+        Dataset
+            Current Dataset with its Channel Group metadata.
+        """
+        
+        channels = np.asarray(n_ch, dtype=int)
+        distances = (channels - self.channel_offset) * self.spatial_interval
+        
+        ch_group_meta = {
+        # Mandatory Channel Group fields
+        "channel_group_id": str(len(self.metadata["channel_groups"])),
+        "cable_id": cable_id,
+        "fiber_id": fiber_id,
+        "coordinate_generation_date": "",
+        "coordinate_system": "",  # "geographic", "UTM", or "local"
+        "reference_frame": "",
+        "distance_along_fiber_unit": "m",
+        "x_coordinate_unit": "",
+        "y_coordinate_unit": "",
+
+        # Optional Channel Group fields
+        "location_method": "",
+        "uncertainty_in_x_coordinate": None,
+        "uncertainty_in_x_coordinate_unit": "",
+        "uncertainty_in_y_coordinate": None,
+        "uncertainty_in_y_coordinate_unit": "",
+        "elevation_above_sea_level_unit": "m",
+        "uncertainty_in_elevation": None,
+        "uncertainty_in_elevation_unit": "m",
+        "depth_below_surface_unit": "",
+        "uncertainty_in_depth": None,
+        "uncertainty_in_depth_unit": "m",
+        "strike_unit": "",
+        "uncertainty_in_strike": None,
+        "uncertainty_in_strike_unit": "",
+        "dip_unit": "",
+        "uncertainty_in_dip": None,
+        "uncertainty_in_dip_unit": "",
+        "first_usable_channel_id": channels[0],
+        "last_usable_channel_id": channels[-1],
+        "comment": "",
+
+        # Optional Channels block
+        "channels": {
+                # Mandatory when the Channels block is included
+                "channel_ids": channels,
+                "distances_along_fiber": distances,
+                "x_coordinates": [],
+                "y_coordinates": [],
+
+                # Optional channel arrays
+                "elevations_above_sea_level": [],
+                "depths_below_surface": [],
+                "strikes": [],
+                "dips": []
+            }
+        }
+    
+        self.metadata["channel_groups"].append(ch_group_meta)
+        
+        return self
+    
 
     def build(self, format=None, parallels=None):
         """Builds from a given metadata file.
@@ -283,6 +383,22 @@ class Dataset(object):
 
         return self
 
+
+    def update(self):
+        """Update Dataset attributes and metadata without scanning files.
+
+        Returns
+        -------
+        Dataset
+            Current updated Dataset.
+        """
+
+        self.__fill_metadata__()
+        self.__built__ = True
+
+        return self
+
+
     def trim(self, time_range: tuple, include_overlap : bool = True):
         """Trim the dataset based on date ranges.
         See :func:`~fobench.database.manager.df_time_filtering`.
@@ -304,6 +420,7 @@ class Dataset(object):
 
         self.database = manager.df_time_filtering(df=self.database, range=time_range, include_overlaps=include_overlap)
         self.n_files = len(self.database)
+        self.size = float(self.database["file_size"].sum()) / 1e9 if "file_size" in self.database.columns else 0.0
 
         if self.n_files == 0:
 

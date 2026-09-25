@@ -13,6 +13,8 @@ A ``Project`` is understood as a field campaing in an specific location where se
 
 import copy
 import pandas as pd
+import numpy as np
+from datetime import date
 from obspy.core import UTCDateTime as UTC
 
 from .dataset import Dataset
@@ -21,6 +23,7 @@ from .parallel import Parallel
 from . import manager as manager
 from .plotters import inter_plots as inter_plots
 from .utils.windowing import inter_windowing
+from .utils import utils
 
 
 
@@ -70,6 +73,7 @@ class Interrogator(object):
 		self.__storage_opts__ = storage_opts # credentials of S3 to look at the bucket
 
 		# Public attributes
+		self.id = ""
 		self.sensing = sensing
 		self.format = format
 		self.company = company
@@ -98,47 +102,26 @@ class Interrogator(object):
 		"""Defines the metadata structure and returns dictionary with metadata parameters."""
 
 		metadata = {
-					"Attributes": {
-						"interrogator_id": None,
-						"manufacturer": 'NA',
-						"sensing": 'NA',
-						"earliest_usage": None,
-						"latest_usage": None,
-						"n_files": 0,
-						"model": 'NA',
-						"serial_number": None,
-						"firmware_version": None,
-						"comment": None,
-						"interrogator_path": 'NA'
-						},
-					"AttributeDefinitions": {
-						"interrogator_id": "Unique identifier of the interrogator unit used in the experiment, assigned by data provider. Identifier should have a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
-						"manufacturer": "Manufacturer name of the unit.",
-						"sensing": 'Sensing technique of the unit. Determines the type of data.',
-						"earliest_usage": "Earliest date of the datasets obtained with this unit for the project.",
-						"latest_usage": "Latest date of the datasets obtained with this unit for the project.",
-						"n_files": "Total number of files produced by this unit.",
-						"model": "Model number of the interrogator.",
-						"serial_number": "Serial number of the interrogator.",
-						"firmware_version": "Firmware version of the software used within the interrogator.",
-						"comment": "Additional comments",
-						"interrogator_path": "Folder path of the files adquired with this interrogator or unit."
-						},
-					"AttributeRequirements": {
-						"interrogator_id": True,
-						"manufacturer": True,
-						"sensing": True,
-						"earliest_usage": True,
-						"latest_usage": True,
-						"n_files": True,
-						"model": True,
-						"serial_number": False,
-						"firmware_version": False,
-						"comment": False,
-						"interrogator_path": True
-						},
-					"Datasets": [] # list of metadata associated to datasets adquire at one interrogator unit.
-					}
+			# FDSN fields
+			"interrogator_id": "",
+			"manufacturer": "",
+			"model": "",
+			"serial_number": "",
+			"firmware_version": "",
+			"comment": "",
+   
+			# Fobench fields
+			"company": "",
+			"sensing": "",
+			"interrogator_path": "",
+			"n_datasets": 0,
+			"n_files": 0,
+			"earliest_usage": "",
+			"latest_usage": "",
+
+			# back to FDSN
+			"acquisitions": [],
+		}
 
 		return metadata
 
@@ -157,13 +140,17 @@ class Interrogator(object):
 		# Initialize/Fill the Interrogator attributes.
 		self.metadata = meta_dict
 		self.__metadata_to_attributes__()
+  
+		# Initialise the Datasets
+		self.datasets = [Dataset(metadata_file=item) for item in meta_dict.get("acquisitions", [])]
+		self.n_datasets = len(self.datasets)
 
 		# Initialize the Datasets.
-		if meta_dict['Datasets']: # check Datasets.
+		# if meta_dict["acquisition"]: # check Datasets.
 
-			for meta_dataset in meta_dict['Datasets']:
-				self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Interrogators. )
-			self.n_datasets = len(self.datasets)
+		# 	for meta_dataset in meta_dict["acquisition"]:
+		# 		self.add_dataset( Dataset(self, metadata_file=meta_dataset) ) # Initialize the Interrogators. )
+		# 	self.n_datasets = len(self.datasets)
 
 		return self
 
@@ -173,12 +160,14 @@ class Interrogator(object):
 		"""
 
 		# Fill values in attributes
-		self.__folder_path__ = self.metadata['Attributes']['interrogator_path'] # central folder path of files.
-		self.sensing = self.metadata['Attributes']['sensing']
-		self.company = self.metadata['Attributes']['manufacturer']
-		self.n_files = self.metadata['Attributes']['n_files']
-		self.earliest_usage = UTC(self.metadata['Attributes']['earliest_usage']) # earliest start date of meassurements with the interrogator.
-		self.latest_usage = UTC(self.metadata['Attributes']['latest_usage']) # latest end date of meassurements with the interrogator.
+		self.__folder_path__ = self.metadata.get("interrogator_path") # central folder path of files.
+		self.id = self.metadata.get("interrogator_id")
+		self.sensing = self.metadata.get("sensing") or "das"
+		self.company = self.metadata.get("company") or self.metadata["manufacturer"]
+		self.n_files = self.metadata.get("n_files", 0)
+		start, end  = self.metadata.get("earliest_usage"), self.metadata.get("latest_usage")
+		self.earliest_usage = UTC(start) if start else None # earliest start date of meassurements with the interrogator.
+		self.latest_usage = UTC(end) if end else None # latest end date of meassurements with the interrogator.
 
 		return self
 
@@ -188,17 +177,19 @@ class Interrogator(object):
 		"""
 
 		# Fill values in metadata file
-		self.metadata['Attributes']["interrogator_id"] = None
-		self.metadata['Attributes']["manufacturer"] = self.company
-		self.metadata['Attributes']["sensing"] = self.sensing
-		self.metadata['Attributes']["earliest_usage"] = self.earliest_usage.isoformat()
-		self.metadata['Attributes']["latest_usage"] = self.latest_usage.isoformat()
-		self.metadata['Attributes']["n_files"] = self.n_files
-		self.metadata['Attributes']["interrogator_path"] = self.__folder_path__
-		# self.metadata['Attributes']["model"] = 'NA'
-		# self.metadata['Attributes']["serial_number"] = 'NA'
-		# self.metadata['Attributes']["firmware_version"] = 'NA'
-		self.metadata['Datasets'] = [data_set.metadata for data_set in self.datasets] # populate with metadata
+		self.metadata["interrogator_id"] = self.id
+		self.metadata["manufacturer"] = {"michele": "silixa"}.get(self.company, self.company)
+		self.metadata["company"] = self.company
+		self.metadata["sensing"] = self.sensing
+		self.metadata["earliest_usage"] = (self.earliest_usage.isoformat() + "Z" if self.earliest_usage is not None else "")
+		self.metadata["latest_usage"] = (self.latest_usage.isoformat() + "Z" if self.latest_usage is not None else "")
+		self.metadata["n_files"] = self.n_files
+		self.metadata["interrogator_path"] = self.__folder_path__
+		# self.metadata["model"] = 'NA'
+		# self.metadata["serial_number"] = 'NA'
+		# self.metadata["firmware_version"] = 'NA'
+		self.metadata["acquisitions"] = [data_set.metadata for data_set in self.datasets] # populate with metadata
+		self.metadata["n_datasets"] = self.n_datasets
 
 	def __metadates_2_isoformat__(self, reverse=False):
 		"""Define metadata structure for JSON. Transforms the dates of the ``Dataset``
@@ -208,8 +199,8 @@ class Interrogator(object):
 		"""
 
 		if self.datasets:
-			for dataset_meta in self.metadata['Datasets']:
-				dataset_meta['Database'] = manager.metadates_2_isoformat(dataset_meta['Database'], reverse=reverse)
+			for dataset_meta in self.metadata["acquisition"]:
+				dataset_meta["Database"] = manager.metadates_2_isoformat(dataset_meta["Database"], reverse=reverse)
 
 		return self
 
@@ -271,8 +262,10 @@ class Interrogator(object):
 			earlier, later = [], []
 			self.n_files = 0 # reset the variable to start summing.
 
-			for dataset in self.datasets: # loop over existing datasets.
+			for dataset_index, dataset in enumerate(self.datasets): # loop over existing datasets.
 
+				dataset.id = str(dataset_index)
+				dataset.update() # asignin id's
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
 				self.n_files += dataset.n_files # adding to total number of files.
@@ -283,6 +276,107 @@ class Interrogator(object):
 
 		self.__fill_metadata__()
 		self.__built__ = True # its now built.
+
+		return self
+
+
+	def update(self):
+		"""Update Interrogator attributes and metadata without scanning files.
+
+		Returns
+		-------
+		Interrogator
+			Current updated Interrogator.
+		"""
+
+		self.n_files = 0
+		self.n_datasets = len(self.datasets)
+
+		for dataset_index, dataset in enumerate(self.datasets):
+      
+			dataset.id = str(dataset_index)
+
+			for group_index, channel_group in enumerate(dataset.metadata["channel_groups"]):
+       
+				channel_group["channel_group_id"] = str(group_index)
+
+			dataset.update()
+			self.n_files += dataset.n_files
+
+		if self.datasets:
+      
+			self.earliest_usage = min(dataset.start_time for dataset in self.datasets)
+			self.latest_usage = max(dataset.end_time for dataset in self.datasets)
+		else:
+      
+			self.earliest_usage = None
+			self.latest_usage = None
+
+		self.__fill_metadata__()
+		self.__built__ = True
+
+		return self
+
+
+	def merge_datasets(self, max_gap:float):
+		"""Merge consecutive compatible Datasets separated by short gaps.
+
+		Parameters
+		----------
+		max_gap : float
+			Maximum accepted interruption in seconds.
+
+		Returns
+		-------
+		Interrogator
+			Current Interrogator with its compatible Datasets merged.
+		"""
+		
+		# secutiry checks
+		if max_gap < 0:
+			raise ValueError("max_gap cannot be negative.")
+		if len(self.datasets) < 2: # no datasets to merge
+			return self
+    
+		# these are the constants that must always remain so Dataset can be merged.
+		constants = (
+			"sampling_rate",
+			"n_channels",
+			"spatial_interval",
+			"gauge_length",
+			"channel_offset",
+			"units",
+			"scale_factor",
+		)
+
+		groups = [[self.datasets[0]]]
+
+		# grouping adjacent compatible Datasets
+		for dataset in self.datasets[1:]:
+			
+			previous = groups[-1][-1]
+			gap = dataset.start_time - (previous.end_time + previous.dt)
+			condition = all([getattr(dataset, constant) == getattr(previous, constant) for constant in constants]) # all must be True.
+
+			if 0 <= gap <= max_gap and condition:
+				groups[-1].append(dataset)
+			else:
+				groups.append([dataset])
+    
+		# concatenate
+		merged_datasets = []
+		for group in groups:
+
+			dataset = group[0]
+   
+			if len(group) > 1:
+				
+				dataset.database = pd.concat([item.database for item in group], ignore_index=True)
+
+			merged_datasets.append(dataset)
+   
+		self.datasets = merged_datasets
+		self.update()
 
 		return self
 
@@ -370,6 +464,127 @@ class Interrogator(object):
 		else:
 			self.earliest_usage = None
 			self.latest_usage = None
+
+		return self
+
+
+	'''Tools'''
+
+	def append_coord(self, n_ch, x_ch, y_ch, z_ch=None, system="geographic", ref="WGS84", which="all", coord_date=None):
+		"""Attaches channel coordinates for later plotting. Takes 1D arrays of
+		channel number (n_ch), longitude and latitude (x_ch and y_ch) and elevation in m (z_ch).
+		"""
+
+		datasets = utils.select_datasets(self, which)
+
+		n_ch = np.asarray(n_ch, dtype=int)
+		x_ch = np.zeros_like(n_ch, dtype=float) if x_ch is None else np.asarray(x_ch)
+		y_ch = np.zeros_like(n_ch, dtype=float) if y_ch is None else np.asarray(y_ch)
+		z_ch = np.zeros_like(n_ch, dtype=float) if z_ch is None else np.asarray(z_ch)
+  
+		if not (n_ch.size == x_ch.size == y_ch.size == z_ch.size):
+			raise ValueError("Channel and coordinate arrays must have the same length.")
+		if n_ch.size == 0:
+			raise ValueError("At least one channel must be provided.")
+		if np.unique(n_ch).size != n_ch.size:
+			raise ValueError("Channel indices cannot contain duplicates.")
+
+		# sorting channels and coordinates together. Just in case.
+		order = np.argsort(n_ch)
+		n_ch = n_ch[order]
+		x_ch = x_ch[order]
+		y_ch = y_ch[order]
+		z_ch = z_ch[order]
+
+		coord_opts = {
+			"decimal": ("geographic", "degree"),
+			"geographic": ("geographic", "degree"),
+			"utm": ("UTM", "m"),
+			"local": ("local", "m")
+		}
+
+		system_key = system.lower()
+		if system_key not in coord_opts:
+			raise ValueError("system must be 'decimal', 'geographic', 'utm', or 'local'.")
+		coord_system, coord_unit = coord_opts[system_key]
+
+		if coord_date is None:
+			coord_date = date.today().isoformat()
+
+		for dataset in datasets:
+
+			# Keep only coordinates belonging to channels available in this Dataset.
+			valid = (n_ch >= 0) & (n_ch < dataset.n_channels)
+
+			if not np.any(valid):
+				raise ValueError(f"No provided channels match channels in Dataset {dataset.id}.")
+
+			dataset_n_ch = n_ch[valid]
+			dataset_x_ch = x_ch[valid]
+			dataset_y_ch = y_ch[valid]
+			dataset_z_ch = z_ch[valid]
+
+			# Split the available coordinates at channel discontinuities.
+			split_indices = np.where(np.diff(dataset_n_ch) > 1)[0] + 1
+			ch_sections = np.split(dataset_n_ch, split_indices)
+			x_sections = np.split(dataset_x_ch, split_indices)
+			y_sections = np.split(dataset_y_ch, split_indices)
+			z_sections = np.split(dataset_z_ch, split_indices)
+
+			# preserving existing infrastructure references when replacing coordinates.
+			cable_id, fiber_id = "", ""
+
+			if dataset.metadata["channel_groups"]:
+				cable_id, fiber_id = dataset.metadata["channel_groups"][0].get("cable_id", ""), dataset.metadata["channel_groups"][0].get("fiber_id", "")
+
+			dataset.metadata["channel_groups"] = []
+
+			# creating one Channel Group for every continuous channel section.
+			for ch_section, x_section, y_section, z_section in zip(ch_sections, x_sections, y_sections, z_sections):
+
+				dataset.add_ch_group(n_ch=ch_section, cable_id=cable_id, fiber_id=fiber_id)
+
+				channel_group = dataset.metadata["channel_groups"][-1]
+				channels = channel_group["channels"]
+
+				channels["x_coordinates"], channels["y_coordinates"] = x_section, y_section
+				channels["elevations_above_sea_level"] = z_section
+
+				channel_group["coordinate_generation_date"] = coord_date
+				channel_group["coordinate_system"] = coord_system
+				channel_group["x_coordinate_unit"], channel_group["y_coordinate_unit"] = coord_unit, coord_unit
+				channel_group["reference_frame"] = ref
+
+		self.metadata["acquisitions"] = [dataset.metadata for dataset in self.datasets]
+
+		return self
+
+
+	def georeference(self, n_ch, x_ch, y_ch, z_ch=None, system="decimal", ref="WGS84", which="all", err=None, coord_date=None):
+		"""Takes known channel locations, e.g. from tap tests and interpolates channel locations
+		inbetween, attaches new coordinates.
+		takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+		and elevation in m (z_ch), coordinate system can be for lon and lat can be "decimal" or "utm"
+		"err" is maximum accepted interpolation error between original metadata location and new interpolated
+		location
+		"""
+  
+		datasets = utils.select_datasets(self, which)
+
+		n_ch = np.asarray(n_ch)
+		x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
+		y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
+		z_ch = np.zeros(n_ch.size) if z_ch is None else z_ch
+
+		coords = None
+
+		for dataset in datasets:
+
+			coords = utils.interpolate_channels(n_ch, x_ch, y_ch, z_ch, system, err, dataset.spatial_interval)
+
+		if coords is not None:
+
+			self.append_coord(*coords, system=system, which=which, ref=ref, coord_date=coord_date)
 
 		return self
 

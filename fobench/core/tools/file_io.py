@@ -10,6 +10,7 @@
 """
 
 # Necessary packes to read the file formats
+import os
 import nptdms as tdms
 import logging
 import copy
@@ -63,7 +64,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
         return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data,
                         show_progress=show_progress, storage_opts=storage_opts)
-
+    
+    file_size = os.path.getsize(filepath) if isinstance(filepath, (str, os.PathLike)) else filepath.size
     template = None
 
     if format == "tdms" and company == "silixa": # Silixa TDMS
@@ -445,7 +447,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             #     if data is None:
             #         data = __data__(dataset, format, company, data_range)
             data = __data__(dataset, format, company, data_range) if load_data else None
-            fiber = properties["Fibre Type"].decode("UTF-8")
+            fiber = properties.get("Fibre Type", b"").decode("UTF-8") or "standard"
             dt = float(properties["Sampletime"][0])
             sampling_rate = 1 / dt
             o_sampling_rate = properties["SamplingFrequency[Hz]"][0]
@@ -484,7 +486,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         "channel_offset",
         "data",
         "units",
-        "conv_factor"
+        "conv_factor",
+        "file_size"
         ]
 
     # coonvert the type of the data to floating, ready for processing
@@ -510,7 +513,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
                 channel_offset,
                 data,
                 units,
-                conv_factor
+                conv_factor,
+                file_size
                 ]
 
     attributes = dict(zip(attr_keys,attributes))
@@ -813,7 +817,7 @@ def write_data(Fiber, filepath=None, company=None):
         with tdms.TdmsWriter(filepath, mode="w") as w:
             w.write_segment(objects)
 
-    if (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
 
         pbar = tqdm(total=1, leave=True, desc="Saving in Sintela HDF5 file")
         dataset_path = "/Acquisition/Raw[0]/RawData"
@@ -863,7 +867,7 @@ def write_data(Fiber, filepath=None, company=None):
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
 
-    if (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon H5 files.
 
         pbar = tqdm(total=1, leave=True, desc='Saving in Aragon HDF5 file')
         template = __clone_template__(Fiber.__basefile__)
@@ -921,7 +925,7 @@ def write_data(Fiber, filepath=None, company=None):
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
 
-    if (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN H5 files.
 
         pbar = tqdm(total=1, leave=True, desc='Saving in ASN HDF5 file')
         template = __clone_template__(Fiber.__basefile__)
@@ -1009,6 +1013,9 @@ def write_data(Fiber, filepath=None, company=None):
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
+            
+    else:
+        raise ValueError(f"Writing format '{format}' for company '{company}' is not supported")
 
     pbar.update(1)
     pbar.set_description("File Saved ✓")

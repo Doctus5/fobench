@@ -20,6 +20,7 @@ from obspy.core import UTCDateTime as UTC
 
 # Inner functions
 from .interrogator import Interrogator
+from .cable import Cable
 from . import manager as manager
 
 
@@ -61,7 +62,10 @@ class Project(object):
 		self.location = ""
 		self.country = ""
 		self.inters : list[Interrogator] = [] # list of interrogators used. Each one is an Interrogator class that contains Datasets class.
+		self.cables : list[Cable] = [] # list of cables used in the project
 		self.n_inters = len(self.inters)
+		self.n_cables = len(self.cables)
+		self.size = 0.0 # total storage size of the project taking into account all files (GB).
 		self.start_time = None
 		self.end_time = None
 
@@ -85,62 +89,36 @@ class Project(object):
 		"""Define the metadata structure. Returns dict with the metadata parameters."""
 
 		metadata = {
-					"Attributes": {
-						"network_code": "NA",
-						"location": "NA",
-						"country": "NA",
-						"principal_investigator_name": "NA",
-						"principal_investigator_email": "NA",
-						"principal_investigator_address": "NA",
-						"point_of_contact": "NA",
-						"point_of_contact_email": "NA",
-						"point_of_contact_address": "NA",
-						"start_date": "NA",
-						"end_date": "NA",
-						"funding_agency": "NA",
-						"project_number": "NA",
-						"digital_object_identifier": "NA",
-						"purpose_of_data_collection": "NA",
-						"comment": None
-						},
-					"AttributeDefinitions": {
-						"network_code": "Unique network name for the installation with a maximum of 8 alphanumeric characters with no special characters (e.g., underscores, period, dash).",
-						"location": "Name of the geographic location of the installation.",
-						"country": "Country where the installation is located. Use ISO 3166-1 alpha-3 three-letter country code.",
-						"principle_investigator_name": "Name of principal investigator (last name, first name) for the installation.",
-						"principle_investigator_email": "Email address of principal investigator.",
-						"principle_investigator_address": "Physical address and institution of principal investigator.",
-						"point_of_contact": "Point of contact (last name, first name) for the metadata.",
-						"point_of_contact_email": "Email address of point of contact.",
-						"point_of_contact_address": "Physical address and institution of point of contact.",
-						"start_date": "Start date of data collection at the installation in UTC.",
-						"end_date": "End date of data collection at the installation in UTC. If installation is still in operation, use a future date (e.g. 2999-01-01).",
-						"funding_agency": "Name(s) of agency that funded the experiment.",
-						"project_number": "Funding project number. Should be supplied if a number has been assigned by funding agency(s).",
-						"digital_object_identifier": "Digital Object Identifier that uniquely identifies the metadata, this identifier may only become available following archiving.",
-						"purpose_of_data_collection": "Brief explanation of the purpose of the experiment.",
-						"comment": "Additional comments."
-						},
-					"AttributeRequirements": {
-						"network_code": True,
-						"location": True,
-						"country": True,
-						"principle_investigator_name": True,
-						"principle_investigator_email": True,
-						"principle_investigator_address": True,
-						"point_of_contact": True,
-						"point_of_contact_email": True,
-						"point_of_contact_address": True,
-						"start_date": True,
-						"end_date": True,
-						"funding_agency": True,
-						"project_number": True,
-						"digital_object_identifier": True,
-						"purpose_of_data_collection": True,
-						"comment": False
-						},
-					"Interrogator": []
-					}
+			# FDSN fields
+			"schema":"https://www.fdsn.org/schemas/DAS-Metadata-FDSN/2.0",
+			"schema_version": "2.0",
+			"network_code": "",
+			"location": "",
+			"country": "", # string
+			"principal_investigator": [{"name":"", "email":"", "address":""}],
+			"point_of_contact": "",
+			"point_of_contact_email": "",
+			"point_of_contact_address": "",
+			"start_date": "", # string
+			"end_date": "", # string
+			"funding_agency": "",
+			"project_number": "",
+			"digital_object_identifier": "",
+			"purpose_of_data_collection": "",
+			"comment": "",
+
+			# Fobench fields
+			"start_time": "",
+			"end_time": "",
+			"size": 0.0,
+			"size_unit": "GB",
+			"n_inters": 0,
+			"n_cables": 0,
+
+			# back to DFSN
+			"cables": [],
+			"interrogators": [],
+		}
 
 		return metadata
 
@@ -149,16 +127,25 @@ class Project(object):
 		Returns dictionary with metadata parameters.
 		"""
 
-		# Fill values in metadata file
-		# self.metadata['Attributes']["model"] = 'NA'
-		# self.metadata['Attributes']["serial_number"] = 'NA'
-		# self.metadata['Attributes']["firmware_version"] = 'NA'
-		self.metadata['Interrogator'] = [inter.metadata for inter in self.inters] # populate with metadata
-		self.metadata["Attributes"]["network_code"] = self.network_code
-		self.metadata["Attributes"]["location"] = self.location
-		self.metadata["Attributes"]["country"] = self.country
-		self.metadata["Attributes"]["start_date"] = self.start_time.isoformat()
-		self.metadata["Attributes"]["end_date"] = self.end_time.isoformat()
+		self.metadata["network_code"] = self.network_code
+		self.metadata["location"] = self.location
+		self.metadata["country"] = self.country
+		self.metadata["start_date"] = self.start_time.date.isoformat()
+		self.metadata["start_time"] = self.start_time.isoformat() + "Z"
+		self.metadata["end_date"] = (self.end_time.date.isoformat() if self.end_time is not None else "")
+		self.metadata["end_time"] = (self.end_time.isoformat() + "Z" if self.end_time is not None else "")
+		self.metadata["interrogators"] = [inter.metadata for inter in self.inters]
+		self.metadata["cables"] = [cable.metadata for cable in self.cables]
+		self.metadata["n_inters"] = self.n_inters
+		self.metadata["n_cables"] = self.n_cables
+		self.metadata["size"] = self.size
+		self.metadata["size_unit"] = "GB"
+
+		# use the first principal investigator as the point of contact to avoid redundancy.
+		principal = self.metadata["principal_investigator"][0]
+		self.metadata["point_of_contact"] = principal.get("name", "")
+		self.metadata["point_of_contact_email"] = principal.get("email", "")
+		self.metadata["point_of_contact_address"] = principal.get("address", "")
 
 
 	def __build_from_metafile__(self, json_file=None):
@@ -169,19 +156,26 @@ class Project(object):
 		# Check if just the path of the metadata is being indicated.
 		if isinstance(json_file, str):
 			meta_dict = manager.open_metadatafile(json_file)
-
-		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+		elif isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
 			meta_dict = json_file
+		else:
+			raise TypeError("metadata_file must be a path string or dictionary")
 
 		self.metadata = meta_dict
 		self.__metadata_to_attributes__()
 
-		if meta_dict['Interrogator']:
-			for mes_inter in meta_dict['Interrogator']:
-				ind_inter = Interrogator(self, metadata_file=mes_inter) # Initialize the Interrogators.
-				self.add_inter(ind_inter)
+		# Initialise the Interrogators
+		self.inters = [Interrogator(metadata_file=item) for item in meta_dict.get("interrogators", [])]
+		# Initialise the Cables
+		self.cables = [Cable(metadata_file=item) for item in meta_dict.get("cables", [])]
+
+		# if meta_dict['interrogators']:
+		# 	for mes_inter in meta_dict['interrogators']:
+		# 		ind_inter = Interrogator(self, metadata_file=mes_inter) # Initialize the Interrogators.
+		# 		self.add_inter(ind_inter)
 
 		self.n_inters = len(self.inters)
+		self.n_cables = len(self.cables)
 
 		return self
 
@@ -191,11 +185,13 @@ class Project(object):
 
 		# Fill values in attributes
 		# self.__folder_path__ = self.metadata['Attributes']['interrogator_path']
-		self.network_code = self.metadata["Attributes"]["network_code"]
-		self.location = self.metadata["Attributes"]["location"]
-		self.country = self.metadata["Attributes"]["country"]
-		self.start_time = UTC(self.metadata["Attributes"]["start_date"])
-		self.end_time = UTC(self.metadata["Attributes"]["end_date"])
+		self.network_code = self.metadata["network_code"]
+		self.location = self.metadata["location"]
+		self.country = self.metadata.get("country") or ""
+		self.start_time = UTC(self.metadata.get("start_time") or self.metadata["start_date"])
+		end_time = self.metadata.get("end_time") or self.metadata.get("end_date")
+		self.end_time = UTC(end_time) if end_time else None
+		self.size = float(self.metadata.get("size", 0.0))
 
 		return self
 
@@ -214,6 +210,16 @@ class Project(object):
 
 		return self
 
+
+	def add_cable(self, cable: Cable):
+		"""Add ``Cable`` class to the project. One needs to fill out the parameters"""
+
+		self.cables.append(cable)
+		self.n_cables = len(self.cables)
+
+		return self
+
+
 	def build(self, parallels=None):
 		"""Builds the ``Project`` object and parameters. Builds from a given metadata file.
 
@@ -229,22 +235,114 @@ class Project(object):
 
 		"""
 
-		start_time_list, end_time_list = [], []
-
-		for inter in self.inters:
-
+		for inter_index, inter in enumerate(self.inters):
+			
+			inter.id = str(inter_index)
 			inter.build(parallels=parallels)
-			start_time_list.append(inter.earliest_usage)
-			end_time_list.append(inter.latest_usage)
 
-		self.start_time, self.end_time = min(start_time_list), max(end_time_list)
+		self.update()
+
+		return self
+
+
+	def update(self):
+		"""Update Project metadata without scanning data files.
+
+		This method uses the Datasets and file databases already stored in the
+		Project. It updates time ranges, Cable and Fibre metadata, automatic
+		Channel Groups, and the final Project metadata dictionary.
+
+		Returns
+		-------
+		Project
+			Current updated Project.
+		"""
+
+		self.n_inters = len(self.inters)
+		self.n_cables = len(self.cables)
+
+		# update all existing Datasets and Interrogators without scanning.
+		for inter_index, inter in enumerate(self.inters):
+      
+			inter.id = str(inter_index)
+			inter.update()
+
+		start_time_list = [inter.earliest_usage for inter in self.inters if inter.earliest_usage is not None]
+		end_time_list = [inter.latest_usage for inter in self.inters if inter.latest_usage is not None]
+
+		self.start_time = min(start_time_list) if start_time_list else None
+		self.end_time = max(end_time_list) if end_time_list else None
+
+		self.size = 0.0
+		for inter in self.inters:
+			for dataset in inter.datasets:
+				self.size += dataset.size
+
+		# Cable and Fibre building does not scan measurement files.
+		for cable_index, cable in enumerate(self.cables):
+
+			cable.id = str(cable_index)
+			cable.build()
+
+		# linking existing Channel Groups to the single Cable and Fibre.
+		if len(self.cables) == 1 and len(self.cables[0].fibres) == 1:
+
+			cable = self.cables[0]
+			fibre = cable.fibres[0]
+			x_coord, y_coord = [], []
+			all_geogr = True # checks if the coordinate system is geographics. Cable bounding box needs this.
+
+			for inter in self.inters:
+				for dataset in inter.datasets:
+					for channel_group in dataset.metadata["channel_groups"]:
+
+						channel_group["cable_id"] = cable.metadata["cable_id"]
+						channel_group["fiber_id"] = fibre.metadata["fiber_id"]
+    
+						if channel_group.get("coordinate_system") != "geographic":
+							
+							all_geogr = False
+							continue # lets not convert for the moment.
+
+						channels = channel_group["channels"]
+						x_coord.extend(channels["x_coordinates"])
+						y_coord.extend(channels["y_coordinates"])
+    
+			if all_geogr and x_coord and y_coord:
+				
+				cable.bounding_box = [float(min(y_coord)), float(max(y_coord)), float(min(x_coord)), float(max(x_coord))]
+				cable.metadata["cable_bounding_box"] = list(cable.bounding_box)
 
 		self.__fill_metadata__()
 		self.__built__ = True
 
 		return self
 
-	def save_metadata(self, filename : str = 'project_meta.json'):
+
+	def merge_datasets(self, max_gap:float):
+		"""Merge compatible Datasets within every Interrogator.
+
+		Parameters
+		----------
+		max_gap : float
+			Maximum accepted interruption in seconds.
+
+		Returns
+		-------
+		Project
+			Current Project with compatible Datasets merged.
+		"""
+
+		for inter in self.inters:
+    
+			inter.merge_datasets(max_gap=max_gap)
+
+		self.__fill_metadata__()
+
+		return self
+
+
+	def save_metadata(self, filename : str = "project_meta.json", format : str = "fobench"):
 		"""Saves the metadata file for future usage and toin order to having to
 		build the project again.
 
@@ -254,12 +352,14 @@ class Project(object):
 			File name with complete path and format of the metadata file.
 			If not given, Default = 'project_meta.json', which means it is saved
 			in the local folder of code execution.
+		format : str
+			Format of the metadata file. If not given, Default = "fobench" is used, and useful for fobench utilities (recommended).
+			Option "fdsn" gives the current standard fields required by FDSN. Useful for staying within the standard format, 
+			but throws out filepaths necessary to keep track of the databases.
 
 		Returns
 		-------
 		None
 		"""
 
-		with open(filename, 'w') as file:
-			dump_metadata = manager.convert_types(self.metadata)
-			json.dump(dump_metadata, file, indent=4)
+		manager.dump_metadatafile(meta=self.metadata, filename=filename, format=format)

@@ -139,6 +139,7 @@ class Fiber(object):
     def _initialize(self, sensing):
         """Populate shared state from file or array attributes."""
         self.__basefile__ = self.attributes["basefile"] # changed to the structure of the file
+        self.file_size = self.attributes["file_size"]
         self.fiber = self.attributes["fiber"]
         self.properties = self.attributes["properties"] # all metadata of input file
         self.channels = self.attributes["channels"] # list of channels as array
@@ -159,7 +160,7 @@ class Fiber(object):
         self.units = self.attributes["units"]
         self.conv_factor = self.attributes["conv_factor"] # Extra variables (ONLY FOR ASN HDF5)
         self.processing = [{"instance creation" : UTC.utcnow().ctime()}]
-        self.distances = (self.channels + self.channel_offset) * self.spatial_interval
+        self.distances = (self.channels - self.channel_offset) * self.spatial_interval
 
         self.ch_coord = None # coordinates of channels, requires more input ot be filled
 
@@ -206,15 +207,17 @@ class Fiber(object):
 
         return copy.deepcopy(self)
 
-    def instr_correct(self, target="strain-rate", terra15_gl=None):
+    def instr_correct(self, target="strain-rate", terra15_gl=None, return_factor=False):
         """Performs instrument correction and data conversion for various instrument types.
         See :func:`~fobench.core.utils.instr_corr`."""
-        if self.__basefile__ is None:
-            raise ValueError("Instrument correction requires manufacturer metadata from a file")
+        
+        if return_factor:
+            return utils.instr_corr(data=None, attributes=vars(self), target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"), return_factor=return_factor)
+        
         if not self.corrected:
             (self.data, self.units, self.channels,
             self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
-                                    target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"))
+                                    target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"), return_factor=return_factor)
             # self.distances = [(num + self.channel_offset) * self.spatial_interval for num in self.channels]
             self.corrected = True
             return self
@@ -340,10 +343,7 @@ class Fiber(object):
         if self.__basefile__ is None:
             raise ValueError("Writing requires a source file template; use to_xarray() to export array data")
         if isinstance(self.__basefile__, str):
-            self.__basefile__ = file_io.scan_template(self.__basefile__,
-                                                      company=self.company,
-                                                      format=self.format,
-                                                      storage_opts=self.__storage_opts__)
+            self.__basefile__ = file_io.scan_template(self.__basefile__, company=self.company, format=self.format, storage_opts=self.__storage_opts__)
 
         file_io.write_data(self, filepath=save_path, company=self.company)
 
@@ -449,7 +449,7 @@ class Fiber(object):
             self.data = filters.decimate(data=self.data, factor=factor, f_type=f_type, axis=axis)
             self.spatial_interval *=  factor
             self.channels = self.channels[::factor]
-            self.distances = (self.channels -self.channel_offset) * self.spatial_interval
+            self.distances = (self.channels - self.channel_offset) * self.spatial_interval
             self.n_channels = len(self.channels)
 
         return self

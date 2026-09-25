@@ -109,7 +109,7 @@ def _update_processing(func):
 	return wrapper
 
 def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "strain-rate",
-				terra15_gl: float = None, axis: int = 0) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
+				terra15_gl: float = None, axis: int = 0, return_factor : bool = False) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
 	"""Performs instrument correction and data conversion for various instrument types
 
 	Parameters
@@ -125,6 +125,8 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 		If not specified, original gauge length from Fiber.gauge_length is taken.
 	axis : int, optional
 		Axis to where the change must be applied (important just for terra15)
+	return_factor : bool
+		If True, only the factor will be returned. Default is False
 
 	Returns
 	-------
@@ -148,37 +150,47 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
 			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain-rate per counts.
+			if return_factor is True:
+				return factor
 			data = np.multiply(data, factor)
 
 	elif (format == "h5" or format == "hdf5") and company == "terra15": # Terra15 HDF5
 		if units == "m/s" and target == "strain-rate":
-			gl = attributes["gauge_length"] if terra15_gl is None else terra15_gl
-			gauge_samples = int(round(gl / attributes["spatial_interval"]))
+			gauge_L = attributes["gauge_length"] if terra15_gl is None else terra15_gl
+			gauge_samples = int(round(gauge_L / attributes["spatial_interval"]))
 			gauge_samples = 1 if gauge_samples < 1 else gauge_samples
-			gl = gauge_samples * attributes["spatial_interval"]
-			print(f"\n⚠️ Applying the nearest possible gauge length: {gl}m")
-			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gl if axis == 1 else (data[gauge_samples:, :] - data[:-gauge_samples, :]) / gl
+			gauge_L = gauge_samples * attributes["spatial_interval"]
+			print(f"\n⚠️ Applying the nearest possible gauge length: {gauge_L}m")
+			factor = 1
+			if return_factor is True:
+				return factor
+			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gauge_L if axis == 1 else (data[gauge_samples:, :] - data[:-gauge_samples, :]) / gauge_L
 			n_left = gauge_samples // 2
 			n_right = gauge_samples - n_left
 			if gauge_samples != 0:
 				attributes["channels"] = attributes["channels"][n_left:-n_right]
 				attributes["distances"] = attributes["distances"][n_left:-n_right]
 				attributes["n_channels"] = attributes["channels"].size
-			attributes["gauge_length"] = gl
+			attributes["gauge_length"] = gauge_L
 		else:
 			print("\n⚠️ Data not in velocity units, doing nothing ...")
 
 	elif (format == "h5"	 or format == "hdf5"	) and company == "asn": # ASN OptoDAS HDF5 (It can be a bit more complex, so I"	m trying to make it simple!)
 		if units == "rad/(strain*m)" and target == "strain-rate":
-			data = data / attributes["conv_factor"] # divide by sensitivities. It seems they already provide the conversion factor
+			factor = 1 / attributes["conv_factor"]
+			if return_factor is True:
+				return factor
+			data = data * factor # divide by sensitivities. It seems they already provide the conversion factor
 
-	elif (format == "h5" or format == "hdf5") and company == "quantx": # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
+	elif (format == "h5" or format == "hdf5") and company == "optasense": # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
 		if target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
 			digital_N = int(attributes["units"][-4]) ** int(attributes["units"][-2:]) # magic number linked to the digitalization of the data. why not 2**ints
 			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
+			if return_factor is True:
+				return factor
 			data = np.multiply(data,factor)
 
 	# ####################################################
@@ -188,6 +200,8 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 	elif format == "npz" and company == "bam": # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 		if units == "counts" and target == "strain":
 			factor = 1E-6 / 18.4 # strain per count (WEIRD!)
+			if return_factor is True:
+				return factor
 			data = np.multiply(data,factor)
 
 	elif (format == "h5" or format == "hdf5") and company == "michele": # Michelle HDF5 decimated from Silixa
@@ -197,7 +211,12 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
 			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
+			if return_factor is True:
+				return factor
 			data = np.multiply(data,factor)
+
+	if return_factor:
+		return None # return none if there is no factor
 
 	return data, target, attributes['channels'], attributes['n_channels'], attributes['gauge_length'], attributes['distances']
 
