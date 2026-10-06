@@ -107,6 +107,7 @@ class Cable(object):
             # FoBench fields
             "n_fibres": 0,
             "cable_length": None,
+            "cable_length_unit": "m",
             "cable_layers": [],
             "cable_layers_length": [],
             "fibers": [],
