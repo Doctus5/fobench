@@ -24,6 +24,7 @@ setup(
     description='A toolbox for basic signal processing of fibre optic sensing data, and data/file management.',
     version = '1.0.0',
     packages = find_packages(),
+    package_data = {"fobench.core": ["io_templates/*.pkl"]},
     install_requires = [
         # Here goes the dependencies !!
         'numpy<2.0.0', # we can check later why is not working with upper versions of numpy. Conflict with other packages. Which one?

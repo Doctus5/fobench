@@ -748,7 +748,7 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
 
 """Methods for writing in original format"""
 
-def write_data(Fiber, filepath=None, company=None, template=None):
+def write_data(Fiber, filepath=None, company=None, format=None, template=None):
     """Manages saving of data in the original format as it was written from the manufacturer.
     Check format and company available (format, company) from read_data() function.
     "We can possibly try to give options to save in another format but it will
@@ -776,7 +776,7 @@ def write_data(Fiber, filepath=None, company=None, template=None):
     if filepath is None:
         raise ValueError("filepath is required")
 
-    format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
+    # format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
     
     source_template = Fiber.__basefile__ if template is None else template
 
@@ -1115,7 +1115,7 @@ def write_as(Fiber, filepath=None, company=None):
         
         template = pkl.load(handler)
 
-    write_data(Fiber, filepath=filepath, company=company, template=template)
+    write_data(Fiber, filepath=filepath, company=company, format=template_format, template=template)
     
 
 """H5/HDF5 explorers, templates, internals and writers"""

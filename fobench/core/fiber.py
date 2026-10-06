@@ -336,7 +336,7 @@ class Fiber(object):
         return utils.to_xarray(self, name, use_distance)
 
 
-    def write(self, save_path=""):
+    def write(self, save_path="", company=None):
         """Save data of Fiber in a new file in its the original format. See
         :func:`~fobench.core.tools.file_io.write_data`.
         """
@@ -345,7 +345,11 @@ class Fiber(object):
         if isinstance(self.__basefile__, str):
             self.__basefile__ = file_io.scan_template(self.__basefile__, company=self.company, format=self.format, storage_opts=self.__storage_opts__)
 
-        file_io.write_data(self, filepath=save_path, company=self.company)
+        # filename =
+        i_company, o_company = self.company, company
+        i_format, o_format = self.format, save_path
+
+        file_io.write_as(self, filepath=save_path, company=o_company)
 
     """Signal Processing methods"""
 
