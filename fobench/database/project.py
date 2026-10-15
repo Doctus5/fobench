@@ -282,6 +282,38 @@ class Project(object):
 		for cable_index, cable in enumerate(self.cables):
 
 			cable.id = str(cable_index)
+
+			# we estimate fibre and cable lengths for a single linear optical path.
+			if len(self.cables) == 1 and len(self.cables[0].fibres) == 1:
+
+				cable = self.cables[0]
+				fibre = cable.fibres[0]
+				length_estimates = []
+
+				for inter in self.inters:
+					for dataset in inter.datasets:
+
+						if dataset.n_channels is None or dataset.spatial_interval is None or dataset.channel_offset is None:
+							continue
+
+						fiber_length = (dataset.n_channels - 1) * dataset.spatial_interval
+						cable_length = (dataset.n_channels - 1 - dataset.channel_offset) * dataset.spatial_interval
+
+						if fiber_length > 0 and cable_length > 0:
+							length_estimates.append((fiber_length, cable_length))
+
+				if length_estimates:
+
+					# the longest measurement avoids using truncated acquisitions.
+					fiber_length, cable_length = max(length_estimates, key=lambda lengths: lengths[0])
+
+					# to not replace values supplied manually by the user.
+					if fibre.length is None:
+						fibre.length = float(fiber_length)
+
+					if cable.length is None:
+						cable.length = float(cable_length)			
+
 			cable.build()
 
 		# linking existing Channel Groups to the single Cable and Fibre.

@@ -19,6 +19,7 @@ log_manager.set_level(logging.ERROR)
 import h5py as h5
 import numpy as np
 from tqdm import tqdm
+import pickle as pkl
 
 from obspy.core import UTCDateTime as UTC
 
@@ -747,7 +748,7 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
 
 """Methods for writing in original format"""
 
-def write_data(Fiber, filepath=None, company=None):
+def write_data(Fiber, filepath=None, company=None, format=None, template=None):
     """Manages saving of data in the original format as it was written from the manufacturer.
     Check format and company available (format, company) from read_data() function.
     "We can possibly try to give options to save in another format but it will
@@ -762,6 +763,8 @@ def write_data(Fiber, filepath=None, company=None):
         "path/where/to/save/file.h5".
     company : str, optional
         Manufacturer or the instrument that generates the data.
+    template : pickle
+        Dictionary template object from where to dump the data.
 
     Raises
     ------
@@ -773,12 +776,14 @@ def write_data(Fiber, filepath=None, company=None):
     if filepath is None:
         raise ValueError("filepath is required")
 
-    format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
+    # format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
+    
+    source_template = Fiber.__basefile__ if template is None else template
 
     if format == "tdms" and company == "silixa": # Silixa TDMS
 
         pbar = tqdm(total=1, leave=True, desc="Saving in Silixa TDMS file")
-        template = __clone_template__(Fiber.__basefile__)
+        template = __clone_template__(source_template)
         root_properties = dict(template["root_properties"])
 
         # Resolve TDMS group/channels from template structure
@@ -823,7 +828,7 @@ def write_data(Fiber, filepath=None, company=None):
         dataset_path = "/Acquisition/Raw[0]/RawData"
         acquisition_path = "/Acquisition"
         raw_group_path = "/Acquisition/Raw[0]"
-        template = __clone_template__(Fiber.__basefile__)
+        template = __clone_template__(source_template)
 
         dataset_node = __find_h5_node_by_path__(template, dataset_path)
         acquisition_node = __find_h5_node_by_path__(template, acquisition_path)
@@ -870,7 +875,7 @@ def write_data(Fiber, filepath=None, company=None):
     elif (format == 'h5' or format == 'hdf5') and company == 'aragon': # Aragon H5 files.
 
         pbar = tqdm(total=1, leave=True, desc='Saving in Aragon HDF5 file')
-        template = __clone_template__(Fiber.__basefile__)
+        template = __clone_template__(source_template)
 
         strain_path = "/strain"
         time_path = "/time"
@@ -928,7 +933,7 @@ def write_data(Fiber, filepath=None, company=None):
     elif (format == 'h5' or format == 'hdf5') and company == 'asn': # ASN H5 files.
 
         pbar = tqdm(total=1, leave=True, desc='Saving in ASN HDF5 file')
-        template = __clone_template__(Fiber.__basefile__)
+        template = __clone_template__(source_template)
 
         # Core data and mandatory header paths.
         data_node = __find_h5_node_by_path__(template, "/data")
@@ -1014,11 +1019,104 @@ def write_data(Fiber, filepath=None, company=None):
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
             
+    elif format in ("h5", "hdf5") and company == "michele":
+
+        pbar = tqdm(total=1, leave=True, desc="Saving Michele INGV HDF5 file")
+        template = __clone_template__(source_template)
+
+        data_node = __find_h5_node_by_path__(template, "/Fiber")
+        channel_node = __find_h5_node_by_path__(template, "/ChannelMap")
+
+        # Preserve the original data type.
+        output_data = np.asarray(Fiber.data)
+        target_dtype = np.dtype(data_node["dtype"])
+
+        if np.issubdtype(target_dtype, np.integer):
+            info = np.iinfo(target_dtype)
+            output_data = np.rint(np.clip(output_data, info.min, info.max)).astype(target_dtype)
+        else:
+            output_data = output_data.astype(target_dtype, copy=False)
+
+        data_node["data"] = output_data
+        data_node["shape"] = output_data.shape
+
+        chunks = data_node.get("chunks")
+        if chunks is not None:
+            if len(chunks) != output_data.ndim or any(chunk > size for chunk, size in zip(chunks, output_data.shape)):
+                data_node["chunks"] = None
+
+        # Update the channel map.
+        channels = np.asarray(Fiber.channels, dtype=np.dtype(channel_node["dtype"]))
+        channel_node["data"] = channels
+        channel_node["shape"] = channels.shape
+
+        # Update the metadata affected by processing.
+        root_attrs = template.setdefault("attrs", {})
+        start_time = Fiber.start_time.isoformat() + "Z"
+
+        updated_attrs = {
+            "StartTime": int(round(float(Fiber.start_time) * 1e6)),
+            "StartTime_txt": start_time.encode("UTF-8"),
+            "Samplerate": float(Fiber.sampling_rate),
+            "Sampletime": 1.0 / float(Fiber.sampling_rate),
+            "SamplingFrequency[Hz]": float(Fiber.o_sampling_rate),
+            "SpatialResolution[m]": float(Fiber.spatial_interval),
+            "GaugeLength": float(Fiber.gauge_length),
+            "OffsetLength": float(Fiber.channel_offset),
+            "MeasureLength[m]": float(Fiber.data.shape[1] * Fiber.spatial_interval)
+        }
+
+        for key, value in updated_attrs.items():
+            __update_h5_attr_like__(root_attrs, key, value)
+
+        with h5.File(filepath, "w") as file:
+            __h5_writer__(template, file)
+            # recreate dimension links inside the new HDF5 file. Otherwise, h5py objects exist there.
+            file["Fiber"].dims[0].attach_scale(file["t"])
+            file["Fiber"].dims[1].attach_scale(file["x"])
+            file["ChannelMap"].dims[0].attach_scale(file["cm"])
+            
     else:
         raise ValueError(f"Writing format '{format}' for company '{company}' is not supported")
 
     pbar.update(1)
     pbar.set_description("File Saved ✓")
+    
+    
+def write_as(Fiber, filepath=None, company=None):
+    """Write Fiber data using another supported file structure.
+
+    Parameters
+    ----------
+    Fiber : Fiber
+        Fiber instance containing the data and metadata to write.
+    filepath : str
+        Destination filepath, including its extension.
+    company : str
+        Company format used to structure the destination file.
+
+    """
+    
+    if filepath is None:
+        raise ValueError("filepath is required")
+
+    company = company.lower()
+    format = filepath.rsplit(".", 1)[-1].lower()
+    template_format = "h5" if format == "hdf5" else format
+    template_name = f"{company}_{template_format}.pkl"
+    core_path = os.path.dirname(os.path.dirname(__file__))
+    template_path = os.path.join(core_path, "io_templates", template_name)
+
+    if not os.path.isfile(template_path):
+        
+        raise ValueError(f"No writing template available for '{company}' and '{format}'")
+
+    with open(template_path, "rb") as handler:
+        
+        template = pkl.load(handler)
+
+    write_data(Fiber, filepath=filepath, company=company, format=template_format, template=template)
+    
 
 """H5/HDF5 explorers, templates, internals and writers"""
 
@@ -1341,7 +1439,7 @@ def __update_h5_attr_like__(attrs, key, value):
             out.flat[0] = value
             attrs[key] = out
     elif isinstance(current, np.generic):
-        attrs[key] = np.array(value, dtype=current.dtype).item()
+        attrs[key] = np.array(value, dtype=current.dtype)[()]
     else:
         attrs[key] = value
 
