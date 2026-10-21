@@ -160,11 +160,11 @@ class Fiber(object):
         self.units = self.attributes["units"]
         self.conv_factor = self.attributes["conv_factor"] # Extra variables (ONLY FOR ASN HDF5)
         self.processing = [{"instance creation" : UTC.utcnow().ctime()}]
-        self.distances = (self.channels - self.channel_offset) * self.spatial_interval
+        self.distances = (self.channels + self.channel_offset) * self.spatial_interval
 
         self.ch_coord = None # coordinates of channels, requires more input ot be filled
 
-    """Internat Methods"""
+    """Internal Methods"""
 
     def __str__(self):
         """Defines output of print(Fiber)."""
@@ -210,10 +210,10 @@ class Fiber(object):
     def instr_correct(self, target="strain-rate", terra15_gl=None, return_factor=False):
         """Performs instrument correction and data conversion for various instrument types.
         See :func:`~fobench.core.utils.instr_corr`."""
-        
+
         if return_factor:
             return utils.instr_corr(data=None, attributes=vars(self), target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"), return_factor=return_factor)
-        
+
         if not self.corrected:
             (self.data, self.units, self.channels,
             self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
