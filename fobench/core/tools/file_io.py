@@ -65,7 +65,6 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
         return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data,
                         show_progress=show_progress, storage_opts=storage_opts)
-    
     file_size = os.path.getsize(filepath) if isinstance(filepath, (str, os.PathLike)) else filepath.size
     template = None
 
@@ -336,7 +335,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             spatial_interval = float(properties["spatial_sampling"][0])
             time_length = end_time - start_time
             gauge_length = float(properties["Global_RAM_User_SET_Pulse_Width_(meter)"][0])
-            channel_offset = int(properties["fiber_position_offset"][0]/spatial_interval)
+            channel_offset = properties["Global_TimeProcessing_Strain_Fiber Processed_Start_Point_(Integer)"][0]*-1 # ~90m inside interrogator
             units = list(file_file.keys())[2]
             conv_factor = None # conversion factor if given explicitly
 
@@ -369,7 +368,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             end_time = UTC(start_time + n_samples * dt)
             time_length = end_time - start_time
             spatial_interval = float(properties["SpatialSamplingInterval"])
-            channel_offset = properties["StartLocusIndex"]*spatial_interval
+            channel_offset = properties["StartLocusIndex"]
             gauge_length = float(properties["GaugeLength"])
             units = "units" # unit is not coded in metadata for Sintela .h5
             conv_factor = None
@@ -535,7 +534,7 @@ def h5_to_dict(h5_obj):
 
 
 def __channel_selection__(range_ch, channels_all):
-    """Checks the channels and the selected channels fo the data"""
+    """Checks the channels and the selected channels for the data."""
     channels_all = np.asarray(channels_all, dtype=int)
 
     if range_ch is None:
@@ -610,7 +609,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
 
 def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_progress=True, storage_opts=None):
-    """s3_file Reads a fibre optic sensing file stored in a S3-compatible filesystem.
+    """Reads a fibre optic sensing file stored in a S3-compatible filesystem.
 
     Parameters
     ----------
@@ -777,7 +776,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         raise ValueError("filepath is required")
 
     # format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
-    
+
     source_template = Fiber.__basefile__ if template is None else template
 
     if format == "tdms" and company == "silixa": # Silixa TDMS
@@ -1018,7 +1017,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
-            
+
     elif format in ("h5", "hdf5") and company == "michele":
 
         pbar = tqdm(total=1, leave=True, desc="Saving Michele INGV HDF5 file")
@@ -1075,14 +1074,14 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             file["Fiber"].dims[0].attach_scale(file["t"])
             file["Fiber"].dims[1].attach_scale(file["x"])
             file["ChannelMap"].dims[0].attach_scale(file["cm"])
-            
+
     else:
         raise ValueError(f"Writing format '{format}' for company '{company}' is not supported")
 
     pbar.update(1)
     pbar.set_description("File Saved ✓")
-    
-    
+
+
 def write_as(Fiber, filepath=None, company=None):
     """Write Fiber data using another supported file structure.
 
@@ -1096,7 +1095,7 @@ def write_as(Fiber, filepath=None, company=None):
         Company format used to structure the destination file.
 
     """
-    
+
     if filepath is None:
         raise ValueError("filepath is required")
 
@@ -1108,15 +1107,15 @@ def write_as(Fiber, filepath=None, company=None):
     template_path = os.path.join(core_path, "io_templates", template_name)
 
     if not os.path.isfile(template_path):
-        
+
         raise ValueError(f"No writing template available for '{company}' and '{format}'")
 
     with open(template_path, "rb") as handler:
-        
+
         template = pkl.load(handler)
 
     write_data(Fiber, filepath=filepath, company=company, format=template_format, template=template)
-    
+
 
 """H5/HDF5 explorers, templates, internals and writers"""
 
