@@ -40,6 +40,11 @@ class VSG:
         Normalizes each correlation function normalization with the overall
         standard deviations. See :func:`obspy.signal.cross_correlation.correlate`.
 
+    Raises
+    ------
+    ValueError
+        ``m̀ax_lag`` longer than record.
+
     """
 
     def __init__(self, fiber, max_lag: float, source_channel: int = None,
@@ -55,7 +60,6 @@ class VSG:
             fiber.whiten(freq_min=whiten[0], freq_max=whiten[1])
         if temporal_norm is not None:
             fiber.normalize(method=temporal_norm, ram_window=ram_window)
-        fiber.taper(alpha=0.05, dim="t")
 
         # metadata
         self.source_channel = int(source_channel)
