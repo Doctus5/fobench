@@ -8,6 +8,7 @@ from obspy.signal.cross_correlation import correlate
 import pyqtgraph as pg
 from pyqtgraph.exporters import ImageExporter
 from PyQt5 import QtCore
+from fobench.core.tools.signals import taper_signal
 from fobench.core.plotting import plotting_pyqt as plot_pyqt
 
 class VSG:
@@ -74,7 +75,7 @@ class VSG:
         self.start_time = fiber.start_time
         self.end_time = fiber.end_time
         self.units = fiber.units
-        self.fiber_processing = list(fiber.processing)
+        self.fiber_processing = fiber.processing
 
         self.parameters = {"max_lag": max_lag, "temporal_norm": temporal_norm,
                            "ram_window": ram_window, "whiten": whiten,
@@ -118,7 +119,7 @@ class VSG:
             Colormap to use.
         export : str
             Filepath to save the plot to.
-        show : bool, optional
+        show : bool
             Toggle displaying plot.
 
         Returns
@@ -134,19 +135,15 @@ class VSG:
         vmax = p95 if vmax is None else vmax
 
         plot, win = plot_pyqt.plot_2d_distance.__wrapped__( #avoid the decorator
-            distances=self.distances, channels=self.channels, data=self.data.T,
-            y_ticks=self.lags, y_label="Lag [s]",
+            distances=self.offsets, channels=self.channels - self.source_channel,
+            data=self.data.T, y_ticks=self.lags, y_label="Lag [s]",
+            x_label="Channel Offset", distance_label="Offset [m]",
             title=f"Virtual Shot Gather (Source: {self.source_channel})",
             cmap=cmap, cbar_label="Correlation Coefficient"
             if self.parameters["normalize"] else "Correlation",
             invert_y=True, vmin=vmin, vmax=vmax)
-        source_line = pg.InfiniteLine(pos=self.source_channel, angle=90,
-                                      pen=pg.mkPen("k", width=2, style=QtCore.Qt.DashLine))
-        plot.addItem(source_line)
-        x_axis = plot.getAxis("bottom")
-        plot.getViewBox().sigXRangeChanged.connect(
-            lambda: source_line.setValue(self.source_channel if x_axis.labelText == "Channel"
-                                         else self.distances[self.source_index]))
+        plot.addItem(pg.InfiniteLine(pos=0, angle=90,
+                                     pen=pg.mkPen("k", width=2, style=QtCore.Qt.DashLine)))
         if export is not None:
             ImageExporter(plot).export(str(export))
         if show:
@@ -154,7 +151,7 @@ class VSG:
             pg.exec()
         return plot, win
 
-    def pickle(self, path: str):
+    def save(self, path: str):
         """Saves the computed ``VSG`` to ``path``."""
         path = Path(path)
         if path.suffix == "":
@@ -173,6 +170,118 @@ class VSG:
             raise TypeError(f"⚠️ {path} is not a VSG object!")
         return obj
 
+    def dispersion(self, c_min: float = 100, c_max: float = 4000, dc: float = 1.0,
+                   f_min: float = None, f_max: float = None, normalize: bool = True,
+                   taper: float = None, plot_mode: str = "pyqt",
+                   export: str = None, show: bool = True, **kwargs):
 
-def dispersion_image():
-    pass
+        """Computes the dispersion image of the virtual shot gather using the
+        phase shift method after Park et al. (1998). See :func:`dispersion_image`
+        for more details.
+        """
+
+        zero = len(self.lags) // 2
+        data = (self.data[zero:] + self.data[zero::-1]) / 2
+
+        kwargs.setdefault("title", f"Dispersion Image (Source: {self.source_channel})")
+        return dispersion_image(data=data, offsets=np.abs(self.offsets), dt=self.dt,
+                                c_min=c_min, c_max=c_max, dc=dc, f_min=f_min, f_max=f_max,
+                                axis=0, normalize=normalize, taper=taper, plot_mode=plot_mode,
+                                export=export, show=show, **kwargs)
+
+
+def dispersion_image(data: np.ndarray, offsets: np.ndarray, dt: float, c_min: float = 100,
+                     c_max: float = 4000, dc: float = 1.0, f_min: float = None, f_max: float = None,
+                     axis: int = 0, normalize: bool = False, taper: float = None,
+                     plot_mode: str = "pyqt", export: str = None, show: bool = True, **kwargs):
+    """Computes the dispersion image of a shot gather using the phase shift
+    method after Park et al. (1998).
+
+    Parameters
+    ----------
+    data : np.ndarray
+        2D array of traces.
+    offsets : np.ndarray
+        Source-receiver offsets of the traces in m.
+    dt : float
+        Sampling rate in seconds.
+    c_min, c_max : float
+        Minimum and maximum phase velocity in m/s.
+    dc : float
+        Phase velocity increment in m/s.
+    f_min, f_max : float | None
+        Frequency range in Hz. Defaults to the first non-zero frequency and
+        the Nyquist frequency.
+    axis : int
+        Time axis of ``data``.
+    normalize : bool
+        Normalizes the dispersion image to the maximum of each frequency if ``True``.
+        If ``False`` the image is normalized by the number of traces, i.e. values
+        between 0 and 1.
+    taper : float | None
+        Shape parameter of a Tukey window applied in time, ``None`` disables
+        tapering.
+    plot_mode : str | None
+        ``"pyqt"`` plots the dispersion image with the picked dispersion
+        curve, see :func:`~fobench.core.plotting.plotting_pyqt.plot_dispersion`.
+        Any other value, e.g. ``None``, disables plotting.
+    export : str
+        Filepath to save the plot to, only used if plotting is enabled.
+    show : bool
+        Toggle displaying plot.
+    **kwargs
+        Arguments passed to :func:`~fobench.core.plotting.plotting_pyqt.plot_dispersion`,
+        e.g. ``title``, ``cmap``, ``vmin``, ``vmax``.
+
+    Returns
+    -------
+    frequencies : np.ndarray
+        Frequency vector in Hz.
+    velocities : np.ndarray
+        Phase velocity vector in m/s.
+    image : np.ndarray
+        Dispersion image of shape ``(n_velocities, n_frequencies)``.
+    curve : np.ndarray
+        Phase velocity of the image maximum at each frequency.
+
+    Raises
+    ------
+    ValueError
+        Invalid velocity range.
+
+    """
+    data = np.moveaxis(np.asarray(data), axis, 0)
+    if not 0 < c_min < c_max:
+        raise ValueError("⚠️ velocities must in the right range: 0 < c_min < c_max!")
+
+    data = data - data.mean(axis=0)
+    if taper is not None:
+        data = taper_signal(data, axis=0, alpha=taper)
+
+    spectrum = np.fft.rfft(data, axis=0)
+    frequencies = np.fft.rfftfreq(data.shape[0], dt)
+    f_min = frequencies[1] if f_min is None else f_min
+    f_max = frequencies[-1] if f_max is None else f_max
+    f_mask = (frequencies >= f_min) & (frequencies <= f_max) & (frequencies > 0)
+    frequencies, spectrum = frequencies[f_mask], spectrum[f_mask]
+
+    amplitude = np.abs(spectrum)
+    spectrum = np.divide(spectrum, amplitude, out=np.zeros_like(spectrum),
+                         where=amplitude > 0)
+
+    velocities = np.arange(c_min, c_max + dc/2, dc)
+    image = np.empty((len(velocities), len(frequencies)))
+    delays = offsets[None, :] / velocities[:, None]
+    for i, f in enumerate(frequencies):
+        image[:, i] = np.abs(np.exp(2j * np.pi * f * delays) @ spectrum[i])
+
+    if normalize:
+        image /= np.where((im_max := image.max(axis=0)) > 0, im_max, 1)
+    else:
+        image /= len(offsets)
+    curve = velocities[np.argmax(image, axis=0)]
+
+    if plot_mode == "pyqt":
+        plot_pyqt.plot_dispersion(frequencies, velocities, image, curve,
+                                  export=export, show=show, **kwargs)
+    return frequencies, velocities, image, curve

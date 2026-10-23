@@ -377,7 +377,8 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
 @exportable
 def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
                      data: np.ndarray, y_ticks: list, vmin: float = None, vmax: float = None,
-                     y_label: str = "", x_label: str = "Channel", title: str = "",
+                     y_label: str = "", x_label: str = "Channel",
+                     distance_label: str = "Optical Distance [m]", title: str = "",
                      cmap: str = "seismic", cbar_label: str = "",
                      invert_y=False) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
@@ -398,7 +399,9 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
     y_label : str, optional
         y-axis label.
     x_label : str, optional
-        x-axis label.
+        x-axis label when showing channels.
+    distance_label : str, optional
+        x-axis label when showing distances.
     title : str, optional
         Title of plot.
     cmap : str, optional
@@ -454,11 +457,11 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
     def switch_axis():
         if button.text() == "Distance":
             button.setText("Channel")
-            plot.setLabel("bottom", "Optical Distance [m]", **{"color": "k", "font-size": "14pt"})
+            plot.setLabel("bottom", distance_label, **{"color": "k", "font-size": "14pt"})
             refresh(distances)
         else:
             button.setText("Distance")
-            plot.setLabel("bottom", "Channel", **{"color": "k", "font-size": "14pt"})
+            plot.setLabel("bottom", x_label, **{"color": "k", "font-size": "14pt"})
             refresh(channels)
 
     button.clicked.connect(switch_axis)
@@ -736,3 +739,87 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
     plots[3].setYLink(plots[2])
 
     return plots, win
+
+@exportable
+def plot_dispersion(frequencies: np.ndarray, velocities: np.ndarray, image: np.ndarray,
+                    curve: np.ndarray = None, vmin: float = None, vmax: float = None,
+                    title: str = "Dispersion Image", cmap: str = "magma",
+                    cbar_label: str = "Normalized Amplitude") -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+
+    """Plots a dispersion image in frequency-velocity space.
+
+    Parameters
+    ----------
+    frequencies : np.ndarray
+        Frequency vector in Hz.
+    velocities : np.ndarray
+        Phase velocity vector in m/s.
+    image : np.ndarray
+        Dispersion image of shape ``(n_velocities, n_frequencies)``.
+    curve : np.ndarray
+        Phase velocities of the picked dispersion curve for each frequency,
+        to be drawn.
+    vmin, vmax : float
+        Minimum and maximum limits of colorbar.
+    title : str, optional
+        Title of plot.
+    cmap : str
+        Colormap to use.
+    cbar_label : str, optional
+        Label of colorbar.
+
+    Returns
+    -------
+    plot : pg.PlotItem
+        PyQtGraph PlotItem
+    win : pg.GraphicsLayoutWidget
+        PyQtGraph GraphicsLayoutWidget
+    """
+
+    cbar_label = cbar_label.title()
+    win, app, plot, y_axis, x_axis = get_layout(size=(1200, 800), win_title=title)
+    plot.setLabel("left", "Phase Velocity [m/s]", **{"color": "k", "font-size": "14pt"})
+    plot.setLabel("bottom", "Frequency [Hz]", **{"color": "k", "font-size": "14pt"})
+    plot.setCursor(QtGui.QCursor(QtCore.Qt.CrossCursor))
+    plot.setMouseEnabled(x=True, y=True)
+    plot.getViewBox().setMouseMode(pg.ViewBox.RectMode)
+
+    df = frequencies[1]-frequencies[0] if len(frequencies) > 1 else 1.0
+    dc = velocities[1]-velocities[0] if len(velocities) > 1 else 1.0
+    f_min, f_max = frequencies[0]-df/2, frequencies[-1]+df/2
+    c_min, c_max = velocities[0]-dc/2, velocities[-1]+dc/2
+    image_item = pg.ImageItem()
+    plot.addItem(image_item)
+    image_item.setImage(image.T)
+    image_item.setRect(f_min, c_min, f_max-f_min, c_max-c_min)
+    plot.setRange(xRange=(f_min, f_max), yRange=(c_min, c_max), padding=0)
+    plot.getViewBox().setLimits(xMin=f_min, xMax=f_max, yMin=c_min, yMax=c_max)
+
+    if curve is not None:
+        plot.plot(frequencies, curve, pen=None, symbol="o", symbolSize=5,
+                  symbolPen=pg.mkPen("w"), symbolBrush=pg.mkBrush("k"))
+
+    text_label, h_layout, container = get_bottom_layout()
+    label_text = "Frequency [Hz]: {x:.2f} | Phase Velocity [m/s]: {y:.1f} | "+cbar_label+": {z:.3f}"
+    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
+                           slot=tracker_factory(plot=plot, label=text_label, dx=df, dy=dc,
+                                                label_text=label_text, item=image_item))
+    plot.proxy = proxy
+
+    data_min, data_max = float(np.nanmin(image)), float(np.nanmax(image))
+    data_range = data_max - data_min
+    vmin = data_min if vmin is None else vmin
+    vmax = data_max if vmax is None else vmax
+    bar = pg.ColorBarItem(colorMap=pg.colormap.get(cmap, source="matplotlib"),
+                          values=(vmin, vmax), label=cbar_label, interactive=True,
+                          rounding=0.0001*data_range)
+    bar.setImageItem(image_item, insert_in=plot)
+    h_layout.addWidget(scale_button := get_colorscale_button())
+    scale_button.clicked.connect(lambda: reset_scale(bar, vmin, vmax))
+    h_layout.addWidget(get_vminmax_button(bar))
+
+    proxy_container = QtWidgets.QGraphicsProxyWidget()
+    proxy_container.setWidget(container)
+    win.addItem(proxy_container, row=2, col=0)
+
+    return plot, win
