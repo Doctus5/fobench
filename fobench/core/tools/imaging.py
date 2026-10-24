@@ -38,13 +38,13 @@ class VSG:
         Frequency band ``(freq_min, freq_max)`` passed to :meth:`Fiber.whiten`.
         ``None`` disables whitening.
     normalize : bool
-        Normalizes each correlation function normalization with the overall
-        standard deviations. See :func:`obspy.signal.cross_correlation.correlate`.
+        Normalizes each correlation function with the overall standard deviations.
+        See :func:`obspy.signal.cross_correlation.correlate`.
 
     Raises
     ------
     ValueError
-        ``m̀ax_lag`` longer than record.
+        ``m̀ax_lag`` is longer than record.
 
     """
 
@@ -84,7 +84,6 @@ class VSG:
 
         # correlation
         data = np.moveaxis(fiber.data, (fiber.__axis__("t"), fiber.__axis__("d")), (0, 1))
-        data = data.astype(np.float64)
         n_lag = int(round(max_lag * self.sampling_rate))
         source = data[:, self.source_index]
         self.data = np.empty((2 * n_lag + 1, self.n_channels))
@@ -194,8 +193,10 @@ def dispersion_image(data: np.ndarray, offsets: np.ndarray, dt: float, c_min: fl
                      c_max: float = 4000, dc: float = 1.0, f_min: float = None, f_max: float = None,
                      axis: int = 0, normalize: bool = False, taper: float = None,
                      plot_mode: str = "pyqt", export: str = None, show: bool = True, **kwargs):
+
     """Computes the dispersion image of a shot gather using the phase shift
-    method after Park et al. (1998).
+    method after Park et al. (1998). A simple dispersion curve is picked using
+    the maximum value at each frequency.
 
     Parameters
     ----------
