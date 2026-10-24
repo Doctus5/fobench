@@ -19,7 +19,7 @@ Follow this guide or check out the [documentation](https://doctus5.github.io/fob
 1. [Installation](#installation)
    - [Install Anaconda/Miniconda/Conda](#install-anacondaminicondaconda)
    - [Create a Conda Environment](#create-a-conda-environment)
-2. [Installing Fobench](#installing-fobench)
+2. [Installing FoBench](#installing-fobench)
 3. [Contributing](#contributing)
 
 ---
@@ -28,7 +28,7 @@ Follow this guide or check out the [documentation](https://doctus5.github.io/fob
 
 ### Install Anaconda/Miniconda/Conda
 
-We will use Conda to create a virtual environment to safely manage the dependencies for Fobench.
+We will use Conda to create a virtual environment to safely manage the dependencies for FoBench.
 
 1. Download the latest version of Miniconda from [this link](https://docs.conda.io/en/latest/miniconda.html#linux-installers).
 
@@ -51,7 +51,7 @@ We will use Conda to create a virtual environment to safely manage the dependenc
 
 ### Create a Conda Environment
 
-You can create a minimal environment for Fobench with the following command:
+You can create a minimal environment for FoBench with the following command:
 
 ```bash
 conda create --name fobench_env python=3.11
@@ -71,15 +71,15 @@ conda deactivate
 
 ---
 
-## Installing Fobench
+## Installing FoBench
 
-With the environment activated, install Fobench using `pip`:
+With the environment activated, install FoBench using `pip`:
 
 ```bash
 pip install git+https://github.com/Doctus5/fobench.gits
 ```
 
-If you already have an installed version of Fobench, we recommend to constantly update it and we constantly release updated on fixing bugs. To update, use the following command:
+If you already have an installed version of FoBench, we recommend to constantly update it and we constantly release updated on fixing bugs. To update, use the following command:
 
 ```bash
 pip install --upgrade fobench
