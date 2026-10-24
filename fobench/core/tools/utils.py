@@ -493,7 +493,7 @@ def to_xarray(Fiber, name: str = None, use_distance: bool = False):
 		``Fiber`` class object.
 	name : str
 		Filename.
-	use_distace : bool
+	use_distance : bool
 		Toggles writing distance dimension as optical distance instead of
 		channel numbers.
 

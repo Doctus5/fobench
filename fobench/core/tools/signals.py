@@ -619,7 +619,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
     Returns
     -------
     coeffs : np.ndarray
-        Complex CWT coefficients.
+        (Complex) CWT coefficients.
     freqs : np.ndarray
         Frequency axis vector.
 
