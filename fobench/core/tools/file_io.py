@@ -277,8 +277,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         with h5.File(filepath,"r") as file_file:
 
             properties = dict(file_file["Acquisition"].attrs)
+            # print(properties)
             template = None
             dataset = file_file["Acquisition"]["Raw[0]"]
+            print(dict(dataset["RawDataTime"].attrs))
             channels = np.arange(int(file_file["Acquisition"]["Raw[0]"].attrs["NumberOfLoci"]), dtype=int)
             channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
@@ -295,7 +297,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             o_sampling_rate = sampling_rate
             dt = 1 / sampling_rate
             n_samples = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
-            start_time = UTC(str(properties["MeasurementStartTime"])[2:-1])
+            # start_time = UTC(str(properties["MeasurementStartTime"])[2:-1])
+            start_time = UTC(str(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"])[2:-1])
             end_time = UTC(start_time + n_samples * dt)
             spatial_interval = float(properties["SpatialSamplingInterval"])
             time_length = end_time - start_time
@@ -372,6 +375,46 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             channel_offset = properties["StartLocusIndex"]*spatial_interval
             gauge_length = float(properties["GaugeLength"])
             units = "units" # unit is not coded in metadata for Sintela .h5
+            conv_factor = None
+            
+    elif (format == "h5" or format == "hdf5") and company == "sensiphi": # Sintela Onyx HDF5
+        # print("Data units (strain, strain-rate...) can not be extracted from Sintela files\n"
+        #        "you can set it manually by editing Fiber.units")
+        pbar = tqdm(total=1, leave=True, desc="Reading SensiPhi HDF5 file", disable=not show_progress)
+
+        with h5.File(filepath, "r") as file_file:
+
+            template = None
+            properties = dict(file_file["/"].attrs)
+            dataset = file_file.get("/RawData") # if file_file.get("/ProcessedData") is None else file_file.get("/ProcessedData")
+            # dataset = file_file.get("/ProcessedData")
+            dims = dataset.shape
+            channels = np.arange(dataset.shape[-1], dtype=int) if dims[1] == 1 else np.arange(dataset.shape[0], dtype=int)
+            channels, data_range = __channel_selection__(range_ch, channels)
+
+            # data loading
+            # data = None
+            # if load_data:
+            #     data = __h5_biReader__(filepath, dataset, data_range, copy_data=True)
+            #     if data is None:
+            #         data = __data__(dataset, format, company, data_range)
+            data = __data__(dataset, format, company, data_range) if load_data else None
+            fiber = "standard"
+            sampling_rate = 1 / (1e-6*float(properties["Record Period Microseconds"][0])/float(properties["Averaging Count"][0]))
+            # sampling_rate = 1 / float(properties["dt"][0])
+            o_sampling_rate = sampling_rate
+            n_samples = dims[0] if dims[1] == 1 else dims[-1]
+            # start_time = UTC(properties["MeasurementStartTime"].decode("utf-8")) if isinstance(properties["MeasurementStartTime"],bytes) else UTC(properties["MeasurementStartTime"])
+            start_time = UTC("2000-01-01T00:00:00")
+            dt = 1 / sampling_rate
+            end_time = UTC(start_time + n_samples * dt)
+            time_length = end_time - start_time
+            # spatial_interval = float(properties["SpatialSamplingInterval"])
+            spatial_interval = 1
+            # channel_offset = properties["StartLocusIndex"]*spatial_interval
+            channel_offset = 0
+            gauge_length = 1 # standard for xDAS. float(properties["GaugeLength"])
+            units = properties.get("Units", "radians")[0] # unit is not coded in metadata for Sintela .h5
             conv_factor = None
 
 	# ####################################################
@@ -564,7 +607,10 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
     # it would allow for fast processing.
     if format in ("h5", "hdf5"):
 
-        if company in ("silixa", "asn", "optasense", "aragon", "sintela", "terra15", "michele"):
+        if company in ("silixa", "asn", "optasense", "aragon", "sintela", "terra15", "sensiphi", "michele"):
+            dims = extract_point.shape
+            if company == "sensiphi":
+                extract_point = np.mean(extract_point[:,:,:], axis=1) if dims[1] == 1 else extract_point[:,0,:] # np.mean(extract_point[:,:,:], axis=1).T
             if range_ch is None:
                 values = extract_point[:,:]
             else:
