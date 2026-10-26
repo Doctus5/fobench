@@ -94,7 +94,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
     win.addItem(label_item, row=2, col=0)
     label_text = "Time: {x} | "+y_label+": {y:1e}"
     mouse_moved = tracker_factory(plot=plot, label=label_item, dt=dt, label_text=label_text)
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+    win.proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     return plot, win
 
 @exportable
@@ -149,7 +149,7 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     label = pg.LabelItem(justify="left", size="10pt", color="black")
     win.addItem(label, row=2, col=0)
     mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text="Time: {x}")
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+    win.proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     return plot, win
 
 @exportable
@@ -219,7 +219,7 @@ def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
     return plot, win
 
 @exportable
-def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.ndarray,
+def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
                   y_label: str = "Amplitude", x_label: str = "Frequency [Hz]", title: str = "",
                   labels: list[str] | None = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
 
@@ -229,8 +229,9 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
     ----------
     frequencies : np.ndarray
         Array containing frequency values.
-    amplitudes : list[np.ndarray] | np.ndarray
-        Single array or list of arrays containing amplitudes to plot.
+    amplitudes : np.ndarray
+        2D array of shape (n_frequencies, n_spectra) containing amplitudes to plot,
+        one spectrum per column.
     y_label : str, optional
         y-axis label.
     x_label : str, optional
@@ -238,7 +239,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
     title : str, optional
         Title of plot.
     labels : list[str] | None, optional
-        Legend labels for each amplitude array. If None, no legend is shown.
+        Legend labels for each spectrum. If ``None``, no legend is shown.
     Returns
     -------
     plot : pg.PlotItem
@@ -265,7 +266,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: list[np.ndarray] | np.nda
     text_label, h_layout, container = get_bottom_layout()
     label_text = x_axis.labelText + ": {x:.2f} | "+y_label+": {y:e}"
     mouse_moved = tracker_factory(plot=plot, label=text_label, dx=dx, label_text=label_text)
-    proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
+    win.proxy = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60, slot=mouse_moved)
     proxy_container = QtWidgets.QGraphicsProxyWidget()
     proxy_container.setWidget(container)
     win.addItem(proxy_container, row=2, col=0)
