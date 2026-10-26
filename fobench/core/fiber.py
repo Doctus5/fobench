@@ -169,7 +169,7 @@ class Fiber(object):
     def __str__(self):
         """Defines output of print(Fiber)."""
         attributes = ["units", "start_time", "end_time", "n_samples", "n_channels",
-                    "spatial_interval", "sampling_rate", "gauge_length"]
+                    "spatial_interval", "sampling_rate", "dt", "gauge_length"]
 
         return ("Instance of Fiber class\n"
                 "recording parameters:\n"
@@ -394,7 +394,7 @@ class Fiber(object):
 
     def remove_common_mode(self, mode="median"):
         """Removes common mode using `'median'` or `'mean'`"""
-        return self.demean(mode=mode, dim="d")
+        return self.demean(mode=mode, dim="t")
 
     @utils._update_processing
     def taper(self, alpha=0.05, dim="t", detaper=False):
