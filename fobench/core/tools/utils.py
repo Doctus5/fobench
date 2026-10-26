@@ -40,6 +40,13 @@ VEL_UNIT_MAP = {		 # mapping for velocity data, e.g. Terra15 output
                 1: "m/s^2",
                 2: "m/s^3"}
 
+RADIAN_UNIT_MAP = {		# mapping for radians data, e.g. xDAS output
+				-1: "radian s",
+				0: "radian",
+				1: "radian/s",
+				2: "radian/s^2",
+				3: "radian/s^3"}
+
 TEMP_UNIT_MAP = {	# mapping for temperature data
 				-1: "integrated temperature",
 				0: "temperature",
@@ -90,6 +97,7 @@ def _update_processing(func):
 					if fiber.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
 				if fiber.units == "counts": unit_map = COUNT_UNIT_MAP
 				elif fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
+				elif fiber.units in ("radians", "radian", "rad"): unit_map = RADIAN_UNIT_MAP
 			elif fiber.sensing == "dts":
 				unit_map = TEMP_UNIT_MAP
 
