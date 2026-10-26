@@ -77,7 +77,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
                             export=None, show=True, **imshow_kwargs)-> np.ndarray:
     """Computes the autocorrelation either for each channel or each time sample and
     optionally deconvolves the autocorrelation source term using a moving window.
-    Deconvoltion is performed by substracting the average autocorrelation in a window or of the full record.
+    Deconvolution is performed by substracting the average autocorrelation in a window or of the full record.
 
     Parameters
     ----------
