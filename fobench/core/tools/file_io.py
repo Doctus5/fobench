@@ -299,7 +299,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             n_samples = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
             # start_time = UTC(str(properties["MeasurementStartTime"])[2:-1])
             start_time = UTC(str(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"])[2:-1])
-            end_time = UTC(start_time + n_samples * dt)
+            end_time = UTC(start_time + (n_samples - 1) * dt)
             spatial_interval = float(properties["SpatialSamplingInterval"])
             time_length = end_time - start_time
             gauge_length = float(properties["GaugeLength"])
