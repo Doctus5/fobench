@@ -280,7 +280,6 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             # print(properties)
             template = None
             dataset = file_file["Acquisition"]["Raw[0]"]
-            print(dict(dataset["RawDataTime"].attrs))
             channels = np.arange(int(file_file["Acquisition"]["Raw[0]"].attrs["NumberOfLoci"]), dtype=int)
             channels, data_range = __channel_selection__(range_ch, channels)
             # loading the data conditioned
@@ -297,7 +296,6 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             o_sampling_rate = sampling_rate
             dt = 1 / sampling_rate
             n_samples = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
-            # start_time = UTC(str(properties["MeasurementStartTime"])[2:-1])
             start_time = UTC(str(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"])[2:-1])
             end_time = UTC(start_time + (n_samples - 1) * dt)
             spatial_interval = float(properties["SpatialSamplingInterval"])
@@ -378,8 +376,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             conv_factor = None
             
     elif (format == "h5" or format == "hdf5") and company == "sensiphi": # Sintela Onyx HDF5
-        # print("Data units (strain, strain-rate...) can not be extracted from Sintela files\n"
-        #        "you can set it manually by editing Fiber.units")
+        
         pbar = tqdm(total=1, leave=True, desc="Reading SensiPhi HDF5 file", disable=not show_progress)
 
         with h5.File(filepath, "r") as file_file:

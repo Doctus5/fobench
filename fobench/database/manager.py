@@ -600,7 +600,7 @@ def fdsn_acqui_check(acqui):
         raise ValueError(f"Missing required FDSN Acquisition fields: "
                         f"{missing_acqui_fields}")
     if acqui["unit_of_measure"] not in valid_fdsn_units:
-        raise ValueError("Invalid FDSN unit_of_measure: "
+        warnings.warn("Invalid FDSN unit_of_measure: "
                         f'{acqui["unit_of_measure"]}')
         
     for field2 in acqui_rev_fields:
