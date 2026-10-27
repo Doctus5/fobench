@@ -392,7 +392,7 @@ class Fiber(object):
 
         return self
 
-    def remove_common_mode(self, mode="median", dim="t"):
+    def remove_common_mode(self, mode="median", dim="d"):
         """Removes common mode using `'median'` or `'mean'`"""
         return self.demean(mode=mode, dim=dim)
 
