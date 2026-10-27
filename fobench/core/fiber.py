@@ -394,7 +394,7 @@ class Fiber(object):
 
     def remove_common_mode(self, mode="median"):
         """Removes common mode using `'median'` or `'mean'`"""
-        return self.demean(mode=mode, dim="t")
+        return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
     def taper(self, alpha=0.05, dim="t", detaper=False):
