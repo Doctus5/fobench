@@ -35,7 +35,7 @@ class Fibre(object):
         ----------
         metadata_file : json
                 JSON object which represents the metadata of the project. If this file is non existent
-                Fibre must be initialized without it and a metadata must be created from scratch.
+                Fibre must be initialised without it and a metadata must be created from scratch.
 
         Returns
         -------

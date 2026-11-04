@@ -25,7 +25,7 @@ from . import manager as manager
 
 
 class Cable(object):
-    """Class keeps track of the organization of a single/multiple data collected.
+    """Class keeps track of the organisation of a single/multiple data collected.
 
     Note
     ----
@@ -41,7 +41,7 @@ class Cable(object):
         ----------
         metadata_file : json
                 JSON object which represents the metadata of the project. If this file is non existent
-                Cable must be initialized without it and a metadata must be created from scratch.
+                Cable must be initialised without it and a metadata must be created from scratch.
 
         Returns
         -------
@@ -211,7 +211,7 @@ class Cable(object):
         Parameters
         ----------
         parallel_params : dict
-            Dictionary containing the parameters for parallelization. If parameters are
+            Dictionary containing the parameters for parallelisation. If parameters are
             given, then the building method runs in parallel. If ``None``, it runs in serial.
 
         Returns

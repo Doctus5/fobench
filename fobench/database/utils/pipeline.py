@@ -1,4 +1,4 @@
-"""Pipeline specification utilities for Fiber processing workflows.
+"""Pipeline specification utilities for Record processing workflows.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -11,9 +11,9 @@
 
 import pandas as pd
 try:
-    from fobench.core.fiber import Fiber
+    from fobench.core.record import Record
 except ModuleNotFoundError:
-    from ...fobench.core.fiber import Fiber
+    from ...fobench.core.record import Record
 
 def pipeline_check(pipeline: list, allow_callables: bool = True) -> list[dict]:
     """Methods to validate a pipeline specification for parallel computing.
@@ -37,7 +37,7 @@ def pipeline_check(pipeline: list, allow_callables: bool = True) -> list[dict]:
     Returns
     -------
     list[dict]
-        Normalized pipeline with explicit keys:
+        Normalised pipeline with explicit keys:
         ``name``, ``op``, ``kwargs``, ``capture``, ``attribute``,
         ``store_as``.
 
@@ -111,7 +111,7 @@ def pipeline_check(pipeline: list, allow_callables: bool = True) -> list[dict]:
                 f'Step {i}: invalid "capture" value "{capture}". Use one of {sorted(allowed_capture)}.'
             )
 
-        # Attribute is required only when capture mode points to Fiber attributes.
+        # Attribute is required only when capture mode points to Record attributes.
         attribute = step.get("attribute", None)
         if capture == "attribute":
             if not isinstance(attribute, str) or attribute.strip() == "":
@@ -160,7 +160,7 @@ def pipeline_check(pipeline: list, allow_callables: bool = True) -> list[dict]:
     return normalized
 
 
-def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
+def run_file_pipeline(task_row, pipeline : list, record_kwargs : dict = None,
     validate_pipeline : bool = False):
     """Run a pipeline over one file and return a compact result.
 
@@ -171,9 +171,9 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
         Optional keys such as ``"file_index"`` and ``"window_id"``
         are propagated to output.
     pipeline : list
-        Pipeline specification (raw or normalized).
-    fiber_kwargs : dict, optional
-        Keyword arguments for ``Fiber`` initialization.
+        Pipeline specification (raw or normalised).
+    record_kwargs : dict, optional
+        Keyword arguments for ``Record`` initialisation.
     validate_pipeline : bool, optional
         If ``True``, validates pipeline before running.
 
@@ -185,9 +185,9 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
 
     """
 
-    # Default empty Fiber kwargs if not provided.
-    # For single-file executions, Fiber keeps its own default show_progress=True.
-    fiber_kwargs = {} if fiber_kwargs is None else dict(fiber_kwargs)
+    # Default empty Record kwargs if not provided.
+    # For single-file executions, Record keeps its own default show_progress=True.
+    record_kwargs = {} if record_kwargs is None else dict(record_kwargs)
 
     # option for accepting both dict rows and pandas Series rows.
     if isinstance(task_row, pd.Series):
@@ -215,12 +215,12 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
 
     # Context dictionary can be used by custom callables to share state.
     context = {}
-    fiber = None
+    record = None
 
     try:
 
-        # Initialize Fiber object for the current file.
-        fiber = Fiber(row["file"], **fiber_kwargs)
+        # Initialize Record object for the current file.
+        record = Record(row["file"], **record_kwargs)
 
         # Apply pipeline in sequence.
         for i, step in enumerate(steps):
@@ -238,13 +238,13 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
             store_as = step.get("store_as", None)
             attribute = step.get("attribute", None)
 
-            # Execute Fiber method or user callable.
+            # Execute Record method or user callable.
             if isinstance(op, str):
-                if not hasattr(fiber, op):
-                    raise AttributeError(f'Fiber has no method "{op}" at step {i}.')
-                out = getattr(fiber, op)(**kwargs)
+                if not hasattr(record, op):
+                    raise AttributeError(f'Record has no method "{op}" at step {i}.')
+                out = getattr(record, op)(**kwargs)
             elif callable(op):
-                out = op(fiber=fiber, task=row, context=context, **kwargs)
+                out = op(record=record, task=row, context=context, **kwargs)
             else:
                 raise TypeError(f'Step {i}: "op" must be str or callable.')
 
@@ -256,7 +256,7 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
                 if not isinstance(attribute, str) or attribute.strip() == "":
                     raise ValueError(f'Step {i}: "attribute" must be set for capture="attribute".')
                 key = store_as if store_as is not None else attribute
-                result["outputs"][key] = getattr(fiber, attribute)
+                result["outputs"][key] = getattr(record, attribute)
             elif capture == "none":
                 pass
             else:
@@ -272,13 +272,13 @@ def run_file_pipeline(task_row, pipeline : list, fiber_kwargs : dict = None,
 
     finally:
         # Explicit delete to release file/data resources early.
-        if fiber is not None:
-            del fiber
+        if record is not None:
+            del record
 
     return result
 
 
-def run_batch_pipeline(batch, pipeline : list, fiber_kwargs : dict = None,
+def run_batch_pipeline(batch, pipeline : list, record_kwargs : dict = None,
     validate_pipeline : bool = False)-> list[dict]:
     """Run pipeline processing over a batch of task rows.
 
@@ -288,9 +288,9 @@ def run_batch_pipeline(batch, pipeline : list, fiber_kwargs : dict = None,
         List of task rows. Each row must be ``dict`` or ``pandas.Series``
         and contain at least ``"file"``.
     pipeline : list
-        Pipeline specification (raw or normalized).
-    fiber_kwargs : dict, optional
-        Keyword arguments for ``Fiber`` initialization.
+        Pipeline specification (raw or normalised).
+    record_kwargs : dict, optional
+        Keyword arguments for ``Record`` initialisation.
     validate_pipeline : bool, optional
         If ``True``, validates pipeline once before batch processing.
 
@@ -310,9 +310,9 @@ def run_batch_pipeline(batch, pipeline : list, fiber_kwargs : dict = None,
 
     # Batch execution is usually called from Parallel.submit.
     # We silence per-file read bars here to keep terminal output clean.
-    fiber_kwargs = {} if fiber_kwargs is None else dict(fiber_kwargs)
-    if "show_progress" not in fiber_kwargs:
-        fiber_kwargs["show_progress"] = False
+    record_kwargs = {} if record_kwargs is None else dict(record_kwargs)
+    if "show_progress" not in record_kwargs:
+        record_kwargs["show_progress"] = False
 
     outputs = []
 
@@ -322,7 +322,7 @@ def run_batch_pipeline(batch, pipeline : list, fiber_kwargs : dict = None,
             run_file_pipeline(
                 task_row=task_row,
                 pipeline=steps,
-                fiber_kwargs=fiber_kwargs,
+                record_kwargs=record_kwargs,
                 validate_pipeline=False
             )
         )

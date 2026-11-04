@@ -394,8 +394,8 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
 def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
               numtaps: int = 50, zerophase: bool = False, axis: int=0)-> np.ndarray:
-    """ Finite impulse response (FIR) filter whose transfer function minimizes
-    the maximum error between the desired gain and the realized gain in the
+    """ Finite impulse response (FIR) filter whose transfer function minimises
+    the maximum error between the desired gain and the realised gain in the
     specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`__
     for more details. Filter design calls :func:`~scipy.signal.remez`.
 
@@ -601,7 +601,7 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     exponent : float, optional
         Scaling exponent ∈ [0, 1], controls the strength of the filter.
     normalize_power : bool, optional
-        Normalize amplitude spectrum.
+        Normalise amplitude spectrum.
 
     Raises
     ------

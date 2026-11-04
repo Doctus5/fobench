@@ -305,40 +305,40 @@ def filt_preprocess(io_signal: np.ndarray, axis:int = None, order:int = 1,
 def normalize_signal(data: np.ndarray, method:str = "absolute max",
                      axis: int = None, ram_window: int = None, fs: int = None,
                      n_channels: int = None, n_samples: int = None)-> np.ndarray:
-    """Normalizes signal(s)
+    """Normalises signal(s)
 
     Parameters
     ----------
     data : np.ndarray
-        Data array to normalize.
+        Data array to normalise.
     method : str, optional
-        Normalization method, options are:
+        Normalisation method, options are:
 			- ``"absolute max"``: with respect to the whole record (default)
 			- ``"trace max"``: for each channel/timestep individually
-			- ``"running mean"``: running absolute mean normalization
-			- ``"1bit"``: 1-bit normalization.
+			- ``"running mean"``: running absolute mean normalisation
+			- ``"1bit"``: 1-bit normalisation.
     axis : int, optional
         Axis along which to perform operation.
     ram_window : int, optional
-        Window length in seconds, only for running absolute mean normalization.
+        Window length in seconds, only for running absolute mean normalisation.
     fs : int, optional
         Sampling frequency of signal.
     n_channels : int, optional
-        Total number of channels, only for running absolute mean normalization.
+        Total number of channels, only for running absolute mean normalisation.
     n_samples : int, optional
-        Total number of time samples, only for running absolute mean normalization.
+        Total number of time samples, only for running absolute mean normalisation.
 
     Raises
     ------
     TypeError
-        Running mean normalization chosen without window_length given.
+        Running mean normalisation chosen without window_length given.
     ValueError
-        No valid normalization method chosen.
+        No valid normalisation method chosen.
 
     Returns
     -------
     normalized_data : np.ndarray
-        Normalized data array.
+        Normalised data array.
 
     """
 
@@ -466,7 +466,7 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
     pre_processing : bool, optional
         Signal is demeaned, detrended and tapered.
     norm : bool, optional
-        If ``True``, result is normalized by maximum value.
+        If ``True``, result is normalised by maximum value.
     order : int, optional
         Order of polynomial to detrend.
     pad : int, optional
@@ -550,7 +550,7 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
     axis : int
         Time axis index.
     norm : bool
-        Toggles normalization of results by maximum value.
+        Toggles normalisation of results by maximum value.
     nfft : int
         Length of the FFT used
     nperseg : int
@@ -590,7 +590,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
 
     """Computes and optionally plots continuous wavelet transform of input signal.
     Mainly a wrapper around :func:`pywt.cwt`.
-    Minimum example: ``cwt(signal=Fiber.get_data(100), fs=das.sampling_rate,
+    Minimum example: ``cwt(signal=Record.get_data(100), fs=das.sampling_rate,
     times=das.times(time_type="unix"))``
 
     Parameters
@@ -604,7 +604,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
     wavelet : pywt.Wavelet | str
         The wavelet to use. See :func:`pywt.cwt`.
     fmin, fmax : float
-        Minimum and maximum frequency to analyze.
+        Minimum and maximum frequency to analyse.
     n_scales : int
         Number of scales, ignored if ``scales`` is not ``None``.
     times : np.array
@@ -614,7 +614,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
     plot_mode : str
         ``"pyqt"``, ``"mpl"`` or no plotting.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
 
     Returns
     -------

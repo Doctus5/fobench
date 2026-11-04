@@ -18,18 +18,18 @@ def _busy_cursor(func):
 
 
 class Viewer(QtWidgets.QMainWindow):
-    """Interactive GUI for exploring fiber optic sensing data."""
-    def __init__(self, Fiber: object) -> None:
+    """Interactive GUI for exploring fibre optic sensing data."""
+    def __init__(self, Record: object) -> None:
         super().__init__()
         pg.setConfigOptions(background="w", foreground="k")
 
-        # set up Fiber class information
-        self.Fiber = Fiber
-        self.times = Fiber.times(time_type="unix")
-        self.ch0, self.chf = Fiber.channels[0], Fiber.channels[-1]
+        # set up Record class information
+        self.Record = Record
+        self.times = Record.times(time_type="unix")
+        self.ch0, self.chf = Record.channels[0], Record.channels[-1]
         self.selected_channel = self.ch0
-        self.selected_distance = Fiber.distances[0]
-        self.data = Fiber.data.T if Fiber.__axis__("t") else Fiber.data
+        self.selected_distance = Record.distances[0]
+        self.data = Record.data.T if Record.__axis__("t") else Record.data
 
         # set up window
         self.setWindowTitle("Fobench Data Viewer")
@@ -47,11 +47,11 @@ class Viewer(QtWidgets.QMainWindow):
 
         # boundaries for main data plot
         x_min, x_max = self.times[0], self.times[-1]
-        y_min, y_max = Fiber.distances[0], Fiber.distances[-1]
+        y_min, y_max = Record.distances[0], Record.distances[-1]
 
         # state of y-axis
-        self._y_state = {"y_vals": np.array(Fiber.distances, dtype=float),
-                         "dy": Fiber.distances[1]-Fiber.distances[0]}
+        self._y_state = {"y_vals": np.array(Record.distances, dtype=float),
+                         "dy": Record.distances[1]-Record.distances[0]}
 
         # main data plot
         self.matrix_plot_widget = pg.GraphicsLayoutWidget()
@@ -67,7 +67,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.dock_1.addWidget(self.matrix_plot_widget)
 
         # line tool channel selector
-        self.y_picker = pg.InfiniteLine(pos=Fiber.distances[0], angle=0, movable=True,
+        self.y_picker = pg.InfiniteLine(pos=Record.distances[0], angle=0, movable=True,
                 markers=[("^", 0, 16), ("v", 1, 16)], pen=pg.mkPen("k", width=1, style=pg.QtCore.Qt.DashLine),
                 hoverPen=pg.mkPen("k", width=1, style=pg.QtCore.Qt.SolidLine))
         self.y_picker.setBounds([y_min, y_max])
@@ -80,7 +80,7 @@ class Viewer(QtWidgets.QMainWindow):
 
         def mouse_moved(evt):
             mouse_point = self.matrix_plot.vb.mapSceneToView(evt[0])
-            dt = Fiber.dt
+            dt = Record.dt
             dy = self._y_state["dy"]
             y_label_text = self.matrix_plot.getAxis("left").labelText
             x_snapped = round(mouse_point.x()/dt)*dt
@@ -92,7 +92,7 @@ class Viewer(QtWidgets.QMainWindow):
             if 0 <= col < self.matrix_image.image.shape[0] and 0 <= row < self.matrix_image.image.shape[1]:
                 z = self.matrix_image.image[col, row]
                 self.matrix_label.setText(
-                    f"Time: {x_str} | {y_label_text}: {y_snapped:.1f} | {self.Fiber.units.title()}: {z:e}", color="k")
+                    f"Time: {x_str} | {y_label_text}: {y_snapped:.1f} | {self.Record.units.title()}: {z:e}", color="k")
         self.matrix_mouse_proxy = pg.SignalProxy(self.matrix_plot.scene().sigMouseMoved,
             rateLimit=60, slot=mouse_moved)
 
@@ -102,7 +102,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.line_plot.setAxisItems({"bottom": pg.DateAxisItem(utcOffset=1)})
         self.line_curve = self.line_plot.plot(pen="k")
         self.line_plot.setXLink(self.matrix_plot)
-        self.line_plot.setLabel("left", f"{self.Fiber.units.title()}")
+        self.line_plot.setLabel("left", f"{self.Record.units.title()}")
         self.dock_2.addWidget(self.line_plot_widget)
 
         # cursor tracking for channel plot
@@ -111,11 +111,11 @@ class Viewer(QtWidgets.QMainWindow):
 
         def line_mouse_moved(evt):
             mouse_point = self.line_plot.getViewBox().mapSceneToView(evt[0])
-            dt = Fiber.dt
+            dt = Record.dt
             x_snapped = round(mouse_point.x()/dt)*dt
             y = mouse_point.y()
             x_str = datetime.datetime.utcfromtimestamp(x_snapped).strftime("%Y-%m-%d %H:%M:%S.%f")
-            self.line_label.setText(f"Time: {x_str} | {self.Fiber.units.title()}: {y:e}", color="k")
+            self.line_label.setText(f"Time: {x_str} | {self.Record.units.title()}: {y:e}", color="k")
 
         self.line_mouse_proxy = pg.SignalProxy(self.line_plot.scene().sigMouseMoved,
             rateLimit=60, slot=line_mouse_moved)
@@ -125,7 +125,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.hist = pg.HistogramLUTItem(image=self.matrix_image)
         self.hist.setToolTip("Right click to change colormap")
         self.hist.gradient.setColorMap(pg.colormap.get("seismic", source="matplotlib"))
-        self.hist.axis.setLabel(Fiber.units.title())
+        self.hist.axis.setLabel(Record.units.title())
         self.hist_widget = pg.GraphicsLayoutWidget()
         self.hist_widget.addItem(self.hist)
         self.dock_3.addWidget(self.hist_widget, row=0, col=0)
@@ -218,21 +218,21 @@ class Viewer(QtWidgets.QMainWindow):
         if self.y_axis_button.text() == "Channel":
             self.y_axis_button.setText("Distance")
             self.matrix_plot.setLabel("left", "Channel", color="k", font_size="14pt")
-            self.refresh_y_axis(np.array(self.Fiber.channels, dtype=float))
+            self.refresh_y_axis(np.array(self.Record.channels, dtype=float))
             self.y_picker.setValue(float(self.selected_channel))
         else:
             self.y_axis_button.setText("Channel")
             self.matrix_plot.setLabel("left", "Optical Distance [m]", color="k", font_size="14pt")
-            self.refresh_y_axis(np.array(self.Fiber.distances, dtype=float))
+            self.refresh_y_axis(np.array(self.Record.distances, dtype=float))
             self.y_picker.setValue(self.selected_distance)
 
     def on_picker_moved(self) -> None:
         """Detects selection of channel via horizontal line."""
         if self.y_axis_button.text() == "Distance":
-            idx = np.abs(np.array(self.Fiber.channels, dtype=float)-self.y_picker.getYPos()).argmin()
+            idx = np.abs(np.array(self.Record.channels, dtype=float)-self.y_picker.getYPos()).argmin()
         else:
-            idx = np.abs(np.asarray(self.Fiber.distances)-self.y_picker.getYPos()).argmin()
-        self.selected_channel = self.Fiber.channels[idx]
+            idx = np.abs(np.asarray(self.Record.distances)-self.y_picker.getYPos()).argmin()
+        self.selected_channel = self.Record.channels[idx]
         self.update_plots()
 
     def on_spin_box_changed(self, value: float) -> None:
@@ -271,7 +271,7 @@ class Viewer(QtWidgets.QMainWindow):
     def update_plots(self) -> None:
         """Updates all plots."""
         ind = self.selected_channel-self.ch0
-        self.selected_distance = self.Fiber.distances[ind]
+        self.selected_distance = self.Record.distances[ind]
         self.spin_box.blockSignals(True)
         self.spin_box.setValue(self.selected_channel)
         self.spin_box.blockSignals(False)
@@ -290,7 +290,7 @@ class Viewer(QtWidgets.QMainWindow):
     @_busy_cursor
     def plot_spectrogram(self) -> None:
         """Simple spectrogram plot."""
-        spectrogram_data, freqs, _ = self.Fiber.channel_spectrogram(self.selected_channel,
+        spectrogram_data, freqs, _ = self.Record.channel_spectrogram(self.selected_channel,
                                                                     results=True, plot_mode=None)
         spectrogram_data = np.flip(spectrogram_data.T, axis=1)
         x_min, x_max = self.times[0], self.times[-1]
@@ -308,7 +308,7 @@ class Viewer(QtWidgets.QMainWindow):
         spectrogram_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
         spectrogram_plot.addItem(spectrogram_image)
         bar = pg.ColorBarItem(colorMap=cmap, values=(0, spec_max),
-                              interactive=True, label=self.Fiber.units.title(),
+                              interactive=True, label=self.Record.units.title(),
                               rounding=0.001*(spectrogram_data.max()-spectrogram_data.min()))
         bar.setImageItem(spectrogram_image, insert_in=spectrogram_plot)
         spectrogram_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)
@@ -319,8 +319,8 @@ class Viewer(QtWidgets.QMainWindow):
     @_busy_cursor
     def plot_fx(self) -> None:
         """Frequency-Distance plot."""
-        fx, freqs = self.Fiber.fx_plot(plot_mode=None, results=True)
-        x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
+        fx, freqs = self.Record.fx_plot(plot_mode=None, results=True)
+        x_min, x_max = self.Record.distances[0], self.Record.distances[-1]
         y_min, y_max = freqs.min(), freqs.max()
 
         fx_plot_widget = pg.GraphicsLayoutWidget()
@@ -338,7 +338,7 @@ class Viewer(QtWidgets.QMainWindow):
         fx_min, fx_max = float(np.nanmin(fx)), float(np.nanmax(fx))
         bar = pg.ColorBarItem(colorMap=cmap, values=(0, fx_abs_max),
                               interactive=True, rounding=0.001*(fx_max-fx_min),
-                              label=self.Fiber.units.title())
+                              label=self.Record.units.title())
         bar.setImageItem(fx_image, insert_in=fx_plot)
         fx_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max, yMin=y_min, yMax=y_max)
         self.dock_fx = Dock("Frequency-Distance", size=(1200, 600), closable=True)
@@ -349,7 +349,7 @@ class Viewer(QtWidgets.QMainWindow):
         "Plot the Autocorrelation profile"
         @_busy_cursor
         def calc(max_lag_val, deconvolve, window_size):
-            return self.Fiber.acf_profile(max_lag=max_lag_value,
+            return self.Record.acf_profile(max_lag=max_lag_value,
                                           deconvolve=deconvolve,
                                           window_size=window_size,
                                           plot_mode=None, results=True)
@@ -376,7 +376,7 @@ class Viewer(QtWidgets.QMainWindow):
             max_lag_value = float(max_lag.text())
             window = None if win_size.text() == "Full Cable" else int(win_size.text())
             acfs = calc(max_lag_value, deconvolve.isChecked(), window)
-            x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
+            x_min, x_max = self.Record.distances[0], self.Record.distances[-1]
             y_min, y_max = 0, max_lag_value
             acf_plot_widget = pg.GraphicsLayoutWidget()
             acf_plot = acf_plot_widget.addPlot()
@@ -415,27 +415,27 @@ class Viewer(QtWidgets.QMainWindow):
     def plot_data_over_distance(self, mode) -> None:
         """Plots P2PA-, RMSA-, and SNR-profile."""
         if mode == "rmsa":
-            data = self.Fiber.rmsa(results=True, plot_mode=None)[0, :]
+            data = self.Record.rmsa(results=True, plot_mode=None)[0, :]
             plot, self.dock_rmsa = self.make_plot_dock("RMS Amplitude", "Optical Distance [m]",
                                                        "RMS Amplitude")
         elif mode == "p2p_amp":
-            data, _, _ = self.Fiber.p2p_amp(plot_mode=None, results=True)
+            data, _, _ = self.Record.p2p_amp(plot_mode=None, results=True)
             plot, self.dock_p2p = self.make_plot_dock("P2P Amplitude", "Optical Distance [m]",
                                                        "P2P Amplitude")
         elif mode == "snr":
-            data = self.Fiber.SNR(plot_mode=None, results=True)
+            data = self.Record.SNR(plot_mode=None, results=True)
             plot, self.dock_snr = self.make_plot_dock("SNR", "Optical Distance [m]",
                                                        "SNR")
 
-        x_min, x_max = self.Fiber.distances[0], self.Fiber.distances[-1]
-        plot.plot(self.Fiber.distances, data, pen="k")
+        x_min, x_max = self.Record.distances[0], self.Record.distances[-1]
+        plot.plot(self.Record.distances, data, pen="k")
         plot.setXRange(x_min, x_max, padding=0)
         plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
                                     yMin=min(data), yMax=max(data))
 
     def plot_spectrum(self, mode: str = None) -> None:
         """Amplitude spectrum or PSD plot."""
-        freqs, amps = self.Fiber.spectrum(self.selected_channel, mode=mode,
+        freqs, amps = self.Record.spectrum(self.selected_channel, mode=mode,
                                           plot_mode=None, results=True)
         if mode == "spectrum":
             plot, self.dock_fft = self.make_plot_dock(f"FFT Ch {self.selected_channel}",
@@ -449,7 +449,7 @@ class Viewer(QtWidgets.QMainWindow):
                                     yMin=min(amps), yMax=max(amps))
 
     def update_colorbar_levels(self) -> None:
-        """Updates the colorbar levels after change by user."""
+        """Updates the colourbar levels after change by user."""
         percentile = self.cbar_spinbox.value()
         abs_percentile = np.percentile(np.abs(self.data), percentile)
         self.hist.setLevels(-abs_percentile, abs_percentile)
@@ -469,17 +469,17 @@ class Viewer(QtWidgets.QMainWindow):
         and displays its time range on the line plot.
         """
 
-        roi = pg.RectROI([self.times[0], self.Fiber.distances[0]],  # x, y
+        roi = pg.RectROI([self.times[0], self.Record.distances[0]],  # x, y
                          [(self.times[-1] - self.times[0]) * 0.1,       # width
-                          (self.Fiber.distances[-1] - self.Fiber.distances[0]) * 0.1],  # height
+                          (self.Record.distances[-1] - self.Record.distances[0]) * 0.1],  # height
                          pen=pg.mkPen("k", width=2),
                          handlePen=pg.mkPen("k", width=2),
                          hoverPen=pg.mkPen("k", width=2, style=pg.QtCore.Qt.DashLine,),
                          movable=True, resizable=True, removable=True,
                          maxBounds=pg.QtCore.QRectF(self.times[0],
-                                                    self.Fiber.distances[0],
+                                                    self.Record.distances[0],
                                                     self.times[-1] - self.times[0],
-                                                    self.Fiber.distances[-1] - self.Fiber.distances[0]))
+                                                    self.Record.distances[-1] - self.Record.distances[0]))
         roi.addScaleHandle([0,0], center=[1,1])
         self.matrix_plot.addItem(roi)
 
@@ -516,9 +516,9 @@ class Viewer(QtWidgets.QMainWindow):
 
     def add_velocity_line(self) -> pg.LineSegmentROI:
         """Add a line to the matrix plot to measure velocity."""
-        x0, y0 = self.times[0], self.Fiber.distances[0]
+        x0, y0 = self.times[0], self.Record.distances[0]
         x1 = x0 + (self.times[-1] - self.times[0]) * 0.1
-        y1 = y0 + (self.Fiber.distances[-1] - self.Fiber.distances[0]) * 0.1
+        y1 = y0 + (self.Record.distances[-1] - self.Record.distances[0]) * 0.1
 
         line = pg.LineSegmentROI([[x0, y0], [x1, y1]],
                                  pen=pg.mkPen("k", width=2),

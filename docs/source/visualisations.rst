@@ -47,7 +47,7 @@ There are two options to save a PyQtGraph figure to your computer, from the GUI 
 
 Data Viewer
 -----------
-The data viewer allows to explore data with some added interactivity. Start the data viewer for every instance of the Fiber class by calling ``Fiber.view()``. Upon openening the window is composed of the main panel holding a time-distance plot, the bottom panel with a channel plot and a control panel on the right side.
+The data viewer allows to explore data with some added interactivity. Start the data viewer for every instance of the Record class by calling ``Record.view()``. Upon openening the window is composed of the main panel holding a time-distance plot, the bottom panel with a channel plot and a control panel on the right side.
 
 .. figure:: _static/explorer_screenshot.png
    :width: 100%
@@ -61,7 +61,7 @@ The panels can be **changed in their relative size and can be rearranged** by dr
 The channel plot is controlled by **editing the desired channel number** in the control panel or by **moving the black handle** in the main panel to the channel of interest. The corresponding optical distance is indicated below the channel selector in the control section. The channel and the time-distance plot are linked, i.e. zooming into one also zooms into the other such that the time axis is always aligned. This behaviour can be switched off using the :guilabel:`Unlink X-Axis` button.
 
 In the data viewer the colorbar can additionally be controlled through the :guilabel:`Colorbar max` spinbox. It determines the **maximum percentile** that the colorbar is scaled to.
-From the dropdown menus :guilabel:`Channel Analysis` and :guilabel:`Data Analysis` some methods of the ``Fiber`` class can be called directly and their results will be displayed in new tabs. Methods from :guilabel:`Channel Analysis` are always performed on the currently selected channel.
+From the dropdown menus :guilabel:`Channel Analysis` and :guilabel:`Data Analysis` some methods of the ``Record`` class can be called directly and their results will be displayed in new tabs. Methods from :guilabel:`Channel Analysis` are always performed on the currently selected channel.
 
 Measuring Tools
 ^^^^^^^^^^^^^^^

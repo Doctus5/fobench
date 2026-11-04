@@ -1,4 +1,4 @@
-"""File managing the different fiber optic sensing formats.
+"""File managing the different fibre optic sensing formats.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -57,7 +57,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
     Raises
     ------
     ValueError
-        Unrecognized file format.
+        Unrecognised file format.
     """
 
     # option for reading S3 stored files. The check of instance is necessary because the remote file not necessary starts with...
@@ -343,7 +343,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
     elif (format == "h5" or format == "hdf5") and company == "sintela": # Sintela Onyx HDF5
         print("Data units (strain, strain-rate...) can not be extracted from Sintela files\n"
-             "you can set it manually by editing Fiber.units")
+             "you can set it manually by editing Record.units")
         pbar = tqdm(total=1, leave=True, desc="Reading Sintela HDF5 file", disable=not show_progress)
 
         with h5.File(filepath, "r") as file_file:
@@ -506,7 +506,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         raise ValueError(f"{format} is not a recognized file format!")
     del dataset
 
-    # Attributed for the Fiber class.
+    # Attributed for the Record class.
     attr_keys = [
         "basefile",
         "format",
@@ -675,7 +675,7 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     Returns
     -------
     dict
-        Fiber data and metadata attributes
+        Record data and metadata attributes
 
     """
 
@@ -791,7 +791,7 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
 
 """Methods for writing in original format"""
 
-def write_data(Fiber, filepath=None, company=None, format=None, template=None):
+def write_data(Record, filepath=None, company=None, format=None, template=None):
     """Manages saving of data in the original format as it was written from the manufacturer.
     Check format and company available (format, company) from read_data() function.
     "We can possibly try to give options to save in another format but it will
@@ -799,8 +799,8 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
     Parameters
     ----------
-    Fiber : Fiber class
-        Fiber class instance.
+    Record : Record class
+        Record class instance.
     filepath : str, optional
         Complete path including name to be saved and the format after the dot.
         "path/where/to/save/file.h5".
@@ -821,7 +821,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
     # format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
     
-    source_template = Fiber.__basefile__ if template is None else template
+    source_template = Record.__basefile__ if template is None else template
 
     if format == "tdms" and company == "silixa": # Silixa TDMS
 
@@ -838,16 +838,16 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         group_properties = dict(group_info.get("properties", {}))
         channels_template = group_info.get("channels", template.get("channels", []))
 
-        # map Fiber attrs back to TDMS root properties
-        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_rate)
-        root_properties["ISO8601 Timestamp"] = Fiber.start_time.isoformat()
-        root_properties["SpatialResolution[m]"] = float(Fiber.spatial_interval)
-        root_properties["GaugeLength"] = float(Fiber.gauge_length)
-        root_properties["OffsetLength"] = float(Fiber.channel_offset)
+        # map Record attrs back to TDMS root properties
+        root_properties["SamplingFrequency[Hz]"] = float(Record.sampling_rate)
+        root_properties["ISO8601 Timestamp"] = Record.start_time.isoformat()
+        root_properties["SpatialResolution[m]"] = float(Record.spatial_interval)
+        root_properties["GaugeLength"] = float(Record.gauge_length)
+        root_properties["OffsetLength"] = float(Record.channel_offset)
 
         # keep only current channels (supports crop)
         ch_map = {str(ch["name"]): ch for ch in channels_template}
-        selected = [ch_map[str(c)] for c in Fiber.channels]
+        selected = [ch_map[str(c)] for c in Record.channels]
 
         objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
 
@@ -856,8 +856,8 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
                 tdms.ChannelObject(
                     gname,
                     str(ch["name"]),
-                    np.asarray(Fiber.data[:, i]),
-                    # np.rint(np.clip(Fiber.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
+                    np.asarray(Record.data[:, i]),
+                    # np.rint(np.clip(Record.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
                     properties=dict(ch.get("properties", {})),
                 )
             )
@@ -879,7 +879,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         # Preserve original type as much as possible for compatibility.
         target_dtype = np.dtype(dataset_node["dtype"])
-        output_data = np.asarray(Fiber.data)
+        output_data = np.asarray(Record.data)
         if np.issubdtype(target_dtype, np.integer):
             info = np.iinfo(target_dtype)
             output_data = np.rint(np.clip(output_data, info.min, info.max)).astype(target_dtype)
@@ -895,22 +895,22 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             if len(chunks) != len(output_data.shape) or any(ch > sh for ch, sh in zip(chunks, output_data.shape)):
                 dataset_node["chunks"] = None
 
-        # Update Sintela metadata from Fiber state.
+        # Update Sintela metadata from Record state.
         acquisition_node.setdefault("attrs", {})
         acquisition_node["attrs"].update({
-            "FiberID": Fiber.fiber,
-            "PulseRate": Fiber.sampling_rate,
-            "MeasurementStartTime": (Fiber.start_time.isoformat()).encode("utf-8"),
-            "NumberOfLoci": int(Fiber.data.shape[1]),
-            "SpatialSamplingInterval": Fiber.spatial_interval,
-            "StartLocusIndex": int(round(Fiber.channel_offset / Fiber.spatial_interval)),
-            "GaugeLength": Fiber.gauge_length
+            "FiberID": Record.fiber,
+            "PulseRate": Record.sampling_rate,
+            "MeasurementStartTime": (Record.start_time.isoformat()).encode("utf-8"),
+            "NumberOfLoci": int(Record.data.shape[1]),
+            "SpatialSamplingInterval": Record.spatial_interval,
+            "StartLocusIndex": int(round(Record.channel_offset / Record.spatial_interval)),
+            "GaugeLength": Record.gauge_length
         })
 
         # If Raw[0] carries channel count, keep it coherent.
         raw_group_node.setdefault("attrs", {})
         if "NumberOfLoci" in raw_group_node["attrs"]:
-            raw_group_node["attrs"]["NumberOfLoci"] = int(Fiber.data.shape[1])
+            raw_group_node["attrs"]["NumberOfLoci"] = int(Record.data.shape[1])
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
@@ -929,7 +929,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         position_node = __find_h5_node_by_path__(template, position_path)
 
         # Aragon reader converts nanostrain -> strain (x1e-9), so invert on write.
-        strain_out = np.asarray(Fiber.data) * 1e9
+        strain_out = np.asarray(Record.data) * 1e9
         strain_dtype = np.dtype(strain_node["dtype"])
         if np.issubdtype(strain_dtype, np.integer):
             info = np.iinfo(strain_dtype)
@@ -947,16 +947,16 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         # Rebuild time axis in file units (seconds from start).
         t_dtype = np.dtype(time_node["dtype"])
-        t_vals = np.arange(Fiber.data.shape[0], dtype=np.float64) * (1.0 / Fiber.sampling_rate)
+        t_vals = np.arange(Record.data.shape[0], dtype=np.float64) * (1.0 / Record.sampling_rate)
         t_vals = t_vals.astype(t_dtype, copy=False)
         time_node["data"] = t_vals
         time_node["shape"] = t_vals.shape
 
         # Rebuild position axis in meters from current channel selection.
-        if Fiber.channels is not None and len(Fiber.channels) == Fiber.data.shape[1]:
-            p_vals = np.asarray(Fiber.channels, dtype=np.float64) * float(Fiber.spatial_interval)
+        if Record.channels is not None and len(Record.channels) == Record.data.shape[1]:
+            p_vals = np.asarray(Record.channels, dtype=np.float64) * float(Record.spatial_interval)
         else:
-            p_vals = np.arange(Fiber.data.shape[1], dtype=np.float64) * float(Fiber.spatial_interval)
+            p_vals = np.arange(Record.data.shape[1], dtype=np.float64) * float(Record.spatial_interval)
         p_dtype = np.dtype(position_node["dtype"])
         p_vals = p_vals.astype(p_dtype, copy=False)
         position_node["data"] = p_vals
@@ -964,11 +964,11 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         # Update known Aragon root attrs while preserving original dtype/shape style.
         root_attrs = template.setdefault("attrs", {})
-        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Fiber.sampling_rate))
-        __update_h5_attr_like__(root_attrs, "spatial_sampling", float(Fiber.spatial_interval))
-        __update_h5_attr_like__(root_attrs, "Global_RAM_User_SET_Pulse_Width_(meter)", float(Fiber.gauge_length))
-        __update_h5_attr_like__(root_attrs, "fiber_position_offset", float(Fiber.channel_offset) * float(Fiber.spatial_interval))
-        __update_h5_attr_like__(root_attrs, "Global_FileSaveIO_TimeStamp_s", float(Fiber.start_time))
+        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Record.sampling_rate))
+        __update_h5_attr_like__(root_attrs, "spatial_sampling", float(Record.spatial_interval))
+        __update_h5_attr_like__(root_attrs, "Global_RAM_User_SET_Pulse_Width_(meter)", float(Record.gauge_length))
+        __update_h5_attr_like__(root_attrs, "fiber_position_offset", float(Record.channel_offset) * float(Record.spatial_interval))
+        __update_h5_attr_like__(root_attrs, "Global_FileSaveIO_TimeStamp_s", float(Record.start_time))
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
@@ -989,7 +989,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         gl_node = __find_h5_node_by_path__(template, "/header/gaugeLength")
 
         # Preserve on-disk dtype as much as possible for compatibility/size.
-        out = np.asarray(Fiber.data)
+        out = np.asarray(Record.data)
         out_dtype = np.dtype(data_node["dtype"])
         if np.issubdtype(out_dtype, np.integer):
             info = np.iinfo(out_dtype)
@@ -1004,24 +1004,24 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
                 data_node["chunks"] = None
 
         # Scalar datasets in header.
-        dt_val = np.array(1.0 / float(Fiber.sampling_rate), dtype=np.dtype(dt_node["dtype"]))
+        dt_val = np.array(1.0 / float(Record.sampling_rate), dtype=np.dtype(dt_node["dtype"]))
         dt_node["data"] = dt_val
         dt_node["shape"] = dt_val.shape
 
-        t0_val = np.array(float(Fiber.start_time), dtype=np.dtype(t0_node["dtype"]))
+        t0_val = np.array(float(Record.start_time), dtype=np.dtype(t0_node["dtype"]))
         t0_node["data"] = t0_val
         t0_node["shape"] = t0_val.shape
 
-        n0_val = np.array(int(Fiber.data.shape[0]), dtype=np.dtype(n0_node["dtype"]))
-        n1_val = np.array(int(Fiber.data.shape[1]), dtype=np.dtype(n1_node["dtype"]))
+        n0_val = np.array(int(Record.data.shape[0]), dtype=np.dtype(n0_node["dtype"]))
+        n1_val = np.array(int(Record.data.shape[1]), dtype=np.dtype(n1_node["dtype"]))
         n0_node["data"], n0_node["shape"] = n0_val, n0_val.shape
         n1_node["data"], n1_node["shape"] = n1_val, n1_val.shape
 
         # Channels and spacing.
-        if Fiber.channels is not None and len(Fiber.channels) == Fiber.data.shape[1]:
-            channels = np.asarray(Fiber.channels, dtype=np.float64)
+        if Record.channels is not None and len(Record.channels) == Record.data.shape[1]:
+            channels = np.asarray(Record.channels, dtype=np.float64)
         else:
-            channels = np.arange(Fiber.data.shape[1], dtype=np.float64) + float(Fiber.channel_offset)
+            channels = np.arange(Record.data.shape[1], dtype=np.float64) + float(Record.channel_offset)
         ch_dtype = np.dtype(ch_node["dtype"])
         if np.issubdtype(ch_dtype, np.integer):
             info = np.iinfo(ch_dtype)
@@ -1036,11 +1036,11 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             step = float(channels[1]) - float(channels[0])
             if step != 0:
                 chan_step = step
-        dx_val = np.array(float(Fiber.spatial_interval) / chan_step, dtype=np.dtype(dx_node["dtype"]))
+        dx_val = np.array(float(Record.spatial_interval) / chan_step, dtype=np.dtype(dx_node["dtype"]))
         dx_node["data"] = dx_val
         dx_node["shape"] = dx_val.shape
 
-        gl_val = np.array(float(Fiber.gauge_length), dtype=np.dtype(gl_node["dtype"]))
+        gl_val = np.array(float(Record.gauge_length), dtype=np.dtype(gl_node["dtype"]))
         gl_node["data"] = gl_val
         gl_node["shape"] = gl_val.shape
 
@@ -1049,11 +1049,11 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             u_node = __find_h5_node_by_path__(template, "/header/sensitivityUnits")
             u_dtype = np.dtype(u_node["dtype"])
             if u_dtype.kind in ("S", "a"):
-                u_val = np.array(str(Fiber.units).encode("utf-8"), dtype=u_dtype)
+                u_val = np.array(str(Record.units).encode("utf-8"), dtype=u_dtype)
             elif u_dtype.kind == "U":
-                u_val = np.array(str(Fiber.units), dtype=u_dtype)
+                u_val = np.array(str(Record.units), dtype=u_dtype)
             else:
-                u_val = np.array(str(Fiber.units))
+                u_val = np.array(str(Record.units))
             u_node["data"] = u_val
             u_node["shape"] = u_val.shape
         except KeyError:
@@ -1071,7 +1071,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         channel_node = __find_h5_node_by_path__(template, "/ChannelMap")
 
         # Preserve the original data type.
-        output_data = np.asarray(Fiber.data)
+        output_data = np.asarray(Record.data)
         target_dtype = np.dtype(data_node["dtype"])
 
         if np.issubdtype(target_dtype, np.integer):
@@ -1089,24 +1089,24 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
                 data_node["chunks"] = None
 
         # Update the channel map.
-        channels = np.asarray(Fiber.channels, dtype=np.dtype(channel_node["dtype"]))
+        channels = np.asarray(Record.channels, dtype=np.dtype(channel_node["dtype"]))
         channel_node["data"] = channels
         channel_node["shape"] = channels.shape
 
         # Update the metadata affected by processing.
         root_attrs = template.setdefault("attrs", {})
-        start_time = Fiber.start_time.isoformat() + "Z"
+        start_time = Record.start_time.isoformat() + "Z"
 
         updated_attrs = {
-            "StartTime": int(round(float(Fiber.start_time) * 1e6)),
+            "StartTime": int(round(float(Record.start_time) * 1e6)),
             "StartTime_txt": start_time.encode("UTF-8"),
-            "Samplerate": float(Fiber.sampling_rate),
-            "Sampletime": 1.0 / float(Fiber.sampling_rate),
-            "SamplingFrequency[Hz]": float(Fiber.o_sampling_rate),
-            "SpatialResolution[m]": float(Fiber.spatial_interval),
-            "GaugeLength": float(Fiber.gauge_length),
-            "OffsetLength": float(Fiber.channel_offset),
-            "MeasureLength[m]": float(Fiber.data.shape[1] * Fiber.spatial_interval)
+            "Samplerate": float(Record.sampling_rate),
+            "Sampletime": 1.0 / float(Record.sampling_rate),
+            "SamplingFrequency[Hz]": float(Record.o_sampling_rate),
+            "SpatialResolution[m]": float(Record.spatial_interval),
+            "GaugeLength": float(Record.gauge_length),
+            "OffsetLength": float(Record.channel_offset),
+            "MeasureLength[m]": float(Record.data.shape[1] * Record.spatial_interval)
         }
 
         for key, value in updated_attrs.items():
@@ -1126,13 +1126,13 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
     pbar.set_description("File Saved ✓")
     
     
-def write_as(Fiber, filepath=None, company=None):
-    """Write Fiber data using another supported file structure.
+def write_as(Record, filepath=None, company=None):
+    """Write Record data using another supported file structure.
 
     Parameters
     ----------
-    Fiber : Fiber
-        Fiber instance containing the data and metadata to write.
+    Record : Record
+        Record instance containing the data and metadata to write.
     filepath : str
         Destination filepath, including its extension.
     company : str
@@ -1158,7 +1158,7 @@ def write_as(Fiber, filepath=None, company=None):
         
         template = pkl.load(handler)
 
-    write_data(Fiber, filepath=filepath, company=company, format=template_format, template=template)
+    write_data(Record, filepath=filepath, company=company, format=template_format, template=template)
     
 
 """H5/HDF5 explorers, templates, internals and writers"""

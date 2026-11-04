@@ -1,4 +1,4 @@
-"""Functions to analyze wavefield characteristics."""
+"""Functions to analyse wavefield characteristics."""
 
 import numpy as np
 from warnings import warn
@@ -33,7 +33,7 @@ def similarity_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.nda
     results : bool, optional
         Toggles return of computed values.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
 
     Returns
     -------
@@ -104,7 +104,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     fs : int
         Sampling frequency of data.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
     **imshow_kwargs :
         Additional arguments passed to :func:`~matplotlib.pyplot.imshow`
 
@@ -172,7 +172,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
     plot_mode : str
         ``"pyqt"``, ``"mpl"`` or no plotting.
     vmin, vmax : float, float
-        Minimum and maximum of colorbar
+        Minimum and maximum of colourbar
 
     Returns
     -------
@@ -294,7 +294,7 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
     nfft : int
         Number of points to use for fft.
     norm : bool
-        Normalize each spectrum by its maximum value for easier plotting.
+        Normalise each spectrum by its maximum value for easier plotting.
     axis : int
         Axis along which to  perform the operation.
 
@@ -357,7 +357,7 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
         If True, correlation is divided by ``||x|| * ||y||``, keeping scores in
         ``[-1, 1]``.
     normalization : str, optional
-        Normalization strategy when ``normalize=True``:
+        Normalisation strategy when ``normalize=True``:
 
         - ``global``: uses one denominator per trace (faster; can show edge spikes in
           ``mode='full'`` with different lengths).

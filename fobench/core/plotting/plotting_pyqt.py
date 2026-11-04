@@ -294,15 +294,15 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     dt : float
         Sampling period of data.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
     y_label : str, optional
         y-axis label.
     title : str, optional
         Plot title.
     cmap : str, optional
-        Colormap to be used.
+        Colourmap to be used.
     cbar_label : str, optional
-        Colorbar label
+        Colourbar label
     distances : np.ndarray, optional
         Array containing optical distance values.
 
@@ -396,7 +396,7 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
     y_ticks : list
         y-axis tick labels.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
     y_label : str, optional
         y-axis label.
     x_label : str, optional
@@ -406,9 +406,9 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
     title : str, optional
         Title of plot.
     cmap : str, optional
-        Colormap to use.
+        Colourmap to use.
     cbar_label : str, optional
-        Label of colorbar.
+        Label of colourbar.
     invert_y : bool, optional
         Invert y-axis.
 
@@ -549,7 +549,7 @@ def get_axis_button() -> QtWidgets.QPushButton:
     return button
 
 def get_colorscale_button() -> QtWidgets.QPushButton:
-    """Returns a button that can be used for resetting colorscale."""
+    """Returns a button that can be used for resetting colourscale."""
     button = QtWidgets.QPushButton("Reset colorscale")
     button.setToolTip("Resets the colorscale to initial values")
     button.setFixedWidth(110)
@@ -609,7 +609,7 @@ def get_vminmax_button(bar: pg.ColorBarItem) -> QtWidgets.QPushButton:
     return button
 
 def reset_scale(bar: pg.ColorBarItem, vmin: float, vmax: float) -> None:
-    """Function to resest the colorscale to original values."""
+    """Function to resest the colourscale to original values."""
     bar.setLevels(values=(vmin, vmax))
 
 def get_bottom_layout():
@@ -623,7 +623,7 @@ def get_bottom_layout():
     return text_label, h_layout, container
 
 def get_colors(n: int, colormap:str = "tab10") -> list[tuple[int, int, int]]:
-    """Returns a set of n unique colors from a plt colormap."""
+    """Returns a set of n unique colours from a plt colourmap."""
     cmap = plt.get_cmap(colormap, n)
     return [tuple(int(x*255) for x in cmap(i)[:3]) for i in range(n)]
 
@@ -761,13 +761,13 @@ def plot_dispersion(frequencies: np.ndarray, velocities: np.ndarray, image: np.n
         Phase velocities of the picked dispersion curve for each frequency,
         to be drawn.
     vmin, vmax : float
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
     title : str, optional
         Title of plot.
     cmap : str
-        Colormap to use.
+        Colourmap to use.
     cbar_label : str, optional
-        Label of colorbar.
+        Label of colourbar.
 
     Returns
     -------

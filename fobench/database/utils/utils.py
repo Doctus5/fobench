@@ -58,14 +58,14 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 	y_ch : np.ndarray
 		1D array of Y (latitude) coordinates of the channels specified in ``"n_ch"``.
 	z_ch : np.ndarray
-		1D array of Z (depth - meters) coordinates of the channels specified in ``"n_ch"``.
+		1D array of Z (depth - metres) coordinates of the channels specified in ``"n_ch"``.
 	system : str
 		Defines the output coordinate system for X and Y. It can be ``'decimal'``
 		for decimal degrees or ``'utm'`` for Universal Transverse Mercator.
 	err: float
 		The maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
 	spacing : int, float
-		Real channel spacing value in meters.
+		Real channel spacing value in metres.
 
 	Returns
 	-------
@@ -136,7 +136,7 @@ def power_loss(mode:str = "single-mode", fibre_type:str = "standard", refr_inter
 	Returns
 	-------
 	loss : float
-		Total power loss per meter
+		Total power loss per metre
 
 	"""
 

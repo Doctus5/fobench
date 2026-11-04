@@ -1,2 +1,2 @@
-"""Contains all functionality related to plotting and visualization of
-fiber optic sensing data."""
+"""Contains all functionality related to plotting and visualisation of
+fibre optic sensing data."""

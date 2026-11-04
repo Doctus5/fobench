@@ -17,13 +17,13 @@ import json
 import pandas as pd
 import numpy as np
 
-# Import Fiber for both install layouts:
-# - editable install (`from fobench.fiber import Fiber`)
-# - repo namespace usage (`from fobench.fobench.fiber import Fiber`)
+# Import Record for both install layouts:
+# - editable install (`from fobench.record import Record`)
+# - repo namespace usage (`from fobench.fobench.record import Record`)
 try:
-    from fobench.core.fiber import Fiber
+    from fobench.core.record import Record
 except ModuleNotFoundError:
-    from ..fobench.core.fiber import Fiber
+    from ..fobench.core.record import Record
 
 
 def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
@@ -81,7 +81,7 @@ def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
 
 
 def files2database(files, company, storage_opts=None):
-    """Function reada all the FOS files with Fiber Class and reports a big
+    """Function reada all the FOS files with Record Class and reports a big
     Database from them with all its important metadata.
 
     Parameters
@@ -111,7 +111,7 @@ def files2database(files, company, storage_opts=None):
         file = files[i] # select file
         # by checking the start and end times in the files
         print("File: " + file)
-        d_file = Fiber(file, company=company, load_data=False, storage_opts=storage_opts)
+        d_file = Record(file, company=company, load_data=False, storage_opts=storage_opts)
 
         info = d_file.metadata(meta_dict=True) # getting public relevant attributes.
         info["scale_factor"] = d_file.instr_correct(return_factor=True)
@@ -132,7 +132,7 @@ def files2database(files, company, storage_opts=None):
 
 
 def init_dataframe(dictionary):
-    """Initializes a DataFrame from dictionary and converts the dates in
+    """Initialises a DataFrame from dictionary and converts the dates in
     isoformat to datetime for management.
 
     Parameters
@@ -173,7 +173,7 @@ def open_metadatafile(json_file):
 
 
 def chrono_order(database):
-    """Aranges all fiber optic sensing files in a chronological way.
+    """Aranges all fibre optic sensing files in a chronological way.
     Requires reading the file without loading the data.
 
     Parameters
@@ -411,7 +411,7 @@ def dump_metadatafile(meta : dict, filename : str, format : str = "fobench"):
 
 
 def fdsn_fibre_check(fiber):
-    """Validate and clean Fibre metadata for FDSN export as fiber.
+    """Validate and clean Fibre metadata for FDSN export as fibre.
 
     Parameters
     ----------

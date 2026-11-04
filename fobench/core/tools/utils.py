@@ -25,7 +25,7 @@ def scan_hdf5(path, recursive=True, tab_step=2):
 		scan_node(f)
 
 
-"""Tools used exclusively for Fiber class"""
+"""Tools used exclusively for Record class"""
 
 STRAIN_UNIT_MAP = {	  # mapping for strain(rate) data
 					-1: "integrated strain",
@@ -67,9 +67,9 @@ UNKNOW_UNIT_MAP = {  # mapping for data with unknow unit
 
 
 def _update_processing(func):
-	"""Decorator function that updates the Fiber.processing attribute after each
+	"""Decorator function that updates the Record.processing attribute after each
 	processing step, in case of integration or differentiation of the data
-	also updates ``Fiber.units``.
+	also updates ``Record.units``.
 	"""
 
 	@functools.wraps(func)
@@ -85,33 +85,33 @@ def _update_processing(func):
 
 		result = func(*args, **kwargs) # function call
 
-		# append info to fiber instance
-		fiber = args[0]
-		fiber.processing.append({func_name : args_dict})
+		# append info to record instance
+		record = args[0]
+		record.processing.append({func_name : args_dict})
 
 		if func_name in ["integrate", "differentiate"] and args_dict["dim"]=="t":
 			# determine unit map
-			if (fiber.sensing == "das" or fiber.sensing == "dss"):
+			if (record.sensing == "das" or record.sensing == "dss"):
 				unit_map = STRAIN_UNIT_MAP
-				if fiber.company == "terra15" and "strain" not in fiber.units:
-					if fiber.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
-				if fiber.units == "counts": unit_map = COUNT_UNIT_MAP
-				elif fiber.company == "sintela": unit_map = UNKNOW_UNIT_MAP
-				elif fiber.units in ("radians", "radian", "rad"): unit_map = RADIAN_UNIT_MAP
-			elif fiber.sensing == "dts":
+				if record.company == "terra15" and "strain" not in record.units:
+					if record.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
+				if record.units == "counts": unit_map = COUNT_UNIT_MAP
+				elif record.company == "sintela": unit_map = UNKNOW_UNIT_MAP
+				elif record.units in ("radians", "radian", "rad"): unit_map = RADIAN_UNIT_MAP
+			elif record.sensing == "dts":
 				unit_map = TEMP_UNIT_MAP
 
 			# find current unit
-			try: key = [i for i in unit_map if unit_map[i] == fiber.units][0]
-			except: key = int(fiber.units[2])
+			try: key = [i for i in unit_map if unit_map[i] == record.units][0]
+			except: key = int(record.units[2])
 
 			# depending on operation change key
 			if func_name == "integrate": key -= 1
 			elif func_name == "differentiate": key += 1
 
 			# assign new unit
-			try: fiber.units = unit_map[key]
-			except: fiber.units = f"d^{key}/dt {unit_map[0]}"
+			try: record.units = unit_map[key]
+			except: record.units = f"d^{key}/dt {unit_map[0]}"
 
 		return result
 	return wrapper
@@ -123,14 +123,14 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 	Parameters
 	----------
 	data : np.ndarray
-		Data of Fiber class.
+		Data of Record class.
 	attributes : dict
-		Fiber class attributes.
+		Record class attributes.
 	target : str, optional
 		Target unit. The default is "strain-rate".
 	terra15_gl : float, optional
 		Gauge length for velocity to strain-rate conversion for Terra15 data.
-		If not specified, original gauge length from Fiber.gauge_length is taken.
+		If not specified, original gauge length from Record.gauge_length is taken.
 	axis : int, optional
 		Axis to where the change must be applied (important just for terra15)
 	return_factor : bool
@@ -246,14 +246,14 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 	y_ch : np.ndarray
 		1D array of Y (latitude) coordinates of the channels specified in ``"n_ch"``.
 	z_ch : np.ndarray
-		1D array of Z (depth - meters) coordinates of the channels specified in ``"n_ch"``.
+		1D array of Z (depth - metres) coordinates of the channels specified in ``"n_ch"``.
 	system : str
 		Defines the output coordinate system for X and Y. It can be ``'decimal'``
 		for decimal degrees or ``'utm'`` for Universal Transverse Mercator.
 	err: float
 		The maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
 	spacing : int, float
-		Real channel spacing value in meters.
+		Real channel spacing value in metres.
 
 	Returns
 	-------
@@ -345,7 +345,7 @@ def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
 
 	return factors
 
-def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
+def spatial_upsampling(Record)-> tuple[np.ndarray, list]:
 
 	"""Function for spatially upsampling the DAS, doubling the number of channels.
 	Creates an interpolation between consecutive channels to simulate an increase
@@ -353,8 +353,8 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 
 	Parameters
 	----------
-	Fiber : fobench.Fiber object
-		Fiber class object.
+	Record : fobench.Record object
+		Record class object.
 
 	Returns
 	-------
@@ -365,35 +365,35 @@ def spatial_upsampling(Fiber)-> tuple[np.ndarray, list]:
 
 	"""
 
-	d_axis, t_axis = Fiber.__axis__("d"), Fiber.__axis__("t")
-	data = Fiber.data
-	channels = np.asarray(Fiber.channels)
+	d_axis, t_axis = Record.__axis__("d"), Record.__axis__("t")
+	data = Record.data
+	channels = np.asarray(Record.channels)
 
-	new_channels = np.empty(2 * Fiber.n_channels - 1, dtype=float)
+	new_channels = np.empty(2 * Record.n_channels - 1, dtype=float)
 	new_channels[0::2] = channels
 	new_channels[1::2] = 0.5 * (channels[:-1] + channels[1:])
 
 	if d_axis == 1:
-		new_data = np.empty((data.shape[t_axis], 2*Fiber.n_channels - 1), dtype=np.result_type(data, float))
+		new_data = np.empty((data.shape[t_axis], 2*Record.n_channels - 1), dtype=np.result_type(data, float))
 		new_data[:, 0::2] = data
 		new_data[:, 1::2] = 0.5 * (data[:, :-1] + data[:, 1:])
 	else:
-		new_data = np.empty((2*Fiber.n_channels - 1, data.shape[t_axis]), dtype=np.result_type(data, float))
+		new_data = np.empty((2*Record.n_channels - 1, data.shape[t_axis]), dtype=np.result_type(data, float))
 		new_data[0::2, :] = data
 		new_data[1::2, :] = 0.5 * (data[:-1, :] + data[1:, :])
 
 	return new_data, new_channels
 
 
-def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
+def spatial_downsampling(Record)-> tuple[np.ndarray, list]:
 
 	"""Function for spatially downsampling DAS data by half. Erases one channel between consecutive
 	channels to simulate a decrease of the spatial resolution.
 
 	Parameters
 	----------
-	Fiber : fobench.Fiber object
-		Fiber class object.
+	Record : fobench.Record object
+		Record class object.
 
 	Returns
 	-------
@@ -404,25 +404,25 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 
 	"""
 
-	d_axis = Fiber.__axis__("d")
-	new_data = Fiber.data[:,::2] if d_axis == 1 else Fiber.data[::2,:]
-	new_channels = Fiber.channels[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
-	#new_channels = [i for i in range(0,int(len(Fiber.channels)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
-	#new_channels = Fiber.channels[:int(len(Fiber.channels)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
+	d_axis = Record.__axis__("d")
+	new_data = Record.data[:,::2] if d_axis == 1 else Record.data[::2,:]
+	new_channels = Record.channels[::2] #only if the label of the channel wants to be fixed (0,2,4,6,...,N)
+	#new_channels = [i for i in range(0,int(len(Record.channels)/2))] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
+	#new_channels = Record.channels[:int(len(Record.channels)/2)] #channel numbers change due to the downsampling (0,1,2,3,...,N/2)
 
 	return new_data, np.asarray(new_channels)
 
-def to_traces(Fiber, t_type: str)-> Stream:
+def to_traces(Record, t_type: str)-> Stream:
 
 	"""Creates an ObsPy or pyrocko Stream object and fills it with Traces. Each Trace
-	represents a channel of the Fiber class, including the metadata which
+	represents a channel of the Record class, including the metadata which
 	from the attributes of the Trace Class. This is mainly done so users can have access
 	to ObsPy tools with their data. However, it can be slow and memory demanding.
 
 	Parameters
 	----------
-	Fiber : fobench.Fiber object
-		Fiber class object.
+	Record : fobench.Record object
+		Record class object.
 	t_type : str
 		type of stream to return, ``'obspy'`` or ``'pyrocko'``.
 
@@ -435,17 +435,17 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 	stream = Stream() if t_type == 'obspy' else []
 
-	for i in trange(Fiber.n_channels, desc="Creating Stream"):
-		data = Fiber.data[i,:] if Fiber.__axis__("d") == 0 else Fiber.data[:,i]
+	for i in trange(Record.n_channels, desc="Creating Stream"):
+		data = Record.data[i,:] if Record.__axis__("d") == 0 else Record.data[:,i]
 		if t_type == "obspy":
 			trace = oTrace(data=data)
-			trace.stats.network = Fiber.fiber
-			trace.stats.station = str(Fiber.channels[i]).zfill(5)
+			trace.stats.network = Record.fiber
+			trace.stats.station = str(Record.channels[i]).zfill(5)
 # 			trace.stats.npts = self.n_samples #+ 1
-			trace.stats.sampling_rate = Fiber.sampling_rate
-			trace.stats.delta = Fiber.dt
-			trace.stats.starttime = Fiber.start_time
-			trace.stats.calib = instr_corr(np.array(1), attributes=vars(Fiber))
+			trace.stats.sampling_rate = Record.sampling_rate
+			trace.stats.delta = Record.dt
+			trace.stats.starttime = Record.start_time
+			trace.stats.calib = instr_corr(np.array(1), attributes=vars(Record))
 			trace.stats.channel = "H"
 			#trace.stats.endtime = self.end_time
 			stream.append(trace)
@@ -453,11 +453,11 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 		elif t_type == "pyrocko":
 			trace = pTrace(ydata=data)
-			trace.network = Fiber.fiber
-			trace.station = str(Fiber.channels[i]).zfill(5)
-			trace.deltat = Fiber.dt
-			trace.tmin = str_to_time(Fiber.start_time.isoformat().replace("T"," "))
-			trace.tmax = str_to_time(Fiber.end_time.isoformat().replace("T"," "))
+			trace.network = Record.fiber
+			trace.station = str(Record.channels[i]).zfill(5)
+			trace.deltat = Record.dt
+			trace.tmin = str_to_time(Record.start_time.isoformat().replace("T"," "))
+			trace.tmax = str_to_time(Record.end_time.isoformat().replace("T"," "))
 			stream.append(trace)
 
 	return stream
@@ -465,8 +465,8 @@ def to_traces(Fiber, t_type: str)-> Stream:
 def to_wav(signal: np.ndarray, fs: int, out_file: str):
     """Write out a signal as WAV audio file. Will only be audible to humans
     at sufficiently high sampling rates. Increase ``fs`` to squeeze the signal.
-    Example: To convert the 100th chanel of a ``Fiber`` instance use:
-    ``to_wav(Fiber.get_data(100), fs=Fiber.sampling_rate, out_file="/home/user/signal")``
+    Example: To convert the 100th chanel of a ``Record`` instance use:
+    ``to_wav(Record.get_data(100), fs=Record.sampling_rate, out_file="/home/user/signal")``
 
     Warning
     -------
@@ -491,14 +491,14 @@ def to_wav(signal: np.ndarray, fs: int, out_file: str):
     signal = signal/np.abs(np.max(signal))
     wavfile.write(out_file + ".wav", rate=int(fs), data=signal)
 
-def to_xarray(Fiber, name: str = None, use_distance: bool = False):
+def to_xarray(Record, name: str = None, use_distance: bool = False):
 
-	"""Converts ``Fiber`` to Xarray.DataArray.
+	"""Converts ``Record`` to Xarray.DataArray.
 
 	Parameters
 	----------
-	Fiber : fobench.Fiber object
-		``Fiber`` class object.
+	Record : fobench.Record object
+		``Record`` class object.
 	name : str
 		Filename.
 	use_distance : bool
@@ -513,35 +513,35 @@ def to_xarray(Fiber, name: str = None, use_distance: bool = False):
 		raise ImportError("xarray package is required, but no module is found.")
 
 	# create the different labels and coordinates
-	data_label = name or Fiber.units or "data"
-	times = Fiber.times("datetime64")
-	channels = np.asarray(Fiber.channels)
-	distances = np.asarray(Fiber.distances, dtype=float)
-	attrs = clean_metadata(Fiber)
+	data_label = name or Record.units or "data"
+	times = Record.times("datetime64")
+	channels = np.asarray(Record.channels)
+	distances = np.asarray(Record.distances, dtype=float)
+	attrs = clean_metadata(Record)
 
 	if use_distance:
-		dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "distance"}
-		dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
+		dim_names = {Record.__axis__("t"): "time", Record.__axis__("d"): "distance"}
+		dims = tuple(dim_names[i] for i in range(Record.data.ndim))
 		coords = {"time": ("time",times),
 				  "distance": ("distance",distances),
 				  "channel": ("distance",channels)}
 	else:
-		dim_names = {Fiber.__axis__("t"): "time", Fiber.__axis__("d"): "channel"}
-		dims = tuple(dim_names[i] for i in range(Fiber.data.ndim))
+		dim_names = {Record.__axis__("t"): "time", Record.__axis__("d"): "channel"}
+		dims = tuple(dim_names[i] for i in range(Record.data.ndim))
 		coords = {"time": ("time",times),
 				"channel": ("channel",channels),
 				"distance": ("channel",distances)}
 
-	return xr.DataArray(data=Fiber.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
+	return xr.DataArray(data=Record.data, dims=dims, coords=coords, name=data_label, attrs=attrs)
 
 
-def clean_metadata(Fiber) -> dict:
-	"""Returns cleaned metadata of ``Fiber``.
+def clean_metadata(Record) -> dict:
+	"""Returns cleaned metadata of ``Record``.
 
 	Parameters
 	----------
-	Fiber : fobench.Fiber object
-		``Fiber`` class object.
+	Record : fobench.Record object
+		``Record`` class object.
 
 	Returns
 	-------
@@ -550,39 +550,39 @@ def clean_metadata(Fiber) -> dict:
 
 	"""
 
-	attrs = {"fiber": Fiber.fiber,
-			"company": Fiber.company,
-			"format": Fiber.format,
-			"units": Fiber.units,
-			"sampling_rate": Fiber.sampling_rate,
-			"o_sampling_rate": Fiber.o_sampling_rate,
-			"dt": Fiber.dt,
-			"spatial_interval": Fiber.spatial_interval,
-			"gauge_length": Fiber.gauge_length,
-			"channel_offset": Fiber.channel_offset,
-			"start_time": Fiber.start_time.isoformat(),
-			"end_time": Fiber.end_time.isoformat(),
-			"time_length": Fiber.time_length,
-			"n_channels": Fiber.n_channels,
-			"conv_factor": Fiber.conv_factor,
-			"sensing": Fiber.sensing,
-			# "basefile": getattr(Fiber, "__basefile__", None),
-			"source_files": getattr(Fiber, "__filepath__", None),
-			# "processing": Fiber.processing,
-			# "properties": Fiber.properties
+	attrs = {"fiber": Record.fiber,
+			"company": Record.company,
+			"format": Record.format,
+			"units": Record.units,
+			"sampling_rate": Record.sampling_rate,
+			"o_sampling_rate": Record.o_sampling_rate,
+			"dt": Record.dt,
+			"spatial_interval": Record.spatial_interval,
+			"gauge_length": Record.gauge_length,
+			"channel_offset": Record.channel_offset,
+			"start_time": Record.start_time.isoformat(),
+			"end_time": Record.end_time.isoformat(),
+			"time_length": Record.time_length,
+			"n_channels": Record.n_channels,
+			"conv_factor": Record.conv_factor,
+			"sensing": Record.sensing,
+			# "basefile": getattr(Record, "__basefile__", None),
+			"source_files": getattr(Record, "__filepath__", None),
+			# "processing": Record.processing,
+			# "properties": Record.properties
    			}
 
 	return attrs
 
 
-def return_times(Fiber, time_type: str)-> np.ndarray:
+def return_times(Record, time_type: str)-> np.ndarray:
 
 	"""Returns a 1D array containing time-steps of data in the specified format.
 
 	Parameters
 	----------
-	Fiber : fobench.Fiber object
-		``Fiber`` class object.
+	Record : fobench.Record object
+		``Record`` class object.
 	time_type : str
 		time format to return. options are ``'UTCDateTime'``, ``'isoformat'``,
 		``datetime64``, ``'matplotlib'`` or ``'unix'``
@@ -590,7 +590,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 	Raises
 	------
 	ValueError
-		Unrecognized time format.
+		Unrecognised time format.
 
 	Returns
 	-------
@@ -609,7 +609,7 @@ def return_times(Fiber, time_type: str)-> np.ndarray:
 			f"\n⚠️ Unrecognized time format '{time_type}'! Please choose one of:\n"
 			" -'UTCDateTime'\n -'isoformat'\n -'matplotlib'\n -'unix'")
 
-	times = [Fiber.start_time + i * Fiber.dt for i in range(Fiber.n_samples)]
+	times = [Record.start_time + i * Record.dt for i in range(Record.n_samples)]
 
 	return np.array([converters[time_type](t) for t in times])
 
@@ -781,7 +781,7 @@ def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: 
 
 def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 			  start_time: UTC, end_time: UTC, axis: int=0) -> tuple[np.ndarray, UTC, UTC]:
-	"""Trims data in Fiber class in time dimension between given start and end times
+	"""Trims data in Record class in time dimension between given start and end times
 
 	Parameters
 	----------
@@ -790,7 +790,7 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 	data : np.ndarray
 		Original data to trim.
 	times : np.ndarray
-		Timestamps of Fiber class.
+		Timestamps of Record class.
 	start_time, end_time : UTC datetime
 		Original start and end time of data.
 	axis : int

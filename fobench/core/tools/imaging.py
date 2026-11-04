@@ -12,7 +12,7 @@ from fobench.core.tools.signals import taper_signal
 from fobench.core.plotting import plotting_pyqt as plot_pyqt
 
 class VSG:
-    """Computes a virtual shot gather from a ``Fiber`` instance.
+    """Computes a virtual shot gather from a ``Record`` instance.
 
     All channels are cross-correlated with the virtual source channel.
     Positive lags correspond to waves travelling from the virtual source to the
@@ -20,25 +20,25 @@ class VSG:
 
     Parameters
     ----------
-    fiber : Fiber object
-        ``Fiber`` class object, should be pre-processed. Processing is applied
-        to ``Fiber`` instance directly.
+    record : Record object
+        ``Record`` class object, should be pre-processed. Processing is applied
+        to ``Record`` instance directly.
     max_lag : float
         Maximum lag of the correlation functions in seconds.
     source_channel : int | None
         Channel number used as virtual source. If ``None`` (default),
         middle channel is used.
     temporal_norm : str | None
-        Normalization method passed to :meth:`Fiber.normalize`, e.g. ``"1bit"``
-        or ``"running mean"``. ``None`` disables normalization.
+        Normalisation method passed to :meth:`Record.normalize`, e.g. ``"1bit"``
+        or ``"running mean"``. ``None`` disables normalisation.
     ram_window : float
-        Window length of the running absolute mean normalization in seconds,
-        passed to :meth:`Fiber.normalize`.
+        Window length of the running absolute mean normalisation in seconds,
+        passed to :meth:`Record.normalize`.
     whiten : tuple[float, float] | None
-        Frequency band ``(freq_min, freq_max)`` passed to :meth:`Fiber.whiten`.
+        Frequency band ``(freq_min, freq_max)`` passed to :meth:`Record.whiten`.
         ``None`` disables whitening.
     normalize : bool
-        Normalizes each correlation function with the overall standard deviations.
+        Normalises each correlation function with the overall standard deviations.
         See :func:`obspy.signal.cross_correlation.correlate`.
 
     Raises
@@ -48,34 +48,34 @@ class VSG:
 
     """
 
-    def __init__(self, fiber, max_lag: float, source_channel: int = None,
+    def __init__(self, record, max_lag: float, source_channel: int = None,
                  temporal_norm: str = None, ram_window: float = None,
                  whiten: tuple[float, float] = None, normalize: bool = True):
 
         if source_channel is None:
-            source_channel = fiber.channels[fiber.n_channels // 2]
-        if max_lag * fiber.sampling_rate >= fiber.n_samples:
+            source_channel = record.channels[record.n_channels // 2]
+        if max_lag * record.sampling_rate >= record.n_samples:
             raise ValueError("⚠️ max_lag must be shorter than the record!")
 
         if whiten is not None:
-            fiber.whiten(freq_min=whiten[0], freq_max=whiten[1])
+            record.whiten(freq_min=whiten[0], freq_max=whiten[1])
         if temporal_norm is not None:
-            fiber.normalize(method=temporal_norm, ram_window=ram_window)
+            record.normalize(method=temporal_norm, ram_window=ram_window)
 
         # metadata
         self.source_channel = int(source_channel)
-        self.source_index = int(np.where(fiber.channels == source_channel)[0][0])
-        self.channels = np.asarray(fiber.channels).copy()
-        self.distances = np.asarray(fiber.distances).copy()
+        self.source_index = int(np.where(record.channels == source_channel)[0][0])
+        self.channels = np.asarray(record.channels).copy()
+        self.distances = np.asarray(record.distances).copy()
         self.offsets = self.distances - self.distances[self.source_index]
-        self.n_channels = fiber.n_channels
-        self.sampling_rate = fiber.sampling_rate
-        self.dt = fiber.dt
-        self.spatial_interval = fiber.spatial_interval
-        self.start_time = fiber.start_time
-        self.end_time = fiber.end_time
-        self.units = fiber.units
-        self.fiber_processing = fiber.processing
+        self.n_channels = record.n_channels
+        self.sampling_rate = record.sampling_rate
+        self.dt = record.dt
+        self.spatial_interval = record.spatial_interval
+        self.start_time = record.start_time
+        self.end_time = record.end_time
+        self.units = record.units
+        self.record_processing = record.processing
 
         self.parameters = {"max_lag": max_lag, "temporal_norm": temporal_norm,
                            "ram_window": ram_window, "whiten": whiten,
@@ -83,7 +83,7 @@ class VSG:
         self.created = UTC.utcnow().ctime()
 
         # correlation
-        data = np.moveaxis(fiber.data, (fiber.__axis__("t"), fiber.__axis__("d")), (0, 1))
+        data = np.moveaxis(record.data, (record.__axis__("t"), record.__axis__("d")), (0, 1))
         n_lag = int(round(max_lag * self.sampling_rate))
         source = data[:, self.source_index]
         self.data = np.empty((2 * n_lag + 1, self.n_channels))
@@ -112,10 +112,10 @@ class VSG:
         Parameters
         ----------
         vmin, vmax : float
-            Minimum and maximum limits of colorbar, defaults to the negative and
+            Minimum and maximum limits of colourbar, defaults to the negative and
             positive 95th percentile of the absolute data.
         cmap : str
-            Colormap to use.
+            Colourmap to use.
         export : str
             Filepath to save the plot to.
         show : bool
@@ -216,8 +216,8 @@ def dispersion_image(data: np.ndarray, offsets: np.ndarray, dt: float, c_min: fl
     axis : int
         Time axis of ``data``.
     normalize : bool
-        Normalizes the dispersion image to the maximum of each frequency if ``True``.
-        If ``False`` the image is normalized by the number of traces, i.e. values
+        Normalises the dispersion image to the maximum of each frequency if ``True``.
+        If ``False`` the image is normalised by the number of traces, i.e. values
         between 0 and 1.
     taper : float | None
         Shape parameter of a Tukey window applied in time, ``None`` disables

@@ -1,4 +1,4 @@
-"""Class ``Interrogator`` for visualizing and handling data within a ``Project``.
+"""Class ``Interrogator`` for visualising and handling data within a ``Project``.
 A ``Project`` is understood as a field campaing in an specific location where several
 ``Datasets`` are collected from deployments.
 
@@ -50,7 +50,7 @@ class Interrogator(object):
 			Complete path to where the metadata JSON file is located. This file is generated once
 			the Interrogator class was run for the first time scanning files.
 		sensing : str
-			Fiber optic sensing technology. Currently only ``"das"``.
+			Fibre optic sensing technology. Currently only ``"das"``.
 		company : str
 			Interrogator manufacturer.
 		format : str, optional
@@ -226,7 +226,7 @@ class Interrogator(object):
 		Parameters
 		----------
 		parallel_params : dict
-			Dictionary containing the parameters for parallelization. If parameters are
+			Dictionary containing the parameters for parallelisation. If parameters are
 			given, then the building method runs in parallel. If ``None``, it runs in serial.
 
 		Returns
@@ -247,7 +247,7 @@ class Interrogator(object):
 		# calculate in serial mode
 		else:
 
-			database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Fiber Class.
+			database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Record Class.
 
 		database_files = manager.chrono_order(database_files) # aranges in a chronological order.
 		chunks = manager.database_discontinuities(database_files, split=True) # splits based on discontinuities.
@@ -382,13 +382,13 @@ class Interrogator(object):
 
 
 	def dataset_table(self, return_table : bool = False, include_private: bool = False) -> None | pd.DataFrame:
-		"""Prints or returns a summarized table of ``Datasets`` found for the
+		"""Prints or returns a summarised table of ``Datasets`` found for the
 		``Interrogator`` and its properties.
 
 		Parameters
 		----------
 		return_table : bool, optional
-			If ``True``, returns the summarized table of ``Datasets`` within ``Interrogator``
+			If ``True``, returns the summarised table of ``Datasets`` within ``Interrogator``
 			and its properties. If ``False``, prints them in terminal.
 		include_private : bool, optional
 			Include private attributes of the ``Datasets``.
@@ -645,20 +645,20 @@ class Interrogator(object):
 		)
 
 
-	def apply_fiber(self, task, output_store: str, output_key: str = None,
+	def apply_record(self, task, output_store: str, output_key: str = None,
 		time_range: tuple = None, window_size: float = None, step: float = None,
 		include_overlap: bool = True, min_overlap_s: float = 0.0,
 		merge_datasets: bool = True, group_cols: list[str] = None,
-		fiber_kwargs: dict = None, parallel_params: dict = None,
+		record_kwargs: dict = None, parallel_params: dict = None,
 		submit_chunk_size: int = None, cpu_ratio: float = 0.85,
 		show_progress: bool = True, reducer: str = "mean",
 		output_adapter=None):
-		"""Apply a ``Fiber`` task over ``Interrogator`` windows and save to zarr.
+		"""Apply a ``Record`` task over ``Interrogator`` windows and save to zarr.
 
 		Parameters
 		----------
 		task : list, tuple, dict, str, or callable
-			Fiber processing task definition.
+			Record processing task definition.
 		output_store : str
 			Output zarr path.
 		output_key : str, optional
@@ -677,8 +677,8 @@ class Interrogator(object):
 			If ``True``, map all datasets in one shared timeline.
 		group_cols : list[str], optional
 			Optional grouping columns for compatibility grouping.
-		fiber_kwargs : dict, optional
-			Keyword arguments passed to Fiber initialization.
+		record_kwargs : dict, optional
+			Keyword arguments passed to Record initialisation.
 		parallel_params : dict, optional
 			Parallel backend parameters.
 		submit_chunk_size : int, optional
@@ -700,7 +700,7 @@ class Interrogator(object):
 
 		"""
 
-		# Lazy import to avoid requiring zarr unless apply_fiber is used.
+		# Lazy import to avoid requiring zarr unless apply_record is used.
 		from .processing import run_window_pipeline_to_zarr
 
 		# Thin wrapper: keep orchestration logic in shared processing module.
@@ -716,7 +716,7 @@ class Interrogator(object):
 			min_overlap_s=min_overlap_s,
 			group_cols=group_cols,
 			merge_datasets=merge_datasets,
-			fiber_kwargs=fiber_kwargs,
+			record_kwargs=record_kwargs,
 			parallel_params=parallel_params,
 			submit_chunk_size=submit_chunk_size,
 			cpu_ratio=cpu_ratio,

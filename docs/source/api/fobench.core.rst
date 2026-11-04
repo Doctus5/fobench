@@ -10,6 +10,6 @@
    :toctree:
    :recursive:
 
-   fiber
+   record
    plotting
    tools

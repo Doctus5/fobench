@@ -1,4 +1,4 @@
-"""Parallel wrapper methods for parallel computing and HPC for Fiber Optic projects.
+"""Parallel wrapper methods for parallel computing and HPC for Fibre Optic projects.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -17,11 +17,11 @@ from tqdm import tqdm
 
 class Parallel(object):
     """Parallel wrapper class for FoBench database and processing tasks.
-    Initialize the parallel wrapper and selected backend.
+    Initialise the parallel wrapper and selected backend.
 
     Notes
     -----
-    This class centralizes multiple backends under one interface:
+    This class centralises multiple backends under one interface:
     ``mpi``, ``multiprocessing``, ``dask`` and ``processpool``.
     """
 
@@ -110,11 +110,11 @@ class Parallel(object):
 
 
     def __init_mpi__(self):
-        """Initialize MPI communicator and rank/size metadata.
+        """Initialise MPI communicator and rank/size metadata.
 
         Notes
         -----
-        After initialization, ``self.n_cores`` is set to the detected MPI
+        After initialisation, ``self.n_cores`` is set to the detected MPI
         world size.
         """
 
@@ -185,7 +185,7 @@ class Parallel(object):
 
 
     def __init_dask__(self):
-        """Initialize Dask client.
+        """Initialise Dask client.
 
         Notes
         -----
@@ -241,7 +241,7 @@ class Parallel(object):
 
 
     def __del__(self):
-        """Finalize Dask resources during object destruction.
+        """Finalise Dask resources during object destruction.
 
         Returns
         -------
@@ -257,7 +257,7 @@ class Parallel(object):
 
 
     def __normalize_fixed_args__(self, fixed_args):
-        """Normalize fixed arguments into a tuple.
+        """Normalise fixed arguments into a tuple.
 
         Parameters
         ----------
@@ -484,7 +484,7 @@ class Parallel(object):
               first argument and fixed arguments afterwards.
             - dict:
               Pipeline configuration. Expected keys are:
-              ``pipeline`` (or ``steps``), optional ``fiber_kwargs``, and
+              ``pipeline`` (or ``steps``), optional ``record_kwargs``, and
               optional ``validate_pipeline``.
 
         var_args : array-like
@@ -536,7 +536,7 @@ class Parallel(object):
             if pipeline is None:
                 raise ValueError("Dictionary task requires 'pipeline' (or 'steps').")
 
-            fiber_kwargs = task.get("fiber_kwargs", None)
+            record_kwargs = task.get("record_kwargs", None)
             validate_pipeline = bool(task.get("validate_pipeline", False))
 
             # Validate once here, then disable repeated validation in worker batches.
@@ -552,7 +552,7 @@ class Parallel(object):
                 )
 
             worker_task = run_batch_pipeline
-            worker_fixed_args = (pipeline, fiber_kwargs, validate_pipeline)
+            worker_fixed_args = (pipeline, record_kwargs, validate_pipeline)
 
         else:
             raise TypeError('"task" must be callable or dictionary.')

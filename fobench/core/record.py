@@ -1,4 +1,4 @@
-"""``Fiber`` class for reading, manipulating and visualizing fiber optic sensing data.
+"""``Record`` class for reading, manipulating and visualising fibre optic sensing data.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -25,13 +25,13 @@ from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.pyqt_viewer import Viewer
 
 
-class Fiber(object):
+class Record(object):
     """The base class of FoBench, reading in data and metadata.
 
     Note
     ----
     - Most of the methods perform changes within the class permanently.
-      It can be useful to make a copy of the Fiber instance with the
+      It can be useful to make a copy of the Record instance with the
       ``.copy()`` method before performing any processing or changes.
     - For most methods the ``plot_mode`` parameter can either be
       ``"pyqt"`` or ``"mpl"``; to not generate a plot, set it to anything
@@ -53,7 +53,7 @@ class Fiber(object):
             Range of channels to load. Can be a single channel, list or array of channnels
             or range given as tuple.
         sensing : str
-            Fiber optic sensing technology. Currently only ``"das"``.
+            Fibre optic sensing technology. Currently only ``"das"``.
         load_data : bool
             If ``False``, only metadata is loaded.
         show_progress : True
@@ -84,11 +84,11 @@ class Fiber(object):
     @classmethod
     def from_array(cls, data, *, sampling_rate, start_time, spatial_interval,
                    units, gauge_length=None, channel_offset=0):
-        """Create a Fiber from data shaped ``(time samples, channels)``.
+        """Create a Record from data shaped ``(time samples, channels)``.
 
-        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in meters,
+        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in metres,
         ``start_time`` as an ObsPy-compatible time, and the data's ``units``.
-        ``gauge_length`` is optional and measured in meters. ``channel_offset``
+        ``gauge_length`` is optional and measured in metres. ``channel_offset``
         is measured in channel intervals, so the first channel's distance is
         ``channel_offset * spatial_interval``.
 
@@ -167,20 +167,20 @@ class Fiber(object):
     """Internat Methods"""
 
     def __str__(self):
-        """Defines output of print(Fiber)."""
+        """Defines output of print(Record)."""
         attributes = ["units", "start_time", "end_time", "n_samples", "n_channels",
                     "spatial_interval", "sampling_rate", "dt", "gauge_length"]
 
-        return ("Instance of Fiber class\n"
+        return ("Instance of Record class\n"
                 "recording parameters:\n"
                 f"{'-' * 65}\n"+ '\n'.join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
 
     __repr__ = __str__
 
     def __iadd__(self, other):
-        """Defines output of Fiber + Fiber."""
-        if not isinstance(other, Fiber):
-            raise TypeError("Object to add must be instance of Fiber class")
+        """Defines output of Record + Record."""
+        if not isinstance(other, Record):
+            raise TypeError("Object to add must be instance of Record class")
 
         return self.concatenate(other, fill_gaps=0)
 
@@ -202,7 +202,7 @@ class Fiber(object):
                 print(f"{prop} = {value}")
 
     def copy(self):
-        """Returns a deep copy the Fiber class object in its current state."""
+        """Returns a deep copy the Record class object in its current state."""
         self.__dict__.pop("_viewer", None)
 
         return copy.deepcopy(self)
@@ -290,7 +290,7 @@ class Fiber(object):
         return self
 
     def get_data(self, channel=None):
-        """Returns data, similar to Fiber.data but with option to return only a specified channel.
+        """Returns data, similar to Record.data but with option to return only a specified channel.
         """
         if channel is not None:
             index = self.channels.tolist().index(int(channel))
@@ -306,7 +306,7 @@ class Fiber(object):
         return utils.return_times(self, time_type)
 
     def concatenate(self, input_das=None, fill_gaps=0):
-        """Concatenates two ``Fiber`` class objects assuming they have the same
+        """Concatenates two ``Record`` class objects assuming they have the same
         sampling rate. Channel order is determined automatically, gaps are filled
         with ``"fill_gaps"`` value.
         """
@@ -329,7 +329,7 @@ class Fiber(object):
         return utils.to_traces(self, t_type)
 
     def to_xarray(self, name=None, use_distance=True):
-        """Returns the Fiber class as xarray.DataArray object. See
+        """Returns the Record class as xarray.DataArray object. See
         :func:`~fobench.core.tools.utils.to_xarray`.
         """
 
@@ -337,7 +337,7 @@ class Fiber(object):
 
 
     def write(self, save_path="", company=None):
-        """Save data of Fiber in a new file in its the original format. See
+        """Save data of Record in a new file in its the original format. See
         :func:`~fobench.core.tools.file_io.write_data`.
         """
         if self.__basefile__ is None:
@@ -385,7 +385,7 @@ class Fiber(object):
     @utils._update_processing
     def demean(self, mode="mean", dim="t"):
         """Remove mean or median of signal along specified dimension.
-        See :func:`~fiber.core.tools.signals.demean_signal`.
+        See :func:`~fobench.core.tools.signals.demean_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.demean_signal(self.data, mode=mode, axis=axis)
@@ -460,9 +460,9 @@ class Fiber(object):
 
     @utils._update_processing
     def normalize(self, method="absolute max", dim="t", ram_window=None):
-        """Normalize data. Methods are ``"absolute max"``, ``"trace max"``,
+        """Normalise data. Methods are ``"absolute max"``, ``"trace max"``,
         ``"running mean"`` and ``"1bit"``.
-        See :func:`~fiber.core.tools.signals.normalize_signal`.
+        See :func:`~fobench.core.tools.signals.normalize_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.normalize_signal(self.data, method=method,
@@ -600,7 +600,7 @@ class Fiber(object):
 
     def p2p_amp(self, dim="t", results=False, plot_mode="pyqt", export=None, show=True):
         """Computes peak-to-peak amplitude of data in time or space.
-        See :func:`~fobench.core.fiber.tools.wavefield.peak_to_peak_amp`.
+        See :func:`~fobench.core.tools.wavefield.peak_to_peak_amp`.
         """
         axis = self.__axis__(dim)
         p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
