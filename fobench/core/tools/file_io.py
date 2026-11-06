@@ -11,6 +11,7 @@
 
 # Necessary packes to read the file formats
 import os
+import json
 import nptdms as tdms
 import logging
 import copy
@@ -383,10 +384,11 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
             template = None
             properties = dict(file_file["/"].attrs)
-            dataset = file_file.get("/RawData") # if file_file.get("/ProcessedData") is None else file_file.get("/ProcessedData")
-            # dataset = file_file.get("/ProcessedData")
+            sub_properties = json.loads(properties["Settings"][0])
+            dataset = file_file.get("/RawData") if file_file.get("/ProcessedData") is None else file_file.get("/ProcessedData")
+            raw = 1 if file_file.get("/ProcessedData") is None else 0   # flag for knowing when it is RawData or not
             dims = dataset.shape
-            channels = np.arange(dataset.shape[-1], dtype=int) if dims[1] == 1 else np.arange(dataset.shape[0], dtype=int)
+            channels = np.arange(dataset.shape[-1], dtype=int) if raw == 1 else np.arange(dataset.shape[0], dtype=int)
             channels, data_range = __channel_selection__(range_ch, channels)
 
             # data loading
@@ -398,19 +400,15 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             data = __data__(dataset, format, company, data_range) if load_data else None
             fiber = "standard"
             sampling_rate = 1 / (1e-6*float(properties["Record Period Microseconds"][0])/float(properties["Averaging Count"][0]))
-            # sampling_rate = 1 / float(properties["dt"][0])
             o_sampling_rate = sampling_rate
-            n_samples = dims[0] if dims[1] == 1 else dims[-1]
-            # start_time = UTC(properties["MeasurementStartTime"].decode("utf-8")) if isinstance(properties["MeasurementStartTime"],bytes) else UTC(properties["MeasurementStartTime"])
-            start_time = UTC("2000-01-01T00:00:00")
+            n_samples = dims[0] if raw == 1 else dims[-1]
+            start_time = UTC(properties["Start Time UTC"][0]) # UTC("2000-01-01T00:00:00")
             dt = 1 / sampling_rate
-            end_time = UTC(start_time + n_samples * dt)
+            end_time = UTC(start_time + (n_samples-1) * dt)
             time_length = end_time - start_time
-            # spatial_interval = float(properties["SpatialSamplingInterval"])
-            spatial_interval = 1
-            # channel_offset = properties["StartLocusIndex"]*spatial_interval
-            channel_offset = 0
-            gauge_length = 1 # standard for xDAS. float(properties["GaugeLength"])
+            spatial_interval = float(sub_properties["DaqSettings"]["SkipSamples"])*0.1
+            channel_offset = int(100/spatial_interval)
+            gauge_length = float(sub_properties["DspSettings"]["SpatialResolutionMeters"]) # 1 # standard for xDAS. float(properties["GaugeLength"])
             units = properties.get("Units", "radians")[0] # unit is not coded in metadata for Sintela .h5
             conv_factor = None
 
@@ -550,7 +548,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
                 spatial_interval,
                 n_samples,
                 time_length,
-                gauge_length,
+                round(gauge_length,4),
                 channel_offset,
                 data,
                 units,
@@ -607,7 +605,9 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
         if company in ("silixa", "asn", "optasense", "aragon", "sintela", "terra15", "sensiphi", "michele"):
             dims = extract_point.shape
             if company == "sensiphi":
-                extract_point = np.mean(extract_point[:,:,:], axis=1) if dims[1] == 1 else extract_point[:,0,:] # np.mean(extract_point[:,:,:], axis=1).T
+                extract_point = extract_point[:,0,:] if dims[1] == 1 else extract_point[:,:,:] # if dims != 1, then is OTDR three optical channels
+                # ERASE!
+                return extract_point
             if range_ch is None:
                 values = extract_point[:,:]
             else:

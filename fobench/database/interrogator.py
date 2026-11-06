@@ -318,13 +318,13 @@ class Interrogator(object):
 		return self
 
 
-	def merge_datasets(self, max_gap:float):
+	def merge_datasets(self, max_gap:float | None = None):
 		"""Merge consecutive compatible Datasets separated by short gaps.
 
 		Parameters
 		----------
-		max_gap : float
-			Maximum accepted interruption in seconds.
+		max_gap : float or str
+			Maximum accepted interruption in seconds. If left to None as default, all is merged regardless of the gap.
 
 		Returns
 		-------
@@ -333,7 +333,7 @@ class Interrogator(object):
 		"""
 		
 		# secutiry checks
-		if max_gap < 0:
+		if max_gap is not None and max_gap < 0:
 			raise ValueError("max_gap cannot be negative.")
 		if len(self.datasets) < 2: # no datasets to merge
 			return self
@@ -358,7 +358,7 @@ class Interrogator(object):
 			gap = dataset.start_time - (previous.end_time + previous.dt)
 			condition = all([getattr(dataset, constant) == getattr(previous, constant) for constant in constants]) # all must be True.
 
-			if 0 <= gap <= max_gap and condition:
+			if (max_gap is None or (0 <= gap <= max_gap)) and condition:
 				groups[-1].append(dataset)
 			else:
 				groups.append([dataset])

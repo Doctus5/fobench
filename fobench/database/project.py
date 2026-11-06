@@ -351,13 +351,13 @@ class Project(object):
 		return self
 
 
-	def merge_datasets(self, max_gap:float):
+	def merge_datasets(self, max_gap:float = None):
 		"""Merge compatible Datasets within every Interrogator.
 
 		Parameters
 		----------
-		max_gap : float
-			Maximum accepted interruption in seconds.
+		max_gap : float or str
+			Maximum accepted interruption in seconds. If left to None as default, all is merged regardless of the gap.
 
 		Returns
 		-------
