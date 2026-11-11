@@ -51,7 +51,11 @@ The reading and writing of the following data formats is currently supported:
      - ✓
      - ✓
      - ``"asn"``
-     
+   * - SensiPhi
+     - hdf5
+     - ✓
+     - ✓
+     - ``"sensiphi"``
 Consider `Contributing <contribute.html>`_ if you want to extend this list!
 
 
