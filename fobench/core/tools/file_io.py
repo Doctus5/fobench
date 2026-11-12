@@ -437,7 +437,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         end_time = UTC(start_time+(n_samples - 1)*dt)
         time_length = end_time - start_time
         spatial_interval = round(float(distances[1]-distances[0]), 4)
-        channel_offset = 0
+        channel_offset = float(distances[0]) / spatial_interval
         gauge_length = spatial_interval
         units = "temperature"
         conv_factor = None
@@ -700,7 +700,7 @@ def __dts_csv_reader__(filepath, load_data=True):
     """
 
     import pandas as pd
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     if isinstance(filepath, str):
         filepath = open(filepath, "rb")
@@ -708,7 +708,7 @@ def __dts_csv_reader__(filepath, load_data=True):
         header = [file.readline().decode("latin-1").strip().split(";")[1:] for _ in range(4)]
         table = pd.read_csv(file, sep=";", decimal=",", header=None, usecols=None if load_data else [0])
     times = [f"{d} {t}" for d, t in zip(header[0], header[1])]
-    timestamps = np.array([datetime.strptime(t, "%d/%m/%Y %H:%M:%S").timestamp()for t in times])
+    timestamps = np.array([datetime.strptime(t, "%d/%m/%Y %H:%M:%S").replace(tzinfo=timezone.utc).timestamp() for t in times])
     properties = {"x_units": header[2][0].strip("[]"), "y_units": header[3][0].strip("[]"), "trace_times": np.array(times)}
     distances = table[0].to_numpy()
     data = table.iloc[:, 1:].to_numpy().T if load_data else None

@@ -53,7 +53,7 @@ class Fiber(object):
             Range of channels to load. Can be a single channel, list or array of channnels
             or range given as tuple.
         sensing : str
-            Fiber optic sensing technology. Currently only ``"das"``.
+            Fiber optic sensing technology. Currently ``"das"`` (default) or ``"dts"``.
         load_data : bool
             If ``False``, only metadata is loaded.
         show_progress : True
@@ -210,10 +210,10 @@ class Fiber(object):
     def instr_correct(self, target="strain-rate", terra15_gl=None, return_factor=False):
         """Performs instrument correction and data conversion for various instrument types.
         See :func:`~fobench.core.utils.instr_corr`."""
-        
+
         if return_factor:
             return utils.instr_corr(data=None, attributes=vars(self), target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"), return_factor=return_factor)
-        
+
         if not self.corrected:
             (self.data, self.units, self.channels,
             self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
