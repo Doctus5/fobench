@@ -724,7 +724,7 @@ class Fiber(object):
         """
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
-            p95 = np.percentile(self.data, 95)
+            p95 = np.nanpercentile(self.data, 95)
             vmin = -p95 if vmin is None else vmin
             vmax = p95 if vmax is None else vmax
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels),
@@ -758,7 +758,7 @@ class Fiber(object):
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
             if vmin is None: vmin = 0
-            if vmax is None: vmax = np.percentile(Sxx, 95)
+            if vmax is None: vmax = np.nanpercentile(Sxx, 95)
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
                         data=np.rot90(Sxx, k=-1), y_label="Frequency [Hz]",
                         title=f"Spectrogram channel {channel}", cmap="viridis",

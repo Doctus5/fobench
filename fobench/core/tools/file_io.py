@@ -36,7 +36,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         Path to file to read.
     company : str
         Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-        ``"optasense"``, ``"asn"``, ``"terra15"`` ``bam``, ``"sintela"`` and ``"sensiphi"``
+        ``"optasense"``, ``"asn"``, ``"terra15"`` ``bam``, ``"sintela"``, ``"sensiphi"``
+        and ``"apsensing"``.
     range_ch : int or tuple(int, int) or np.array
             Range of channels to load. If one single number (``int``), it is one single channel.
             If ``tuple`` is then interpreted as a (start, end) channels.
@@ -412,6 +413,35 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             units = properties.get("Units", "radians")[0]
             conv_factor = None
 
+    elif format == "csv" and company == "apsensing": # AP Sensing DTS CSV file
+        pbar = tqdm(total=1, leave=True, desc="Reading AP Sensing DTS CSV file", disable=not show_progress)
+        template = None
+        dataset = None
+        properties, distances, timestamps, data = __dts_csv_reader__(filepath, load_data)
+        channels, data_range = __channel_selection__(range_ch, np.arange(distances.size))
+        fiber = "standard"
+        dt = float(np.median(np.diff(timestamps)))
+        sampling_rate = 1 / dt
+        o_sampling_rate = sampling_rate
+        # handle gaps and irregular sampling, fill gaps with NaN
+        time_diff = np.diff(timestamps)
+        sample_steps = np.maximum(1, np.rint(time_diff / dt))
+        cumulative_steps = np.cumsum(sample_steps)
+        sample_idx = np.concatenate(([0], cumulative_steps)).astype(int)
+        n_samples = int(sample_idx[-1]) + 1
+        if load_data:
+            traces, data = data, np.full((n_samples, len(channels)), np.nan)
+            data[sample_idx] = traces if data_range is None else traces[:, data_range]
+        properties["sample_index"] = sample_idx
+        start_time = UTC(timestamps[0])
+        end_time = UTC(start_time+(n_samples - 1)*dt)
+        time_length = end_time - start_time
+        spatial_interval = round(float(distances[1]-distances[0]), 4)
+        channel_offset = 0
+        gauge_length = spatial_interval
+        units = "temperature"
+        conv_factor = None
+
 	# ####################################################
 	# CAUTION!! NON OFFICIAL / EXPERIMENTAL FORMATS, ONLY FOR SPECIAL CASES.
 	# ####################################################
@@ -650,6 +680,39 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
             values = values[:, range_ch]
         # return np.ascontiguousarray(values.T)
         return values
+
+
+def __dts_csv_reader__(filepath, load_data=True):
+    """Reads the AP Sensing DTS CSV export: ``;``-separated columns, ``,``-seperated decimals.
+    First four rows (``Date:``, ``Time:``, ``X Units:``, ``Y Units:``) hold one entry
+    per trace, the following rows the distance and one value per trace.
+
+    Returns
+    -------
+    properties : dict
+        Header information to fill metadata.
+    distances : np.ndarray
+        Distance of each channel [m].
+    timestamps : np.ndarray
+        Unix time of each trace, (as written in the file, check time zone!).
+    data : np.ndarray | None
+        Data of shape ``(n_samples, n_channels)``.
+    """
+
+    import pandas as pd
+    from datetime import datetime
+
+    if isinstance(filepath, str):
+        filepath = open(filepath, "rb")
+    with filepath as file:
+        header = [file.readline().decode("latin-1").strip().split(";")[1:] for _ in range(4)]
+        table = pd.read_csv(file, sep=";", decimal=",", header=None, usecols=None if load_data else [0])
+    times = [f"{d} {t}" for d, t in zip(header[0], header[1])]
+    timestamps = np.array([datetime.strptime(t, "%d/%m/%Y %H:%M:%S").timestamp()for t in times])
+    properties = {"x_units": header[2][0].strip("[]"), "y_units": header[3][0].strip("[]"), "trace_times": np.array(times)}
+    distances = table[0].to_numpy()
+    data = table.iloc[:, 1:].to_numpy().T if load_data else None
+    return properties, distances, timestamps, data
 
 
 def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_progress=True, storage_opts=None):

@@ -285,7 +285,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.line_curve.setData(x=self.times, y=row_data)
         self.line_plot.getViewBox().setLimits(
             xMin=self.times[0], xMax=self.times[-1],
-            yMin=row_data.min(), yMax=row_data.max())
+            yMin=np.nanmin(row_data), yMax=np.nanmax(row_data))
 
     @_busy_cursor
     def plot_spectrogram(self) -> None:
@@ -431,7 +431,7 @@ class Viewer(QtWidgets.QMainWindow):
         plot.plot(self.Fiber.distances, data, pen="k")
         plot.setXRange(x_min, x_max, padding=0)
         plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
-                                    yMin=min(data), yMax=max(data))
+                                    yMin=np.nanmin(data), yMax=np.nanmax(data))
 
     def plot_spectrum(self, mode: str = None) -> None:
         """Amplitude spectrum or PSD plot."""
@@ -451,7 +451,7 @@ class Viewer(QtWidgets.QMainWindow):
     def update_colorbar_levels(self) -> None:
         """Updates the colorbar levels after change by user."""
         percentile = self.cbar_spinbox.value()
-        abs_percentile = np.percentile(np.abs(self.data), percentile)
+        abs_percentile = np.nanpercentile(np.abs(self.data), percentile)
         self.hist.setLevels(-abs_percentile, abs_percentile)
 
 

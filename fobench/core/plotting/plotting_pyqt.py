@@ -89,7 +89,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
     x_axis.setLabel(date, **{"color": "k", "font-size": "14pt"})
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
-                                yMin=min(all_data), yMax=max(all_data))
+                                yMin=np.nanmin(all_data), yMax=np.nanmax(all_data))
     label_item = pg.LabelItem(justify="left", size="10pt", color="black")
     win.addItem(label_item, row=2, col=0)
     label_text = "Time: {x} | "+y_label+": {y:1e}"
@@ -132,7 +132,7 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
                                                 x_is_time=True)
     plot.setLabel("left", y_label, **{"color": "k", "font-size": "14pt"})
     data, numbers = data[:, ::-1], numbers[::-1]
-    offset = data.max()
+    offset = np.nanmax(data)
     ticks = []
     for i in range(data.shape[1]):
         y = -i*offset
@@ -144,8 +144,8 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     x_axis.setLabel(date, **{"color": "k", "font-size": "14pt"})
     plot.setXRange(min(timestamps), max(timestamps), padding=0)
     plot.getViewBox().setLimits(xMin=min(timestamps), xMax=max(timestamps),
-                                yMax=data[:, 0].max(),
-                                yMin=data[:, -1].min()-(data.shape[1]-1)*offset)
+                                yMax=np.nanmax(data[:, 0]),
+                                yMin=np.nanmin(data[:, -1])-(data.shape[1]-1)*offset)
     label = pg.LabelItem(justify="left", size="10pt", color="black")
     win.addItem(label, row=2, col=0)
     mouse_moved = tracker_factory(plot=plot, label=label, dt=dt, label_text="Time: {x}")
@@ -196,7 +196,7 @@ def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
         plot.getViewBox().setLimits(xMin=-np.inf, xMax=np.inf)
         plot.setXRange(min(x_vals), max(x_vals), padding=0)
         plot.getViewBox().setLimits(xMin=min(x_vals), xMax=max(x_vals),
-                                    yMin=min(data), yMax=max(data))
+                                    yMin=np.nanmin(data), yMax=np.nanmax(data))
         label_text = x_axis.labelText+": {x} | "+y_label+": {y:1e}"
         state["proxy"] = pg.SignalProxy(plot.scene().sigMouseMoved, rateLimit=60,
                                         slot=tracker_factory(plot=plot, label=text_label, dx=dx,
