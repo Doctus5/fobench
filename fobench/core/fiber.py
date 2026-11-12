@@ -53,7 +53,7 @@ class Fiber(object):
             Range of channels to load. Can be a single channel, list or array of channnels
             or range given as tuple.
         sensing : str
-            Fiber optic sensing technology. Currently only ``"das"``.
+            Fiber optic sensing technology. Currently ``"das"`` (default) or ``"dts"``.
         load_data : bool
             If ``False``, only metadata is loaded.
         show_progress : True
@@ -210,10 +210,10 @@ class Fiber(object):
     def instr_correct(self, target="strain-rate", terra15_gl=None, return_factor=False):
         """Performs instrument correction and data conversion for various instrument types.
         See :func:`~fobench.core.utils.instr_corr`."""
-        
+
         if return_factor:
             return utils.instr_corr(data=None, attributes=vars(self), target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"), return_factor=return_factor)
-        
+
         if not self.corrected:
             (self.data, self.units, self.channels,
             self.n_channels, self.gauge_length, self.distances) = utils.instr_corr(self.data, vars(self),
@@ -724,7 +724,7 @@ class Fiber(object):
         """
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
-            p95 = np.percentile(self.data, 95)
+            p95 = np.nanpercentile(self.data, 95)
             vmin = -p95 if vmin is None else vmin
             vmax = p95 if vmax is None else vmax
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=np.array(self.channels),
@@ -758,7 +758,7 @@ class Fiber(object):
         if plot_mode == "pyqt":
             t = self.times(time_type="unix")
             if vmin is None: vmin = 0
-            if vmax is None: vmax = np.percentile(Sxx, 95)
+            if vmax is None: vmax = np.nanpercentile(Sxx, 95)
             plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
                         data=np.rot90(Sxx, k=-1), y_label="Frequency [Hz]",
                         title=f"Spectrogram channel {channel}", cmap="viridis",
