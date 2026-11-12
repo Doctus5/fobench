@@ -839,8 +839,10 @@ class Fiber(object):
             return coh
 
     def view(self):
-        """Launches the FoBench Data Viewer.
-        """
+        """Launches the FoBench Data Viewer."""
+        if self.data is None:
+            warn("⚠️ No data loaded (load_data=False), closing the Viewer.")
+            return
         print(f"{'-'*65}\nStarting FoBench Data Viewer")
         app = QtWidgets.QApplication.instance()
         if app is None:
