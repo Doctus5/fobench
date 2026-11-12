@@ -32,7 +32,7 @@ class Viewer(QtWidgets.QMainWindow):
         self.data = Fiber.data.T if Fiber.__axis__("t") else Fiber.data
 
         # set up window
-        self.setWindowTitle("Fobench Data Viewer")
+        self.setWindowTitle("FoBench Data Viewer")
         self.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent/"logo.png")))
 
         # set up the docks
