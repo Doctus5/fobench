@@ -414,6 +414,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             conv_factor = None
 
     elif format == "csv" and company == "apsensing": # AP Sensing DTS CSV file
+        
         pbar = tqdm(total=1, leave=True, desc="Reading AP Sensing DTS CSV file", disable=not show_progress)
         template = None
         dataset = None
@@ -429,9 +430,11 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         cumulative_steps = np.cumsum(sample_steps)
         sample_idx = np.concatenate(([0], cumulative_steps)).astype(int)
         n_samples = int(sample_idx[-1]) + 1
+        
         if load_data:
             traces, data = data, np.full((n_samples, len(channels)), np.nan)
             data[sample_idx] = traces if data_range is None else traces[:, data_range]
+            
         properties["sample_index"] = sample_idx
         start_time = UTC(timestamps[0])
         end_time = UTC(start_time+(n_samples - 1)*dt)
