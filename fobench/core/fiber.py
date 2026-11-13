@@ -160,11 +160,11 @@ class Fiber(object):
         self.units = self.attributes["units"]
         self.conv_factor = self.attributes["conv_factor"] # Extra variables (ONLY FOR ASN HDF5)
         self.processing = [{"instance creation" : UTC.utcnow().ctime()}]
-        self.distances = (self.channels - self.channel_offset) * self.spatial_interval
+        self.distances = (self.channels + self.channel_offset) * self.spatial_interval
 
         self.ch_coord = None # coordinates of channels, requires more input ot be filled
 
-    """Internat Methods"""
+    """Internal Methods"""
 
     def __str__(self):
         """Defines output of print(Fiber)."""

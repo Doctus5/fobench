@@ -67,7 +67,6 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
         return s3_file(filepath, company, range_ch=range_ch, format=format, load_data=load_data,
                         show_progress=show_progress, storage_opts=storage_opts)
-
     file_size = os.path.getsize(filepath) if isinstance(filepath, (str, os.PathLike)) else filepath.size
     template = None
 
@@ -339,7 +338,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             spatial_interval = float(properties["spatial_sampling"][0])
             time_length = end_time - start_time
             gauge_length = float(properties["Global_RAM_User_SET_Pulse_Width_(meter)"][0])
-            channel_offset = int(properties["fiber_position_offset"][0]/spatial_interval)
+            channel_offset = properties["Global_TimeProcessing_Strain_Fiber Processed_Start_Point_(Integer)"][0]*-1 # ~90m inside interrogator
             units = list(file_file.keys())[2]
             conv_factor = None # conversion factor if given explicitly
 
@@ -372,7 +371,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             end_time = UTC(start_time + n_samples * dt)
             time_length = end_time - start_time
             spatial_interval = float(properties["SpatialSamplingInterval"])
-            channel_offset = properties["StartLocusIndex"]*spatial_interval
+            channel_offset = properties["StartLocusIndex"]
             gauge_length = float(properties["GaugeLength"])
             units = "units" # unit is not coded in metadata for Sintela .h5
             conv_factor = None
@@ -606,7 +605,7 @@ def h5_to_dict(h5_obj):
 
 
 def __channel_selection__(range_ch, channels_all):
-    """Checks the channels and the selected channels fo the data"""
+    """Checks the channels and the selected channels for the data."""
     channels_all = np.asarray(channels_all, dtype=int)
 
     if range_ch is None:
@@ -719,7 +718,7 @@ def __dts_csv_reader__(filepath, load_data=True):
 
 
 def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_progress=True, storage_opts=None):
-    """s3_file Reads a fibre optic sensing file stored in a S3-compatible filesystem.
+    """Reads a fibre optic sensing file stored in a S3-compatible filesystem.
 
     Parameters
     ----------
