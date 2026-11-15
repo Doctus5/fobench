@@ -20,7 +20,8 @@ extensions = ["sphinx_last_updated_by_git",
               "sphinx_copybutton",
               "sphinx_togglebutton",
               "sphinx_autodoc_typehints",
-              "sphinx_design"]
+              "sphinx_design",
+              "sphinx_multiversion"]
 
 templates_path = ["_templates"]
 exclude_patterns = []
@@ -29,6 +30,10 @@ autoclass_content = 'both'
 autodoc_default_options = {"members": True,
                            "private-members": True}
 autosummary_generate = True
+
+smv_branch_whitelist = r"^(main|dev)$"
+smv_tag_whitelist = r"^$"
+smv_remote_whitelist = r"^origin$"
 
 typehints_defaults = "braces-after"
 always_use_bars_union = True

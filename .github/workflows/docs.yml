@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
   workflow_dispatch:
 
 permissions:
@@ -36,11 +37,13 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install sphinx sphinx_rtd_theme sphinx_last_updated_by_git sphinx_copybutton sphinx_togglebutton sphinx_autodoc_typehints sphinx-design
+          pip install "sphinx<8.2" sphinx_rtd_theme sphinx_last_updated_by_git sphinx_copybutton sphinx_togglebutton sphinx_autodoc_typehints sphinx-design sphinx-multiversion
           pip install -e .
 
       - name: Build docs
-        run: sphinx-build -b html docs/source docs/build/html
+        run: |
+          sphinx-multiversion docs/source docs/build/html
+          echo '<meta http-equiv="refresh" content="0; url=main/index.html">' > docs/build/html/index.html
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
