@@ -162,7 +162,7 @@ class VSG:
 
     @staticmethod
     def load(path: str):
-        """Loads a ``VSG``object from ``path``."""
+        """Loads a ``VSG`` object from ``path``."""
         with open(path, "rb") as f:
             obj = pkl.load(f)
         if not isinstance(obj, VSG):
