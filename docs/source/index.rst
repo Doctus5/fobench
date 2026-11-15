@@ -49,8 +49,8 @@ Follow the :doc:`Installation Guide <getting_started/download_installation>` and
    :caption: Links
    :hidden:
 
-   Latest Stable Branch <https://github.com/Doctus5/fobench>
-   Development Branch <https://github.com/Doctus5/fobench/tree/dev>
+   Latest Stable Branch (main) <https://github.com/Doctus5/fobench>
+   Development Branch (dev) <https://github.com/Doctus5/fobench/tree/dev>
    
 ..
    for later: PyPi <https://pypi.org/>
