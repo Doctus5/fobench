@@ -51,7 +51,7 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
                  title: str = None, cmap:str = "seismic", file_name: str = None,
                  add_data: np.ndarray = None, show: bool = True, **kwargs)-> plt.Figure:
 
-    """Generic fiber optic sensing data plot.
+    """Generic fibre optic sensing data plot.
 
     Parameters
     ----------
@@ -68,7 +68,7 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
     title : str
         Title of plot
     cmap : str, optional
-        matplotlib colormap to use.
+        matplotlib colourmap to use.
     file_name : str
         If not ``None``, plot will be saved at given location.
     add_data : np.ndarray
@@ -196,7 +196,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
     figsize : list[float, float] | tuple[float, float]
         Controls figure size.
     cmap : str, optional
-        matplotlib colormap to use for the spectrogram.
+        matplotlib colourmap to use for the spectrogram.
     title : str, optional
         Title of plot.
     file_name : str, optional
@@ -258,7 +258,7 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
     trace : bool
         Toggles plotting of the time domain data in a second panel.
     cmap : str, optional
-        matplotlib colormap to use for the spectrogram.
+        matplotlib colourmap to use for the spectrogram.
     title : str, optional
         Title of plot.
     file_name : str, optional

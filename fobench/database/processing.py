@@ -1,4 +1,4 @@
-"""Shared processing methods for applying ``Fiber`` workflows over ``Dataset/Interrogator``
+"""Shared processing methods for applying ``Record`` workflows over ``Dataset/Interrogator``
 windows.
 
 :Authors:
@@ -47,7 +47,7 @@ def _auto_n_cores(cpu_ratio: float = 0.85):
 
 
 def _normalize_pipeline(task, output_key: str = None):
-    """Normalize task input into a validated pipeline and output key.
+    """Normalise task input into a validated pipeline and output key.
 
     Parameters
     ----------
@@ -133,11 +133,11 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
     time_range: tuple = None, window_size: float = None, step: float = None,
     include_overlap: bool = True, min_overlap_s: float = 0.0,
     group_cols: list[str] = None, merge_datasets: bool = True,
-    fiber_kwargs: dict = None, parallel_params: dict = None,
+    record_kwargs: dict = None, parallel_params: dict = None,
     submit_chunk_size: int = None, cpu_ratio: float = 0.85,
     show_progress: bool = True, reducer: str = "mean",
     output_adapter=None):
-    """Apply a ``Fiber`` task over file windows and save results incrementally to zarr.
+    """Apply a ``Record`` task over file windows and save results incrementally to zarr.
 
     Parameters
     ----------
@@ -164,8 +164,8 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
         Grouping columns for compatibility grouping.
     merge_datasets : bool, optional
         Only used for Interrogator-like sources. If ``True``, map datasets together.
-    fiber_kwargs : dict, optional
-        Extra keyword arguments for Fiber initialization.
+    record_kwargs : dict, optional
+        Extra keyword arguments for Record initialisation.
     parallel_params : dict, optional
         Parallel backend parameters.
     submit_chunk_size : int, optional
@@ -195,7 +195,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
     pipeline, output_key = _normalize_pipeline(task=task, output_key=output_key)
     output_adapter = _default_output_adapter if output_adapter is None else output_adapter
 
-    # Build complete map with metadata because file paths are needed for Fiber opening.
+    # Build complete map with metadata because file paths are needed for Record opening.
     window_kwargs = dict(
         time_range=time_range,
         window_size=window_size,
@@ -213,7 +213,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
     if file_window_map.empty:
         raise RuntimeError("Window map is empty. Nothing to process.")
 
-    # Build one task per unique file to avoid duplicate Fiber computations.
+    # Build one task per unique file to avoid duplicate Record computations.
     files_df = file_window_map[["file_index", "file"]].drop_duplicates().sort_values("file_index")
     task_rows = files_df.to_dict(orient="records")
     if len(task_rows) == 0:
@@ -233,7 +233,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
         submit_chunk_size = n_cores
     submit_chunk_size = max(1, int(submit_chunk_size))
 
-    fiber_kwargs = {} if fiber_kwargs is None else dict(fiber_kwargs)
+    record_kwargs = {} if record_kwargs is None else dict(record_kwargs)
     zroot, n_windows = init_zarr_store(output_store, windows_df, overwrite=True)
     channel_offset = int(file_window_map["channel_offset"].iloc[0]) if "channel_offset" in file_window_map.columns else 0
 
@@ -256,7 +256,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
         wave_batches = hpc.submit(
             task=run_batch_pipeline,
             var_args=wave_tasks,
-            fixed_args=(pipeline, fiber_kwargs, False),
+            fixed_args=(pipeline, record_kwargs, False),
             to_return=True,
             submission_mode="single_submit",
             show_progress=show_progress

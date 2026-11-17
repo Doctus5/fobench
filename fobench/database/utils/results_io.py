@@ -1,4 +1,4 @@
-"""Methods for writing and finalizing chunked processing results to zarr.
+"""Methods for writing and finalising chunked processing results to zarr.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -14,7 +14,7 @@ import numpy as np
 import zarr
 
 def init_zarr_store(store_path: str, windows_df, overwrite: bool = True):
-    """Initialize a zarr store and save window coordinate vectors.
+    """Initialise a zarr store and save window coordinate vectors.
 
     Parameters
     ----------
@@ -137,7 +137,7 @@ def flush_weighted_updates(z_sum, z_weight, window_sum: dict, window_w: dict):
 
 def finalize_weighted_mean(zroot, z_sum, z_weight, out_name: str = "result_mean",
     window_chunk: int = 256, dtype: str = "f4", fill_value: float = np.nan):
-    """Finalize weighted mean array from weighted sum and weight arrays.
+    """Finalise weighted mean array from weighted sum and weight arrays.
 
     Parameters
     ----------

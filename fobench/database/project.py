@@ -1,4 +1,4 @@
-"""Class ``Project`` for visualizing and handling data within a ``Project``.
+"""Class ``Project`` for visualising and handling data within a ``Project``.
 A ``Project`` is understood as a field campaing in a specific location where
 several ``Datasets`` are collected from deployments.
 
@@ -26,7 +26,7 @@ from . import manager as manager
 
 
 class Project(object):
-	"""Class keeps track of the organization of a single/multiple data collected.
+	"""Class keeps track of the organisation of a single/multiple data collected.
 
 	Note
 	----
@@ -44,7 +44,7 @@ class Project(object):
 			Path.
 		metadata_file : json
 			 JSON object which represents the metadata of the project. If this file is non existent
-			 Project must be initialized without it and a metadata must be created from scratch.
+			 Project must be initialised without it and a metadata must be created from scratch.
 
 		Returns
 		-------
@@ -226,7 +226,7 @@ class Project(object):
 		Parameters
 		----------
 		parallel_params : dict
-			Dictionary containing the parameters for parallelization. If parameters are
+			Dictionary containing the parameters for parallelisation. If parameters are
 			given, then the building method runs in parallel. If ``None``, it runs in serial.
 
 		Returns

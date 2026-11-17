@@ -1,5 +1,5 @@
-"""``Dataset`` class for visualizing, processing and handling a ``Dataset``.
-A Dataset is understood as group of fiber optic sensing data ("ddss/das","dss","dts")
+"""``Dataset`` class for visualising, processing and handling a ``Dataset``.
+A Dataset is understood as group of fibre optic sensing data ("ddss/das","dss","dts")
 files part of a campaign. Can be continuous data in many files, and may have discontinuities.
 
 :Authors:
@@ -22,7 +22,7 @@ from .utils.windowing import dataset_windowing
 
 class Dataset(object):
     """
-    ``Dataset`` class which keeps track of the organization of the sfile(s)
+    ``Dataset`` class which keeps track of the organisation of the sfile(s)
     collected.
 
     Note
@@ -42,7 +42,7 @@ class Dataset(object):
         company : str
                 Manufacturer or the instrument that generates the data.
         sensing : str
-            Specifies the type of fiber optic sensing technique of the data.
+            Specifies the type of fibre optic sensing technique of the data.
 
         """
 
@@ -354,7 +354,7 @@ class Dataset(object):
         Parameters
         ----------
         parallel_params : dict
-            Dictionary containing the parameters for parallelization. If parameters are given
+            Dictionary containing the parameters for parallelisation. If parameters are given
             then the building method runs in parallel. If ``None``, it runs in serial.
 
         Returns
@@ -374,7 +374,7 @@ class Dataset(object):
 
         # in serial mode
         else:
-            database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Fiber Class.
+            database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Record Class.
         database_files = manager.chrono_order(database_files) # aranges in a chronological order.
 
         self.database = database_files
@@ -483,19 +483,19 @@ class Dataset(object):
         )
 
 
-    def apply_fiber(self, task, output_store: str, output_key: str = None,
+    def apply_record(self, task, output_store: str, output_key: str = None,
         time_range: tuple = None, window_size: float = None, step: float = None,
         include_overlap: bool = True, min_overlap_s: float = 0.0,
-        group_cols: list[str] = None, fiber_kwargs: dict = None,
+        group_cols: list[str] = None, record_kwargs: dict = None,
         parallel_params: dict = None, submit_chunk_size: int = None,
         cpu_ratio: float = 0.85, show_progress: bool = True,
         reducer: str = "mean", output_adapter=None):
-        """Apply a Fiber task over the dataset windows and save to zarr.
+        """Apply a Record task over the dataset windows and save to zarr.
 
         Parameters
         ----------
         task : list, tuple, dict, str, or callable
-            Fiber processing task definition.
+            Record processing task definition.
         output_store : str
             Output zarr path.
         output_key : str, optional
@@ -512,8 +512,8 @@ class Dataset(object):
             Minimum overlap in seconds for file-window relations.
         group_cols : list[str], optional
             Optional grouping columns for compatibility grouping.
-        fiber_kwargs : dict, optional
-            Keyword arguments passed to Fiber initialization.
+        record_kwargs : dict, optional
+            Keyword arguments passed to Record initialisation.
         parallel_params : dict, optional
             Parallel backend parameters.
         submit_chunk_size : int, optional
@@ -535,7 +535,7 @@ class Dataset(object):
 
         """
 
-        # Lazy import to avoid requiring zarr unless apply_fiber is used.
+        # Lazy import to avoid requiring zarr unless apply_record is used.
         from .processing import run_window_pipeline_to_zarr
 
         # Thin wrapper: keep orchestration logic in shared processing module.
@@ -551,7 +551,7 @@ class Dataset(object):
             min_overlap_s=min_overlap_s,
             group_cols=group_cols,
             merge_datasets=True,
-            fiber_kwargs=fiber_kwargs,
+            record_kwargs=record_kwargs,
             parallel_params=parallel_params,
             submit_chunk_size=submit_chunk_size,
             cpu_ratio=cpu_ratio,

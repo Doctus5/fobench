@@ -255,7 +255,7 @@ def files2windows_groups(files_df, windows_df, group_cols=None,
         Window metadata table from :func:`time_windows`.
     group_cols : list of str, optional
         Columns used to split files into compatibility groups before mapping.
-        If ``None`` or empty, behavior is identical to
+        If ``None`` or empty, behaviour is identical to
         :func:`files2windows`.
     start_label : str, optional
         Column name for file start time.
