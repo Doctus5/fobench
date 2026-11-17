@@ -1,5 +1,5 @@
 """Contains all functionality related to plotting using PyQtGraph, i.e.
-whenever plot_mode is set to 'pyqt'."""
+whenever ``plot_mode`` is set to ``'pyqt'``."""
 
 import sys
 import datetime
@@ -15,7 +15,7 @@ import functools
 def exportable(func):
     """Decorator that saves plots to files and prevents showing the
     plot on screen. Call any of the decorated functions with passing a filepath string
-    to ```export`` to save the plot, set ``show=False`` to prevent display of the plot.
+    to ``export`` to save the plot, set ``show=False`` to prevent display of the plot.
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):

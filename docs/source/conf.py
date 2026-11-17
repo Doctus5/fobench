@@ -51,6 +51,8 @@ intersphinx_mapping = {
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
     "pywavelets": ("https://pywavelets.readthedocs.io/en/latest/", None),
+    "pyqtgraph": ("https://pyqtgraph.readthedocs.io/en/latest/", None),
+    "pyrocko": ("https://pyrocko.org/docs/current/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------

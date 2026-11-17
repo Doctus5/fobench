@@ -127,14 +127,14 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 	attributes : dict
 		Fiber class attributes.
 	target : str, optional
-		Target unit. The default is "strain-rate".
+		Target unit.
 	terra15_gl : float, optional
 		Gauge length for velocity to strain-rate conversion for Terra15 data.
 		If not specified, original gauge length from Fiber.gauge_length is taken.
 	axis : int, optional
 		Axis to where the change must be applied (important just for terra15)
 	return_factor : bool
-		If True, only the factor will be returned. Default is False
+		If True, only the factor will be returned.
 
 	Returns
 	-------
@@ -414,10 +414,11 @@ def spatial_downsampling(Fiber)-> tuple[np.ndarray, list]:
 
 def to_traces(Fiber, t_type: str)-> Stream:
 
-	"""Creates an ObsPy or pyrocko Stream object and fills it with Traces. Each Trace
-	represents a channel of the Fiber class, including the metadata which
+	"""Creates an ObsPy :class:`~obspy.core.stream.Stream` or a list of pyrocko
+	:class:`~pyrocko.trace.Trace` objects. Each trace (:class:`obspy.core.trace.Trace`
+	or :class:`pyrocko.trace.Trace`) represents a channel of the Fiber class, including the metadata which
 	from the attributes of the Trace Class. This is mainly done so users can have access
-	to ObsPy tools with their data. However, it can be slow and memory demanding.
+	to ObsPy and pyrocko tools with their data. However, it can be slow and memory demanding.
 
 	Parameters
 	----------
@@ -428,8 +429,8 @@ def to_traces(Fiber, t_type: str)-> Stream:
 
 	Returns
 	-------
-	stream
-		Stream object.
+	stream : :class:`~obspy.core.stream.Stream` or list of :class:`~pyrocko.trace.Trace`
+		ObsPy Stream if ``t_type='obspy'``, list of pyrocko Traces if ``t_type='pyrocko'``.
 
 	"""
 

@@ -281,7 +281,8 @@ def peak_to_peak_amp(data: np.ndarray, fs: int, axis: int)-> tuple[np.ndarray, n
 
 def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: bool,
                       mode: str, axis: int):
-    """Computes the frequency-domain amplitude spectrum of detrended data via FFT.
+    """Computes the frequency content per channel via FFT
+    (``mode="spectrum"``) or as PSD (``mode="psd"``).
 
     Parameters
     ----------
@@ -295,6 +296,8 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
         Number of points to use for fft.
     norm : bool
         Normalize each spectrum by its maximum value for easier plotting.
+    mode : str
+        Computation mode, can be either ``"spectrum"`` or ``"psd"``.
     axis : int
         Axis along which to  perform the operation.
 

@@ -398,7 +398,7 @@ class Fiber(object):
 
     @utils._update_processing
     def taper(self, alpha=0.05, dim="t", detaper=False):
-        """Tapers data see :func:`~fobench.core.tools.signals.taper_signal.`
+        """Tapers data. See :func:`~fobench.core.tools.signals.taper_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.taper_signal(data=self.data, axis=axis,
