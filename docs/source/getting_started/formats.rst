@@ -71,7 +71,7 @@ The reading and writing of the following data formats is currently supported:
      - ✗
      - ``"apsensing"``
  
-Consider `Contributing <contribute.html>`_ if you want to extend this list!
+Consider :doc:`Contributing <contribute>` if you want to extend this list!
 
 
 

@@ -77,7 +77,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
                             export=None, show=True, **imshow_kwargs)-> np.ndarray:
     """Computes the autocorrelation either for each channel or each time sample and
     optionally deconvolves the autocorrelation source term using a moving window.
-    Deconvolution is performed by substracting the average autocorrelation in a window or of the full record.
+    Deconvolution is performed by subtracting the average autocorrelation in a window or of the full record.
 
     Parameters
     ----------
@@ -111,7 +111,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     Returns
     -------
     result : np.ndarray
-        Autcorrelation profile.
+        Autocorrelation profile.
 
     """
 
@@ -151,7 +151,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
          channels: list, distances: np.ndarray, plot_mode: str, vmin: float = None,
          vmax: float = None, export=None, show=True) -> np.ndarray:
     """Computes the root mean square amplitude of data. Data is split into windows
-    before, pass window equal to data_length to compute one RMSA vector for full record.
+    before. Pass window equal to data_length to compute one RMSA vector for full record.
 
     Parameters
     ----------
@@ -209,7 +209,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
                                              export=export, show=show)
         elif window:
             p95 = np.percentile(result, 95)
-            if vmin is None: vmin = -p95
+            if vmin is None: vmin = 0
             if vmax is None: vmax = p95
             if dim == "t":
                 timestamps = np.array_split(times, int(len(times)/window))
@@ -355,7 +355,7 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
         - ``valid``: only complete overlaps, shortest output.
 
     demean : bool, optional
-        Removes mean from each trace before correlation. The default is True.
+        Removes mean from each trace before correlation.
     normalize : bool, optional
         If True, correlation is divided by ``||x|| * ||y||``, keeping scores in
         ``[-1, 1]``.
@@ -388,7 +388,7 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
         gpu_use = axis
         axis = -1
     if gpu_use:
-        warn('gpu_use is currently not implemented; running on CPU.')
+        warn('⚠️ gpu_use is currently not implemented; running on CPU.')
 
     signal1 = np.asarray(signal1, dtype=float)
     signal2 = np.asarray(signal2, dtype=float)

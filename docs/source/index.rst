@@ -35,14 +35,9 @@ Follow the :doc:`Installation Guide <getting_started/download_installation>` and
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Fobench API
+   :caption: FoBench API
    
    Packages and Modules <api/fobench>
-
-
-.. autosummary::
-   :toctree: api
-   :recursive:
 
 
 .. toctree::

@@ -44,7 +44,7 @@ setup(
         "PyWavelets"
     ],
     extras_require={
-        # Here goes the optional dependencies, usually for paralle runinng.
+        # Here goes the optional dependencies, usually for parallel running.
         "mpi":["mpi4py"],
         "dask":["dask[distributed]"],
         "hpc":["mpi4py","dask[distributed]"],

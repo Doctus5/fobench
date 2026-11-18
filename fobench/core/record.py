@@ -25,7 +25,7 @@ from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.pyqt_viewer import Viewer
 
 
-class Record(object):
+class Record:
     """The base class of FoBench, reading in data and metadata.
 
     Note
@@ -48,18 +48,20 @@ class Record(object):
             Path to file to read.
         company : str
             Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-            ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
+            ``"quantx"``, ``"asn"``, ``"terra15"``, ``"bam"`` and ``"sintela"``
         range_ch : tuple(int, int) | list | int | np.array
-            Range of channels to load. Can be a single channel, list or array of channnels
+            Range of channels to load. Can be a single channel, list or array of channels
             or range given as tuple.
         sensing : str
-            Fibre optic sensing technology. Currently ``"das"`` (default) or ``"dts"``.
+            Fibre optic sensing technology. Currently ``"das"`` or ``"dts"``.
         load_data : bool
             If ``False``, only metadata is loaded.
-        show_progress : True
+        show_progress : bool
             Show progress bar when loading data.
-        storage_opts :
-            -
+        storage_opts : dict, optional
+            Keyword arguments passed to :class:`~s3fs.core.S3FileSystem`, e.g. credentials
+            (``key``, ``secret``), ``endpoint_url`` or ``anon``. Only used when
+            ``filepath`` is an ``"s3://"`` path, ignored for local files.
 
         """
 
@@ -185,7 +187,7 @@ class Record(object):
         return self.concatenate(other, fill_gaps=0)
 
     def __axis__(self, dim):
-        """Mapping of axis order, dim can be 't' (time) or 'd' (distance)."""
+        """Mapping of axis order, dim can be ``"t"`` (time) or ``"d"`` (distance)."""
 
         return {"t": 0, "d": 1}[dim]
 
@@ -202,7 +204,7 @@ class Record(object):
                 print(f"{prop} = {value}")
 
     def copy(self):
-        """Returns a deep copy the Record class object in its current state."""
+        """Returns a deep copy of the Record class object in its current state."""
         self.__dict__.pop("_viewer", None)
 
         return copy.deepcopy(self)
@@ -222,12 +224,12 @@ class Record(object):
             self.corrected = True
             return self
 
-        warn("Instrument correction has already been applied, doing nothing...")
+        warn("⚠️ Instrument correction has already been applied, doing nothing...")
         return self
 
     def trim(self, t0=None, tf=None):
         """Cuts data between given start and end times, t0 and tf can be ``UTCDateTime``
-        or ISOformat style strings.
+        or ISOformat style strings. See :func:`~fobench.core.tools.utils.trim_time`.
         """
         t_axis = self.__axis__("t")
         t0 = self.start_time if t0 is None else t0
@@ -273,11 +275,11 @@ class Record(object):
 
     def georeference(self, n_ch, x_ch, y_ch, z_ch, system="decimal", err=None):
         """Takes known channel locations, e.g. from tap tests and interpolates channel locations
-        inbetween, attaches new coordinates.
-        takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
-        and elevation in m (z_ch), coordinate system can be for lon and lat can be "decimal" or "utm"
-        "err" is maximum accepted interpolation error between original metadata location and new interpolated
-        location
+        in between, attaches new coordinates.
+        Takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+        and elevation in m (z_ch), coordinate system for lon and lat can be ``"decimal"`` or ``"utm"``
+        ``err`` is maximum accepted interpolation error between original metadata location and new interpolated
+        location. See :func:`~fobench.core.tools.utils.interpolate_channels`.
         """
         x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
         y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
@@ -300,8 +302,8 @@ class Record(object):
         return self.data
 
     def times(self, time_type="UTCDateTime"):
-        """Returns array of sample times, can be ``'UTCDateTime'``, ``'isoformat'``,
-        ``'datetime64'``, ``'matplotlib'`` or ``"unix"``. See :func:`~fobench.core.tools.utils.return_times`.
+        """Returns array of sample times, can be ``"UTCDateTime"``, ``"isoformat"``,
+        ``"datetime64"``, ``"matplotlib"`` or ``"unix"``. See :func:`~fobench.core.tools.utils.return_times`.
         """
         return utils.return_times(self, time_type)
 
@@ -322,7 +324,7 @@ class Record(object):
         return self
 
     def to_traces(self, t_type="obspy"):
-        """Returns channels as ``'obspy'`` or ``'pyrocko'`` streams. See
+        """Returns channels as ``"obspy"`` or ``"pyrocko"`` streams. See
         :func:`~fobench.core.tools.utils.to_traces`.
         """
 
@@ -337,8 +339,8 @@ class Record(object):
 
 
     def write(self, save_path="", company=None):
-        """Save data of Record in a new file in its the original format. See
-        :func:`~fobench.core.tools.file_io.write_data`.
+        """Save data of Record in a new file in its original format. See
+        :func:`~fobench.core.tools.file_io.write_as`.
         """
         if self.__basefile__ is None:
             raise ValueError("Writing requires a source file template; use to_xarray() to export array data")
@@ -358,7 +360,7 @@ class Record(object):
         """Modifies spatial sampling of the data by adding or removing channels.
         ``"upsampling"`` adds a channel between each channel pair by interpolating the values.
         ``"downsampling"`` removes every second channel.
-        See :func:`~fobench.core.tools.utils.spatial_upsampling` and :func:`~fobench.core.tools.utils.spatial_downsampling`
+        See :func:`~fobench.core.tools.utils.spatial_upsampling` and :func:`~fobench.core.tools.utils.spatial_downsampling`.
         """
         if rs_type in ["upsampling", "upsample"]:
             self.data, self.channels = utils.spatial_upsampling(self)
@@ -367,7 +369,7 @@ class Record(object):
             self.data, self.channels = utils.spatial_downsampling(self)
             self.spatial_interval *= 2
         else:
-            raise ValueError(f"\nInvalid resample type: '{rs_type}'. Choose on of:\n"
+            raise ValueError(f"\nInvalid resample type: '{rs_type}'. Choose one of:\n"
                     " -'upsampling'\n -'downsampling'")
         self.n_channels = len(self.channels)
 
@@ -375,7 +377,7 @@ class Record(object):
 
     @utils._update_processing
     def detrend(self, order=1, dim="t"):
-        """Detrend signal with specified order polynomial.See :func:`~fobench.core.tools.signals.detrend_signal`.
+        """Detrend signal with specified order polynomial. See :func:`~fobench.core.tools.signals.detrend_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.detrend_signal(self.data, order=order, axis=axis)
@@ -393,7 +395,9 @@ class Record(object):
         return self
 
     def remove_common_mode(self, mode="median"):
-        """Removes common mode using `'median'` or `'mean'`"""
+        """Removes common mode using ``"median"`` or ``"mean"`` along the distance dimension. See 
+        :meth:`~fobench.core.record.Record.demean` and :func:`~fobench.core.tools.signals.demean_signal`.
+        """
         return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
@@ -408,10 +412,13 @@ class Record(object):
 
     @utils._update_processing
     def decimate(self, new_freq=None, dim="t", f_type="fir-remez"):
-        """Decimates data to new sampling frequeny or spatial interval (with prefilter).
+        """Decimates data to new sampling frequency or spatial interval (with prefilter).
         Target frequency should divide original sampling frequency evenly. Filter options
-        are ``"fir-remez"`` or ``None`` for SciPys default anti-aliasing order 8
-        Chebyshev Type I filter. See :func:`~fobench.core.tools.filters.decimate`.
+        are ``"fir-remez"``, ``"fir235"``, ``"iir"`` (SciPy's order 8 Chebyshev Type I
+        anti-aliasing filter) and ``"fir"`` (SciPy's 30 point FIR filter with Hamming window).
+        See :func:`~fobench.core.tools.filters.decimate`.
+        ``"fir-remez"`` coefficients come from ``pyrocko.util.decimate_coeffs``,
+        ``"fir235"`` coefficients from :func:`~fobench.core.tools.filters.lfir235`.
 
         Warning
         -------
@@ -429,7 +436,7 @@ class Record(object):
                 raise ValueError(f"new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_rate} Hz)")
 
             if self.sampling_rate % new_freq != 0:
-                warn(f"Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_rate / int(self.sampling_rate / new_freq)} Hz instead")
+                warn(f"⚠️ Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_rate / int(self.sampling_rate / new_freq)} Hz instead")
             down_factor = int(self.sampling_rate / new_freq)
             new_freq = self.sampling_rate / down_factor
 
@@ -448,7 +455,7 @@ class Record(object):
 
             factor = int(new_freq / self.spatial_interval)
             if not np.isclose(self.spatial_interval * factor, new_dx):
-                warn(f"Spatial interval of {new_dx} not possible. Therefore, the new spatial interval would be of {self.spatial_interval*factor} meters")
+                warn(f"⚠️ Spatial interval of {new_dx} not possible. Therefore, the new spatial interval would be of {self.spatial_interval*factor} meters")
 
             self.data = filters.decimate(data=self.data, factor=factor, f_type=f_type, axis=axis)
             self.spatial_interval *=  factor
@@ -479,7 +486,7 @@ class Record(object):
         """
         axis = self.__axis__(dim)
         if not any("filter" in preprocessing for preprocessing in self.processing):
-                      warn("Data has possibly not been filtered before whitening! Check"
+                      warn("⚠️ Data has possibly not been filtered before whitening! Check "
                      "preprocessing and results carefully!\ncontinuing...")
         self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
                                     sampling_rate=self.sampling_rate,
@@ -492,7 +499,7 @@ class Record(object):
             **options):
         """Filters data using specified filter, based on Obspy.signal.filter module.
         For frequency filters, data is optionally pre-processed.
-        For ``'bandpass'`` and ``'bandstop'`` options, ``freq`` must be tuple.
+        For ``"bandpass"`` and ``"bandstop"`` options, ``freq`` must be tuple.
         See :func:`~fobench.core.tools.filters.point_filter` for all filter options.
         """
 
@@ -520,7 +527,8 @@ class Record(object):
     def fk_filter(self, bands=[{}], propagation="both", alpha=0.3, plot_mode=None,
                   verbose=False, results=False, mode="pass", export=None, show=True):
         """Applies frequency wavenumber filter to data.
-        See :func:`~fobench.core.tools.filters.fk_filter`.
+        See :func:`~fobench.core.tools.filters.fk_filter`, and
+        :func:`~fobench.core.tools.filters.fk_mask` for the format of ``bands``.
         """
         out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
                                 bands=bands, propagation=propagation, alpha=alpha,
@@ -548,11 +556,11 @@ class Record(object):
 
     @utils._update_processing
     def differentiate(self, method="gradient", dim="t"):
-        """Differentiates data in space or time using ``'gradient'`` or ``'diff'`` method.
+        """Differentiates data in space or time using ``"gradient"`` or ``"diff"`` method.
         See :func:`~fobench.core.tools.signals.differentiate_signal`.
         """
         if method not in ["gradient", "diff"]:
-            raise ValueError(f"\nInvalid method: '{method}'. Choose on of:\n"
+            raise ValueError(f"\nInvalid method: '{method}'. Choose one of:\n"
                     " -'gradient'\n -'diff'")
         axis = self.__axis__(dim)
         dx = self.dt if dim == "t" else self.spatial_interval
@@ -581,7 +589,7 @@ class Record(object):
 
     def rmsa(self, window=None, dim="t", plot_mode="pyqt", results=False,
           vmin=None, vmax=None, export=None, show=True):
-        """Computes root mean square amplitude for record, dependign on dimension,
+        """Computes root mean square amplitude for record, depending on dimension,
         window is either seconds ("t") or number of channels ("d").
         See :func:`~fobench.core.tools.wavefield.rmsa`.
         """
@@ -599,8 +607,7 @@ class Record(object):
             return rmsa
 
     def p2p_amp(self, dim="t", results=False, plot_mode="pyqt", export=None, show=True):
-        """Computes peak-to-peak amplitude of data in time or space.
-        See :func:`~fobench.core.tools.wavefield.peak_to_peak_amp`.
+        """Computes peak-to-peak amplitude of data in time or space.        See :func:`~fobench.core.tools.wavefield.peak_to_peak_amp`.
         """
         axis = self.__axis__(dim)
         p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
@@ -654,8 +661,8 @@ class Record(object):
                  order=1, pad=0, nfft=None, mode="spectrum", figsize=None,
                  nperseg=None, file_name=None, legend=True, results=False,
                  export=None, show=True, **kwargs):
-        """Computes and plots spectrum of channel(s), mode can be ``'spectrum'``
-        or ``'psd'``. See :func:`~fobench.core.tools.signals.signal_spectrum`,
+        """Computes and plots spectrum of channel(s), mode can be ``"spectrum"``
+        or ``"psd"``. See :func:`~fobench.core.tools.signals.signal_spectrum`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_spectral`
         and :func:`~fobench.core.plotting.plotting_mpl.simple_spectrum`.
         """
@@ -683,7 +690,7 @@ class Record(object):
                                 labels=channel, export=export, show=show)
         elif plot_mode=="mpl":
             units = self.units if mode == "spectrum" else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
-            plot.simple_spectrum(spectra=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
+            plot.simple_spectrum(spectra=np.moveaxis(spec, axis, -1), freqs=f, channels=channel, y_units=units, legend=legend, figsize=figsize,
                         title=str(self.start_time.date), file_name=file_name, **kwargs)
 
         if results:
@@ -743,30 +750,28 @@ class Record(object):
                         cmap="viridis", file_name=None, freq_lim=None, nfft=None,
                         noverlap=None, nperseg=None, results=False, plot_mode="pyqt",
                         vmin=None, vmax=None, export=None, show=True, **kwargs):
-        """Computes and plots spectrogram for a ``"channel"``.
+        """Computes and plots spectrogram for a ``"channel"``. 
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
-        :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
+        :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and 
         :func:`~fobench.core.plotting.plotting_mpl.simple_spectrogram`.
         """
-        axis = self.__axis__("t")
         channel = int(channel)
-        index = self.channels.tolist().index(channel)
-        data = self.data[:, index]
+        data = self.get_data(channel)
         f, t, Sxx = signals.signal_spectrogram(data=data, sampling_rate=self.sampling_rate,
-                                         axis=axis, norm=norm, nfft=nfft,
+                                         axis=0, norm=norm, nfft=nfft,
                                          noverlap=noverlap, nperseg=nperseg)
         if plot_mode == "pyqt":
-            t = self.times(time_type="unix")
+            t_plot = self.times(time_type="unix")
             if vmin is None: vmin = 0
             if vmax is None: vmax = np.nanpercentile(Sxx, 95)
-            plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
-                        data=np.rot90(Sxx, k=-1), y_label="Frequency [Hz]",
+            plot_pyqt.plot_2d_timeseries(timestamps=t_plot, y_ticks=f, dt=self.dt,
+                        data=Sxx.T, y_label="Frequency [Hz]",
                         title=f"Spectrogram channel {channel}", cmap="viridis",
                         vmin=vmin, vmax=vmax, cbar_label=self.units, export=export,
                         show=show)
         elif plot_mode == "mpl":
-            t = self.times(time_type="matplotlib")
-            plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
+            t_plot = self.times(time_type="matplotlib")
+            plot.simple_spectrogram(data=Sxx, freq=f, t=t_plot, units_y=self.units,
                         trace=data if trace == True else None, figsize=figsize, cmap=cmap,
                         title=str(self.start_time.date)+"  "+"Ch:"+str(channel),
                         file_name=file_name, freq_lim=freq_lim, **kwargs)
@@ -777,7 +782,8 @@ class Record(object):
     def record_section(self, channels, plot_mode="pyqt", export=None, show=True):
         """Plots record section of multiple channels. If channels is tuple the range
         between lower and upper limit will be plotted, if list only channels in list
-        will be plotted.
+        will be plotted. See :func:`~fobench.core.plotting.plotting_pyqt.plot_record_section` and
+        :func:`~fobench.core.plotting.plotting_mpl.plot_record_section`.
         """
         if isinstance(channels, np.ndarray):
             channels = channels.tolist()
@@ -806,7 +812,8 @@ class Record(object):
                     window_size=None, results=False, vmin=None, vmax=None,
                     export=None, show=True, **imshow_kwargs):
         """Computes autocorrelation profile.
-        See :func:`~fobench.core.tools.wavefield.autocorrelation_profile`.
+        See :func:`~fobench.core.tools.wavefield.autocorrelation_profile`. Plots with
+        :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_distance` or :func:`~fobench.core.plotting.plotting_mpl.plot_acfs`.
         """
         axis = self.__axis__("t")
         max_shift = int(max_lag*self.sampling_rate)
@@ -826,7 +833,7 @@ class Record(object):
     def spatial_similarity(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
                        vmax=None, export=None, show=True):
         """Computes spatial similarity matrix.
-        See :func:`~fobench.core.tools.wavefield.similarity_matrix`
+        See :func:`~fobench.core.tools.wavefield.similarity_matrix`.
         """
         data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
         coh = wavefield.similarity_matrix(data=data_input, max_lag=max_lag,

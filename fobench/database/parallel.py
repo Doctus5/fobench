@@ -15,7 +15,7 @@ import sys
 import time
 from tqdm import tqdm
 
-class Parallel(object):
+class Parallel:
     """Parallel wrapper class for FoBench database and processing tasks.
     Initialise the parallel wrapper and selected backend.
 
@@ -142,9 +142,7 @@ class Parallel(object):
             self._MODE_ = multip
 
         except ImportError:
-            raise ImportError("⚠️ multiprocessing is not installed. Please "
-                              "install it by running 'pip install multiprocessing' "
-                              "or 'conda install multiprocessing'.")
+            raise ImportError("⚠️ multiprocessing is not available in your Python environment.")
 
     def __import_concurrent__(self):
         """Import ``concurrent.futures`` ProcessPool backend.
@@ -219,7 +217,7 @@ class Parallel(object):
             self._dask_client = client_cls(self._dask_cluster)
             self.n_cores = n_workers
 
-        print(f"⚠️ Dask initialized. Scheduler: {self._dask_client.scheduler_info()['address']}")
+        print(f"Dask initialized. Scheduler: {self._dask_client.scheduler_info()['address']}")
 
 
     def __close_dask__(self):
@@ -468,7 +466,7 @@ class Parallel(object):
 
             return results
 
-    """Public Funtions"""
+    """Public Functions"""
     def submit(self, task, var_args, fixed_args, to_return=True,
         submission_mode="single_submit", submit_chunk_size=None,
         show_progress=True):
@@ -496,7 +494,7 @@ class Parallel(object):
         submission_mode : {"single_submit", "chunked_submit"}, optional
             Submission strategy:
             - ``"single_submit"`` runs all ``var_args`` in one parallel call.
-            - ``"chunked_submit"`` splits ``var_args`` into submission waves. Efficient for hughe memory limitations.
+            - ``"chunked_submit"`` splits ``var_args`` into submission waves. Efficient for huge memory limitations.
         submit_chunk_size : int, optional
             Number of ``var_args`` items per submission wave when
             ``submission_mode="chunked_submit"``. If ``None``, value is
@@ -580,7 +578,7 @@ class Parallel(object):
 
         # Chunked submission mode: run in waves to reduce memory pressure.
         if self.mode == "mpi":
-            raise ValueError('⚠️ chunked submittions are not currently supported for MPI mode.')
+            raise ValueError('⚠️ chunked submissions are not currently supported for MPI mode.')
 
         if not isinstance(var_args, np.ndarray):
             var_args = np.array(list(var_args), dtype=object)

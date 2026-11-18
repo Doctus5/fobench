@@ -1,6 +1,6 @@
 """
 Class ``Cable`` for listing the infrastructure to use in ``Project``.
-A ``Project`` is understood as a field campaing in a specific location where
+A ``Project`` is understood as a field campaign in a specific location where
 several ``Datasets`` are collected from deployments using the ``Cable``.
 
 :Authors:
@@ -24,7 +24,7 @@ from . import manager as manager
 
 
 
-class Cable(object):
+class Cable:
     """Class keeps track of the organisation of a single/multiple data collected.
 
     Note
@@ -146,7 +146,7 @@ class Cable(object):
         # Check if just the path of the metadata is being indicated.
         if isinstance(json_file, str):
             meta_dict = manager.open_metadatafile(json_file)
-        elif isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+        elif isinstance(json_file, dict): # if the variable is already the dictionary opened from Projects.
             meta_dict = json_file
         else:
             raise TypeError("metadata_file must be a path string or dictionary")

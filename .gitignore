@@ -2,3 +2,7 @@ __pycache__
 docs/build
 docs/source/api/*
 !docs/source/api/fobench.rst
+
+# Jupyter
+.ipynb_checkpoints/
+.virtual_documents/

@@ -1,7 +1,7 @@
 project = "FoBench"
 copyright = "2026, Sergio Diaz-Meza, Jonas Pätzel"
 author = "Sergio Diaz-Meza, Jonas Pätzel"
-release = "0.1"
+release = "1.0.0"
 
 import os
 import sys
@@ -53,6 +53,7 @@ intersphinx_mapping = {
     "pywavelets": ("https://pywavelets.readthedocs.io/en/latest/", None),
     "pyqtgraph": ("https://pyqtgraph.readthedocs.io/en/latest/", None),
     "pyrocko": ("https://pyrocko.org/docs/current/", None),
+    "s3fs": ("https://s3fs.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------

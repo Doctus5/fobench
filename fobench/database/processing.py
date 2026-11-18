@@ -30,7 +30,7 @@ def _auto_n_cores(cpu_ratio: float = 0.85):
     Parameters
     ----------
     cpu_ratio : float, optional
-        Fraction of available CPU cores to use. Defaults to ``0.85``.
+        Fraction of available CPU cores to use.
 
     Returns
     -------
@@ -165,7 +165,7 @@ def run_window_pipeline_to_zarr(source, task, output_store: str, output_key: str
     merge_datasets : bool, optional
         Only used for Interrogator-like sources. If ``True``, map datasets together.
     record_kwargs : dict, optional
-        Extra keyword arguments for Record initialisation.
+        Extra keyword arguments for :class:`~fobench.core.record.Record` initialisation.
     parallel_params : dict, optional
         Parallel backend parameters.
     submit_chunk_size : int, optional

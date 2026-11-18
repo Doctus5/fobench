@@ -1,4 +1,4 @@
-"""Some utilities to handle units, time formats and intrument corrections."""
+"""Some utilities to handle units, time formats and instrument corrections."""
 
 import functools
 import inspect
@@ -13,7 +13,7 @@ from obspy.core.stream import Stream
 from obspy.core import UTCDateTime as UTC
 
 def scan_hdf5(path, recursive=True, tab_step=2):
-	"""Function to sscan hdf5 file hierarchically."""
+	"""Function to scan hdf5 file hierarchically."""
 	def scan_node(g, tabs=0):
 		print(" " * tabs, g.name)
 		for k, v in g.items():
@@ -59,7 +59,7 @@ COUNT_UNIT_MAP = {  # mapping of count data
 				1: "d/dt counts",
 				2: "d/dt^2 counts"}
 
-UNKNOW_UNIT_MAP = {  # mapping for data with unknow unit
+UNKNOWN_UNIT_MAP = {  # mapping for data with unknown unit
                    -1: "integrated units",
                    0: "units",
                    1: "d/dt units",
@@ -96,7 +96,7 @@ def _update_processing(func):
 				if record.company == "terra15" and "strain" not in record.units:
 					if record.attributes["properties"]["data_product"] == "velocity": unit_map = VEL_UNIT_MAP
 				if record.units == "counts": unit_map = COUNT_UNIT_MAP
-				elif record.company == "sintela": unit_map = UNKNOW_UNIT_MAP
+				elif record.company == "sintela": unit_map = UNKNOWN_UNIT_MAP
 				elif record.units in ("radians", "radian", "rad"): unit_map = RADIAN_UNIT_MAP
 			elif record.sensing == "dts":
 				unit_map = TEMP_UNIT_MAP
@@ -117,7 +117,7 @@ def _update_processing(func):
 	return wrapper
 
 def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "strain-rate",
-				terra15_gl: float = None, axis: int = 0, return_factor : bool = False) -> tuple[np.ndarray, str, np.ndarray, list, int, float]:
+				terra15_gl: float = None, axis: int = 0, return_factor : bool = False) -> tuple[np.ndarray, str, np.ndarray, int, float, np.ndarray]:
 	"""Performs instrument correction and data conversion for various instrument types
 
 	Parameters
@@ -144,8 +144,12 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 		(New) unit of measurement.
 	attributes["channels"] : np.ndarray
 		(New) channels.
+	attributes["n_channels"] : int
+		(New) number of channels.
 	attributes["gauge_length"] : float
 		(New) gauge length.
+	attributes["distances"] : np.ndarray
+		(New) distances.
 
 	"""
 
@@ -190,10 +194,10 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 				return factor
 			data = data * factor # divide by sensitivities. It seems they already provide the conversion factor
 
-	elif (format == "h5" or format == "hdf5") and company == "optasense": # QuantX OptoaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
+	elif (format == "h5" or format == "hdf5") and company == "optasense": # QuantX OptaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
 		if target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
-			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
+			gauge_L = attributes["gauge_length"] # gauge length in meters.
 			digital_N = int(attributes["units"][-4]) ** int(attributes["units"][-2:]) # magic number linked to the digitalization of the data. why not 2**ints
 			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
@@ -215,7 +219,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 	elif (format == "h5" or format == "hdf5") and company == "michele": # Michelle HDF5 decimated from Silixa
 		if units == "counts" and target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
-			gauge_L = attributes["gauge_length"] # gauge lenght in meters.
+			gauge_L = attributes["gauge_length"] # gauge length in meters.
 			digital_N = 2**13 # magic number linked to the digitalization of the data. why not 2**16?
 			fs = attributes["o_sampling_rate"] # sampling frequency, which can be 1000 Hz for raw data.
 			factor = i_cst*(fs/gauge_L)/digital_N # strain Rate per counts.
@@ -248,8 +252,8 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 	z_ch : np.ndarray
 		1D array of Z (depth - metres) coordinates of the channels specified in ``"n_ch"``.
 	system : str
-		Defines the output coordinate system for X and Y. It can be ``'decimal'``
-		for decimal degrees or ``'utm'`` for Universal Transverse Mercator.
+		Defines the output coordinate system for X and Y. It can be ``"decimal"``
+		for decimal degrees or ``"utm"`` for Universal Transverse Mercator.
 	err: float
 		The maximum accepted error of gauge length from interpolation in decimals 0.0 = 0% and 1.0 = 100%.
 	spacing : int, float
@@ -285,7 +289,7 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 		Y = y_ch[i] + dy * N
 		Z = z_ch[i] + dz * N
 
-		ii = 0 if i == 0 else 1 # index for start aappending new georefereced channels.
+		ii = 0 if i == 0 else 1 # index for start appending new georeferenced channels.
 
 		new_ch += list(CH[ii:].astype(int))
 		new_x += list(X[ii:])
@@ -315,7 +319,7 @@ def interpolate_channels(n_ch: np.ndarray, x_ch: np.ndarray, y_ch: np.ndarray,
 
 def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
 
-	"""Gives the optimal cascadian decimation factors based on initial sampling
+	"""Gives the optimal cascaded decimation factors based on initial sampling
 	frequency and desired final sampling frequency.
 
 	Parameters
@@ -333,7 +337,7 @@ def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
 	"""
 
 	factors = []
-	pref_factors = [2, 3, 4, 5] # prefered decimation factors in order of preference.
+	pref_factors = [2, 3, 4, 5] # preferred decimation factors in order of preference.
 	n = in_fs / out_fs # overall decimation factor
 
 	for d in pref_factors:
@@ -345,7 +349,7 @@ def auto_cascf(in_fs: int | float, out_fs: int | float) -> list:
 
 	return factors
 
-def spatial_upsampling(Record)-> tuple[np.ndarray, list]:
+def spatial_upsampling(Record)-> tuple[np.ndarray, np.ndarray]:
 
 	"""Function for spatially upsampling the DAS, doubling the number of channels.
 	Creates an interpolation between consecutive channels to simulate an increase
@@ -360,8 +364,8 @@ def spatial_upsampling(Record)-> tuple[np.ndarray, list]:
 	-------
 	new_data : np.ndarray
 		2D matrix containing the new spatial upsampled data.
-	new_channels : list
-		List containing the new numbers of the channels, with newly created intermediary ones.
+	new_channels : np.ndarray
+		Array containing the new numbers of the channels, with newly created intermediary ones.
 
 	"""
 
@@ -385,7 +389,7 @@ def spatial_upsampling(Record)-> tuple[np.ndarray, list]:
 	return new_data, new_channels
 
 
-def spatial_downsampling(Record)-> tuple[np.ndarray, list]:
+def spatial_downsampling(Record)-> tuple[np.ndarray, np.ndarray]:
 
 	"""Function for spatially downsampling DAS data by half. Erases one channel between consecutive
 	channels to simulate a decrease of the spatial resolution.
@@ -399,8 +403,8 @@ def spatial_downsampling(Record)-> tuple[np.ndarray, list]:
 	-------
 	new_data : np.ndarray
 		2D matrix containing the new spatial downsampled data.
-	new_channels : list
-		List containing the new numbers of the channels, with the inermediate ones eliminated.
+	new_channels : np.ndarray
+		Array containing the new numbers of the channels, with the intermediate ones eliminated.
 
 	"""
 
@@ -412,7 +416,7 @@ def spatial_downsampling(Record)-> tuple[np.ndarray, list]:
 
 	return new_data, np.asarray(new_channels)
 
-def to_traces(Record, t_type: str)-> Stream:
+def to_traces(Record, t_type: str)-> Stream | list[pTrace]:
 
 	"""Creates an ObsPy :class:`~obspy.core.stream.Stream` or a list of pyrocko
 	:class:`~pyrocko.trace.Trace` objects. Each trace (:class:`obspy.core.trace.Trace`
@@ -425,7 +429,7 @@ def to_traces(Record, t_type: str)-> Stream:
 	Record : :class:`~fobench.core.record.Record`
 		Record class object.
 	t_type : str
-		type of stream to return, ``'obspy'`` or ``'pyrocko'``.
+		type of stream to return, ``"obspy"`` or ``"pyrocko"``.
 
 	Returns
 	-------
@@ -466,7 +470,7 @@ def to_traces(Record, t_type: str)-> Stream:
 def to_wav(signal: np.ndarray, fs: int, out_file: str):
     """Write out a signal as WAV audio file. Will only be audible to humans
     at sufficiently high sampling rates. Increase ``fs`` to squeeze the signal.
-    Example: To convert the 100th chanel of a ``Record`` instance use:
+    Example: To convert the 100th channel of a ``Record`` instance use:
     ``to_wav(Record.get_data(100), fs=Record.sampling_rate, out_file="/home/user/signal")``
 
     Warning
@@ -489,7 +493,7 @@ def to_wav(signal: np.ndarray, fs: int, out_file: str):
     """
 
     from scipy.io import wavfile
-    signal = signal/np.abs(np.max(signal))
+    signal = signal/np.max(np.abs(signal))
     wavfile.write(out_file + ".wav", rate=int(fs), data=signal)
 
 def to_xarray(Record, name: str = None, use_distance: bool = False):
@@ -585,8 +589,8 @@ def return_times(Record, time_type: str)-> np.ndarray:
 	Record : :class:`~fobench.core.record.Record`
 		``Record`` class object.
 	time_type : str
-		time format to return. options are ``'UTCDateTime'``, ``'isoformat'``,
-		``datetime64``, ``'matplotlib'`` or ``'unix'``
+		time format to return. options are ``"UTCDateTime"``, ``"isoformat"``,
+		``"datetime64"``, ``"matplotlib"`` or ``"unix"``
 
 	Raises
 	------
@@ -637,7 +641,7 @@ def _interp_nan_along_axis0_inplace(data: np.ndarray) -> np.ndarray:
 def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: float, start2, end2,
                       dt2: float, axis: int = 0, overlap: str = 'data2', gap: str = 'nan', tolerance: float = 1.0,
                       out: np.ndarray = None) -> np.ndarray:
-	"""2D concatenaiton of matrices with time series data.
+	"""2D concatenation of matrices with time series data.
 
 	Parameters
 	----------
@@ -658,15 +662,15 @@ def time_concatenation(data1: np.ndarray, data2: np.ndarray, start1, end1, dt1: 
 	dt2 : float
 		_description_
 	axis : int, optional
-		_description_, by default 0
+		_description_
 	overlap : str, optional
-		_description_, by default 'data2'
+		_description_
 	gap : str, optional
-		_description_, by default 'nan'
+		_description_
 	tolerance : float, optional
-		_description_, by default 1.0
+		_description_
 	out : np.ndarray, optional
-		_description_, by default None
+		_description_
 
 	Returns
 	-------
@@ -787,7 +791,7 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 	Parameters
 	----------
 	t0, tf : UTC datetime object or str
-		New desired start and end timea of data.
+		New desired start and end times of data.
 	data : np.ndarray
 		Original data to trim.
 	times : np.ndarray
@@ -795,7 +799,7 @@ def trim_time(t0: UTC | str, tf: UTC | str, data: np.ndarray, times: np.ndarray,
 	start_time, end_time : UTC datetime
 		Original start and end time of data.
 	axis : int
-		Dimesion to where the trim is applied.
+		Dimension to where the trim is applied.
 
 	Raises
 	------

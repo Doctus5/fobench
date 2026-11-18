@@ -1,8 +1,8 @@
 """Contains all functionality related to plotting using matplotlib, i.e.
-whenever ``plot_mode`` is set to ``'mpl'``."""
+whenever ``plot_mode`` is set to ``"mpl"``."""
 
 import numpy as np
-import datetime as datetime
+import datetime
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.dates import num2date
@@ -18,14 +18,14 @@ class PrecisionDateFormatter(ticker.Formatter):
     ----------
     fmt : str
         :meth:`~python:datetime.datetime.strftime` format string.
-    precision : int
-        Necessary precision.
-    tz : str
-        Timezone info.
+    precision : int, optional
+        Number of digits for millisecond precision.
+    tz : datetime.tzinfo, optional
+        Timezone for the dates, by default UTC.
 
     """
 
-    def __init__(self, fmt: str, precision: int = 3, tz: str = None):
+    def __init__(self, fmt: str, precision: int = 3, tz: datetime.tzinfo = None):
         self.num2date = num2date
         self.fmt = fmt
         self.tz = tz if tz is not None else datetime.timezone.utc
@@ -179,7 +179,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
                 x: list = None, units_y: str = None,
                 figsize: list[float, float] | tuple[float, float] = None,
                 cmap:str = "viridis", title: str = None, file_name: str = None,
-                show: bool = True, **kwargs) -> None:
+                show: bool = True, **kwargs) -> plt.Figure:
 
     """Plots the fx-plot, i.e. frequency content over distance.
 
@@ -236,7 +236,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
 def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
                        t: np.ndarray = None, units_y: str = None,
                        figsize: list[float, float] | tuple[float, float] = None,
-                       trace: bool = False, cmap: str = "viridis", title: str = "",
+                       trace: np.ndarray | None = None, cmap: str = "viridis", title: str = "",
                        file_name: str = None, show: bool = True,
                        freq_lim: list[float, float] | tuple[float, float] = None,
                        **kwargs) -> plt.Figure:
@@ -255,8 +255,9 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
         Amplitude units.
     figsize : list[float, float] | tuple[float, float]
         Controls figure size.
-    trace : bool
-        Toggles plotting of the time domain data in a second panel.
+    trace : np.ndarray | None, optional
+        Time domain data plotted in a second panel below the spectrogram, same length
+        as ``t``. If ``None``, only the spectrogram is shown.
     cmap : str, optional
         matplotlib colourmap to use for the spectrogram.
     title : str, optional
@@ -279,6 +280,7 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
     """
 
     extent = (t[0], t[-1], freq[0], freq[-1])
+    kwargs.setdefault("origin", "lower")
     precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find(".")
 
     if trace is not None:

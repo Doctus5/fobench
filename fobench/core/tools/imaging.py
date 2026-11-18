@@ -44,7 +44,7 @@ class VSG:
     Raises
     ------
     ValueError
-        ``m̀ax_lag`` is longer than record.
+        ``max_lag`` is longer than record, or ``source_channel`` is not in the record channels.
 
     """
 
@@ -56,6 +56,10 @@ class VSG:
             source_channel = record.channels[record.n_channels // 2]
         if max_lag * record.sampling_rate >= record.n_samples:
             raise ValueError("⚠️ max_lag must be shorter than the record!")
+        source_matches = np.flatnonzero(np.asarray(record.channels) == source_channel)
+        if source_matches.size == 0:
+            raise ValueError(f"⚠️ source_channel {source_channel} is not in the record channels "
+                             f"({record.channels[0]} to {record.channels[-1]}).")
 
         if whiten is not None:
             record.whiten(freq_min=whiten[0], freq_max=whiten[1])
@@ -64,7 +68,7 @@ class VSG:
 
         # metadata
         self.source_channel = int(source_channel)
-        self.source_index = int(np.where(record.channels == source_channel)[0][0])
+        self.source_index = int(source_matches[0])
         self.channels = np.asarray(record.channels).copy()
         self.distances = np.asarray(record.distances).copy()
         self.offsets = self.distances - self.distances[self.source_index]
@@ -126,21 +130,21 @@ class VSG:
         plot : pg.PlotItem
             PyQtGraph PlotItem of the VSG.
         win : pg.GraphicsLayoutWidget
-            PyQtGraph GraphicsLayoutWidget..
+            PyQtGraph GraphicsLayoutWidget.
 
         """
         p95 = np.percentile(np.abs(self.data), 95)
         vmin = -p95 if vmin is None else vmin
         vmax = p95 if vmax is None else vmax
 
-        plot, win = plot_pyqt.plot_2d_distance.__wrapped__( #avoid the decorator
+        plot, win = plot_pyqt.plot_2d_distance(
             distances=self.offsets, channels=self.channels - self.source_channel,
             data=self.data.T, y_ticks=self.lags, y_label="Lag [s]",
             x_label="Channel Offset", distance_label="Offset [m]",
             title=f"Virtual Shot Gather (Source: {self.source_channel})",
             cmap=cmap, cbar_label="Correlation Coefficient"
             if self.parameters["normalize"] else "Correlation",
-            invert_y=True, vmin=vmin, vmax=vmax)
+            invert_y=True, vmin=vmin, vmax=vmax, show=False)
         plot.addItem(pg.InfiniteLine(pos=0, angle=90,
                                      pen=pg.mkPen("k", width=2, style=QtCore.Qt.DashLine)))
         if export is not None:
@@ -205,7 +209,7 @@ def dispersion_image(data: np.ndarray, offsets: np.ndarray, dt: float, c_min: fl
     offsets : np.ndarray
         Source-receiver offsets of the traces in m.
     dt : float
-        Sampling rate in seconds.
+        Sampling interval in seconds.
     c_min, c_max : float
         Minimum and maximum phase velocity in m/s.
     dc : float

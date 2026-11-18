@@ -1,5 +1,5 @@
 """Contains all functionality related to plotting using PyQtGraph, i.e.
-whenever ``plot_mode`` is set to ``'pyqt'``."""
+whenever ``plot_mode`` is set to ``"pyqt"``."""
 
 import sys
 import datetime
@@ -34,7 +34,7 @@ def exportable(func):
         if show:
             win.show()
             pg.exec()
-        return plot
+        return plot, win
     return wrapper
 
 """Line Plot Functions"""
@@ -42,7 +42,7 @@ def exportable(func):
 @exportable
 def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
                     y_label: str = "", title: str = "",
-                    labels: list[str] | None = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                    labels: list[str] | None = None) -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Generate generic time series plot using PyQtGraph, ideal for channel plots.
 
@@ -100,7 +100,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
 @exportable
 def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
                         numbers: np.ndarray, y_label: str = "",
-                        title: str = "") -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                        title: str = "") -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Extended version of timeseries plot for multi-channel data.
 
@@ -155,7 +155,7 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
 @exportable
 def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
                   y_label: str = "", x_label: str = "Channel",
-                  title: str = "") -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                  title: str = "") -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Generate generic distances series plot.
 
@@ -221,7 +221,7 @@ def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
 @exportable
 def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
                   y_label: str = "Amplitude", x_label: str = "Frequency [Hz]", title: str = "",
-                  labels: list[str] | None = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                  labels: list[str] | None = None) -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Generate generic amplitude over frequency plot.
 
@@ -279,7 +279,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
 def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
                        dt: float, vmin: float = None, vmax: float = None, y_label: str = "",
                        title: str = "", cmap: str = "seismic", cbar_label: str = "",
-                       distances: np.ndarray = None) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                       distances: np.ndarray = None) -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Generate generic matrix plot where x-axis represents time.
 
@@ -381,7 +381,7 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
                      y_label: str = "", x_label: str = "Channel",
                      distance_label: str = "Optical Distance [m]", title: str = "",
                      cmap: str = "seismic", cbar_label: str = "",
-                     invert_y=False) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                     invert_y=False) -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Generate generic matrix plot where x-axis represents distance.
 
@@ -609,7 +609,7 @@ def get_vminmax_button(bar: pg.ColorBarItem) -> QtWidgets.QPushButton:
     return button
 
 def reset_scale(bar: pg.ColorBarItem, vmin: float, vmax: float) -> None:
-    """Function to resest the colourscale to original values."""
+    """Function to reset the colourscale to original values."""
     bar.setLevels(values=(vmin, vmax))
 
 def get_bottom_layout():
@@ -632,7 +632,7 @@ def get_colors(n: int, colormap:str = "tab10") -> list[tuple[int, int, int]]:
 @exportable
 def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
             mask: np.ndarray, f: np.ndarray, k: np.ndarray,
-            dt: float) -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+            dt: float) -> tuple[list[pg.PlotItem], pg.GraphicsLayoutWidget]:
 
     """Plots the in- and outputs of fk filter: initial and filtered wavefield,
     the fk spectrum and the fk mask.
@@ -656,8 +656,8 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
 
     Returns
     -------
-    plot : pg.PlotItem
-        PyQtGraph PlotItem
+    plots : list[pg.PlotItem]
+        PyQtGraph PlotItems (initial wavefield, filtered wavefield, |fk| spectrum, fk mask)
     win : pg.GraphicsLayoutWidget
         PyQtGraph GraphicsLayoutWidget
 
@@ -745,7 +745,7 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
 def plot_dispersion(frequencies: np.ndarray, velocities: np.ndarray, image: np.ndarray,
                     curve: np.ndarray = None, vmin: float = None, vmax: float = None,
                     title: str = "Dispersion Image", cmap: str = "magma",
-                    cbar_label: str = "Normalised Amplitude") -> (pg.PlotItem, pg.GraphicsLayoutWidget):
+                    cbar_label: str = "Normalised Amplitude") -> tuple[pg.PlotItem, pg.GraphicsLayoutWidget]:
 
     """Plots a dispersion image in frequency-velocity space.
 

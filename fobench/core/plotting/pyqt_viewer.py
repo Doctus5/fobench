@@ -57,13 +57,14 @@ class Viewer(QtWidgets.QMainWindow):
         self.matrix_plot_widget = pg.GraphicsLayoutWidget()
         self.matrix_plot = self.matrix_plot_widget.addPlot()
         self.matrix_image = pg.ImageItem(image=self.data)
-        self.matrix_image.setRect(x_min, y_min, x_max-x_min, y_max-y_min)
+        dy = self._y_state["dy"]
+        self.matrix_image.setRect(x_min, y_min-dy/2, x_max-x_min, y_max-y_min+dy)
         self.matrix_plot.addItem(self.matrix_image)
         self.matrix_plot.setAspectLocked(False)
         self.matrix_plot.setAxisItems({"bottom": pg.DateAxisItem(utcOffset=1)})
         self.matrix_plot.setLabel("left", "Optical Distance [m]", color="k", font_size="14pt")
         self.matrix_plot.getViewBox().setLimits(xMin=x_min, xMax=x_max,
-                                                yMin=y_min, yMax=y_max)
+                                                yMin=y_min-dy/2, yMax=y_max+dy/2)
         self.dock_1.addWidget(self.matrix_plot_widget)
 
         # line tool channel selector
@@ -292,7 +293,7 @@ class Viewer(QtWidgets.QMainWindow):
         """Simple spectrogram plot."""
         spectrogram_data, freqs, _ = self.Record.channel_spectrogram(self.selected_channel,
                                                                     results=True, plot_mode=None)
-        spectrogram_data = np.flip(spectrogram_data.T, axis=1)
+        spectrogram_data = spectrogram_data.T
         x_min, x_max = self.times[0], self.times[-1]
         y_min, y_max = freqs.min(), freqs.max()
         cmap = pg.colormap.get("viridis", source="matplotlib")
@@ -349,7 +350,7 @@ class Viewer(QtWidgets.QMainWindow):
         "Plot the Autocorrelation profile"
         @_busy_cursor
         def calc(max_lag_val, deconvolve, window_size):
-            return self.Record.acf_profile(max_lag=max_lag_value,
+            return self.Record.acf_profile(max_lag=max_lag_val,
                                           deconvolve=deconvolve,
                                           window_size=window_size,
                                           plot_mode=None, results=True)
@@ -464,7 +465,7 @@ class Viewer(QtWidgets.QMainWindow):
             self.line_plot.setXLink(self.matrix_plot)
             self.link_button.setText("Unlink X-Axis")
 
-    def add_rect_roi(self) -> pg.RectROI:
+    def add_rect_roi(self) -> None:
         """Adds a rectangular ROI to the matrix plot to measure time and distance
         and displays its time range on the line plot.
         """
@@ -514,7 +515,7 @@ class Viewer(QtWidgets.QMainWindow):
         update_roi()
         roi.sigRemoveRequested.connect(remove_roi)
 
-    def add_velocity_line(self) -> pg.LineSegmentROI:
+    def add_velocity_line(self) -> None:
         """Add a line to the matrix plot to measure velocity."""
         x0, y0 = self.times[0], self.Record.distances[0]
         x1 = x0 + (self.times[-1] - self.times[0]) * 0.1

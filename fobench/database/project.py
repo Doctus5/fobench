@@ -1,5 +1,5 @@
 """Class ``Project`` for visualising and handling data within a ``Project``.
-A ``Project`` is understood as a field campaing in a specific location where
+A ``Project`` is understood as a field campaign in a specific location where
 several ``Datasets`` are collected from deployments.
 
 :Authors:
@@ -25,7 +25,7 @@ from . import manager as manager
 
 
 
-class Project(object):
+class Project:
 	"""Class keeps track of the organisation of a single/multiple data collected.
 
 	Note
@@ -115,7 +115,7 @@ class Project(object):
 			"n_inters": 0,
 			"n_cables": 0,
 
-			# back to DFSN
+			# back to FDSN
 			"cables": [],
 			"interrogators": [],
 		}
@@ -156,7 +156,7 @@ class Project(object):
 		# Check if just the path of the metadata is being indicated.
 		if isinstance(json_file, str):
 			meta_dict = manager.open_metadatafile(json_file)
-		elif isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+		elif isinstance(json_file, dict): # if the variable is already the dictionary opened from Projects.
 			meta_dict = json_file
 		else:
 			raise TypeError("metadata_file must be a path string or dictionary")
@@ -375,18 +375,18 @@ class Project(object):
 
 
 	def save_metadata(self, filename : str = "project_meta.json", format : str = "fobench"):
-		"""Saves the metadata file for future usage and toin order to having to
+		"""Saves the metadata file for future usage and to avoid having to
 		build the project again.
 
 		Parameters
 		----------
 		filename : str
 			File name with complete path and format of the metadata file.
-			If not given, Default = 'project_meta.json', which means it is saved
+			If no path is given, the file is saved
 			in the local folder of code execution.
 		format : str
-			Format of the metadata file. If not given, Default = "fobench" is used, and useful for fobench utilities (recommended).
-			Option "fdsn" gives the current standard fields required by FDSN. Useful for staying within the standard format, 
+			Format of the metadata file. ``"fobench"`` is useful for fobench utilities (recommended).
+			Option ``"fdsn"`` gives the current standard fields required by FDSN. Useful for staying within the standard format, 
 			but throws out filepaths necessary to keep track of the databases.
 
 		Returns

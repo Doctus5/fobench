@@ -9,7 +9,6 @@
 
 """
 
-# Necessary packes to read the file formats
 import os
 import json
 import nptdms as tdms
@@ -48,8 +47,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         If ``False``, only metadata is loaded.
     show_progress : True
         Show progress bar when loading data.
-    storage_opts : TYPE, optional
-        DESCRIPTION.
+    storage_opts : dict, optional
+        Keyword arguments passed to :class:`~s3fs.core.S3FileSystem`, e.g. credentials
+        (``key``, ``secret``), ``endpoint_url`` or ``anon``. Only used when
+        ``filepath`` is an ``"s3://"`` path, ignored for local files.
 
     Returns
     -------
@@ -176,7 +177,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             sampling_rate = 1/(properties["Spacing"][1]*1e-3)
             o_sampling_rate = sampling_rate
             dt = 1/sampling_rate
-            SEMILAG = properties["BlockRate"][0]*1e-3 if getattr(properties["BlockRate"], "size", 0) == 1 else properties["BlockRate"]*1e-3 # unpacking value sif is inside list.
+            SEMILAG = properties["BlockRate"][0]*1e-3 if getattr(properties["BlockRate"], "size", 0) == 1 else properties["BlockRate"]*1e-3 # unpacking values if is inside list.
             SEMILAG = int(np.round((1/SEMILAG) / dt))
 
             # data loading
@@ -450,7 +451,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
     elif format == "npy" and company == "bam": # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
-        print("File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.")
+        print("File format is a Numpy Class. It contains only the data, and so the metadata must be filled automatically in the code.")
         file_file = None
         properties = {}
         channels = None
@@ -473,7 +474,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         units = None
         conv_factor = None # conversion factor if given explicitly
 
-    elif format == "npz" and company == "bam": # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+    elif format == "npz" and company == "bam": # .npz format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
         print("File format is a Numpy Zip Class. No Gauge Length specified. Do not attempt to convert to Strain-Rate.")
         file_file = None
@@ -536,7 +537,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         raise ValueError(f"{format} is not a recognized file format!")
     del dataset
 
-    # Attributed for the Record class.
+    # Attributes for the Record class.
     attr_keys = [
         "basefile",
         "format",
@@ -561,7 +562,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         "file_size"
         ]
 
-    # coonvert the type of the data to floating, ready for processing
+    # convert the type of the data to floating, ready for processing
     # if not np.issubdtype(data.dtype, np.floating) and load_data is True:
     #     data = data.astype(float, copy=False)
 
@@ -685,7 +686,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
 
 def __dts_csv_reader__(filepath, load_data=True):
-    """Reads the AP Sensing DTS CSV export: ``;``-separated columns, ``,``-seperated decimals.
+    """Reads the AP Sensing DTS CSV export: ``;``-separated columns, ``,``-separated decimals.
     First four rows (``Date:``, ``Time:``, ``X Units:``, ``Y Units:``) hold one entry
     per trace, the following rows the distance and one value per trace.
 
@@ -725,7 +726,7 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     filepath : str
         Complete S3 URI of the file
     company : str
-        Manufacturer of the fibre optic sensing unit that produce the data (check read_data())
+        Manufacturer of the fibre optic sensing unit that produce the data (check :func:`~fobench.core.tools.file_io.read_data`)
     range_ch : int or list, optional
         Channels range to load
     format : str, optional
@@ -735,7 +736,7 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     show_progress : bool, optional
         Shows the file-reading progress bar
     storage_opts : dict, optional
-        Options to be passed to the S3 filesystem. Needed as credentials and temporal file handling, by default None
+        Options to be passed to the S3 filesystem. Needed as credentials and temporal file handling.
 
     Returns
     -------
@@ -765,18 +766,18 @@ def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
     Parameters
     ----------
     filepath : str
-        global or partial path where the data is located.
+        Global or partial path where the data is located.
     tdms_metadata : _type_
         _description_
     range_ch : array or list
-        range fo channels to slice the data
+        Range of channels to slice the data
     copy_data : bool, optional
-        load the data into memory, by default True
+        Load the data into memory.
 
     Returns
     -------
     np.array()
-        full data matrix of the sensing
+        Full data matrix of the sensing
 
     """
 
@@ -806,18 +807,18 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
     Parameters
     ----------
     filepath : str
-        global or partial path where the data is located.
+        Global or partial path where the data is located.
     tdms_metadata : _type_
         _description_
     range_ch : array or list
-        range fo channels to slice the data
+        Range of channels to slice the data
     copy_data : bool, optional
-        load the data into memory, by default True
+        Load the data into memory.
 
     Returns
     -------
     np.array()
-        full data matrix of the sensing
+        Full data matrix of the sensing
 
     """
 
@@ -858,9 +859,9 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
 
 def write_data(Record, filepath=None, company=None, format=None, template=None):
     """Manages saving of data in the original format as it was written from the manufacturer.
-    Check format and company available (format, company) from read_data() function.
+    Check format and company available (format, company) from :func:`~fobench.core.tools.file_io.read_data`.
     "We can possibly try to give options to save in another format but it will
-    require to known previosuly the formats somehow"
+    require knowing previously the formats somehow"
 
     Parameters
     ----------
@@ -922,7 +923,7 @@ def write_data(Record, filepath=None, company=None, format=None, template=None):
                     gname,
                     str(ch["name"]),
                     np.asarray(Record.data[:, i]),
-                    # np.rint(np.clip(Record.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
+                    # np.rint(np.clip(Record.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if data gets distorted by processing.
                     properties=dict(ch.get("properties", {})),
                 )
             )
@@ -930,7 +931,7 @@ def write_data(Record, filepath=None, company=None, format=None, template=None):
         with tdms.TdmsWriter(filepath, mode="w") as w:
             w.write_segment(objects)
 
-    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela H5 files.
 
         pbar = tqdm(total=1, leave=True, desc="Saving in Sintela HDF5 file")
         dataset_path = "/Acquisition/Raw[0]/RawData"
@@ -1382,11 +1383,11 @@ def scan_template(filepath, company="", format="", storage_opts=None):
     filepath : str
         Path to the file. Paths starting with ``"s3://"`` are opened with :mod:`s3fs`.
     company : str, optional
-        Manufacturer of the instrument that generated the data, by default ``""``
+        Manufacturer of the instrument that generated the data.
     format : str, optional
-        Format of the file, either ``"tdms"``, ``"hdf5"`` or ``"h5"``, by default ``""``
+        Format of the file, either ``"tdms"``, ``"hdf5"`` or ``"h5"``.
     storage_opts : dict, optional
-        Keyword arguments passed to :class:`s3fs.S3FileSystem` for S3 paths, by default ``None``
+        Keyword arguments passed to :class:`~s3fs.core.S3FileSystem` for S3 paths.
 
     Returns
     -------
@@ -1421,11 +1422,11 @@ def __scan_template__(core_file, company="", format=""):
     Parameters
     ----------
     core_file : file object
-        file object once it is opened.
+        File object once it is opened.
     company : str,
-        manufacturer or the instrument that generates the data, by default None
+        Manufacturer or the instrument that generates the data.
     format : str, optional
-        format of the file where the data is coming from, by default None
+        Format of the file where the data is coming from.
 
     Returns
     -------
