@@ -3,74 +3,8 @@ Supported Data Formats
 
 The reading and writing of the following data formats is currently supported:
 
-.. list-table:: DAS
-   :header-rows: 1
+.. include:: _formats_tables.rst
 
-   * - Manufacturer
-     - Format
-     - Read
-     - Write
-     - Parameter
-   * - Silixa
-     - tdms
-     - ✓
-     - ✓
-     - ``"silixa"``
-   * - Silixa
-     - hdf5
-     - ✓
-     - ✓
-     - ``"silixa"``
-   * - Aragon Photonics
-     - hdf5
-     - ✓
-     - ✓
-     - ``"aragon"``
-   * - Terra15
-     - hdf5
-     - ✓
-     - ✓
-     - ``"terra15"``
-   * - Sintela
-     - hdf5
-     - ✓
-     - ✓
-     - ``"sintela"``
-   * - Febus
-     - hdf5
-     - ✓
-     - ✓
-     - ``"febus"``
-   * - OptaSense
-     - hdf5
-     - ✓
-     - ✓
-     - ``"optasense"``
-   * - ASN
-     - hdf5
-     - ✓
-     - ✓
-     - ``"asn"``
-   * - SensiPhi
-     - hdf5
-     - ✓
-     - ✓
-     - ``"sensiphi"``
-     
-.. list-table:: DTS
-   :header-rows: 1
-
-   * - Manufacturer
-     - Format
-     - Read
-     - Write
-     - Parameter
-   * - AP Sensing
-     - csv
-     - ✓
-     - ✗
-     - ``"apsensing"``
- 
 Consider :doc:`Contributing <contribute>` if you want to extend this list!
 
 

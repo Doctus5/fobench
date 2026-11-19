@@ -291,7 +291,7 @@ class Dataset:
         """
         
         channels = np.asarray(n_ch, dtype=int)
-        distances = (channels - self.channel_offset) * self.spatial_interval
+        distances = (channels + self.channel_offset) * self.spatial_interval
         
         ch_group_meta = {
         # Mandatory Channel Group fields

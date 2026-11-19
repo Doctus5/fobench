@@ -343,14 +343,10 @@ def normalize_signal(data: np.ndarray, method:str = "absolute max",
     """
 
     if method == "absolute max":
-        normalized_data = (data - data.min()) / (data.max() - data.min())
-        normalized_data = normalized_data * 2 -1
+        normalized_data = data / np.abs(data).max()
 
     elif method == "trace max":
-        channel_min = data.min(axis=axis, keepdims=True)
-        channel_max = data.max(axis=axis, keepdims=True)
-        normalized_data = (data - channel_min)/(channel_max - channel_min)
-        normalized_data = normalized_data * 2 -1
+        normalized_data = data / np.abs(data).max(axis=axis, keepdims=True)
 
     elif method == "running mean":
         if ram_window is None:

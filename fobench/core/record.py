@@ -47,8 +47,8 @@ class Record:
         filepath : str
             Path to file to read.
         company : str
-            Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-            ``"quantx"``, ``"asn"``, ``"terra15"``, ``"bam"`` and ``"sintela"``
+            Interrogator manufacturer, one of :data:`~fobench.core.tools.utils.COMPANIES`.
+            See :doc:`/getting_started/formats` for the supported formats.
         range_ch : tuple(int, int) | list | int | np.array
             Range of channels to load. Can be a single channel, list or array of channels
             or range given as tuple.
@@ -68,8 +68,7 @@ class Record:
         if not company:
             raise ValueError(
                 "\nNo company provided! Please choose one of:\n"
-                " -'silixa'\n -'febus'\n -'bam'\n -'aragon'\n -'quantx'\n -'asn'\n"
-                " -'terra15'\n -'sintela'"
+                + "\n".join(f" -'{c}'" for c in utils.COMPANIES)
             )
 
         self.__filepath__ = [filepath]
@@ -460,7 +459,7 @@ class Record:
             self.data = filters.decimate(data=self.data, factor=factor, f_type=f_type, axis=axis)
             self.spatial_interval *=  factor
             self.channels = self.channels[::factor]
-            self.distances = (self.channels - self.channel_offset) * self.spatial_interval
+            self.distances = self.distances[::factor]
             self.n_channels = len(self.channels)
 
         return self

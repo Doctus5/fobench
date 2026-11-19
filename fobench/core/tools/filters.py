@@ -646,8 +646,6 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     npx_x, npx_y = data.shape
     nwin_x = npx_x // window_stride
     nwin_y = npx_y // window_stride
-    if nwin_x % 1 or nwin_y % 1:
-        raise ValueError("Padding does not match desired data shape")
     filtered_data = np.zeros_like(data)
     taper = triangular_taper(window_size, window_non_overlap)
     for iwin_x in range(nwin_x):

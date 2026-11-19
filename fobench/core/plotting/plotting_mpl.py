@@ -443,7 +443,8 @@ def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray
 
 
 def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
-              max_shift: int, **imshow_kwargs) -> None:
+              max_shift: int, file_name: str = None, show: bool = True,
+              **imshow_kwargs) -> plt.Figure:
 
     """Plots the autocorrelation profile.
 
@@ -457,20 +458,26 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
         Sampling frequency of data.
     max_shift : int
         Maximum shift chosen.
+    file_name : str, optional
+        If not ``None``, plot will be saved at given location.
+    show : bool
+        Toggles display of figure.
     **imshow_kwargs :
         Additional arguments passed to :func:`~matplotlib.pyplot.imshow`,
         e.g. ``vmin``, ``vmax``.
 
     Returns
     -------
-    None
+    fig : :class:`~matplotlib.figure.Figure`
+        Figure instance.
 
     """
 
+    fig, ax = plt.subplots()
     extent = [distances[0], distances[-1], max_shift/fs, 0]
     y_label, x_label = "Lag/TWT [s]", "Optical Distance [m]"
-    im = plt.imshow(acfs, aspect="auto", origin="upper", extent=extent,
-                    **imshow_kwargs)
+    im = ax.imshow(acfs, aspect="auto", origin="upper", extent=extent,
+                   **imshow_kwargs)
     vmin = imshow_kwargs.get("vmin")
     vmax = imshow_kwargs.get("vmax")
 
@@ -483,8 +490,15 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
     else:
         extend = "neither"
 
-    plt.colorbar(im, label="Auto-correlation Coefficient", extend=extend)
-    plt.xlabel(x_label, fontsize=16)
-    plt.ylabel(y_label, fontsize=16)
-    plt.gca().tick_params(axis="both", labelsize=16)
-    plt.tight_layout()
+    fig.colorbar(im, ax=ax, label="Auto-correlation Coefficient", extend=extend)
+    ax.set_xlabel(x_label, fontsize=16)
+    ax.set_ylabel(y_label, fontsize=16)
+    ax.tick_params(axis="both", labelsize=16)
+    fig.tight_layout()
+
+    if file_name is not None:
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
+    if show:
+        plt.show()
+
+    return fig

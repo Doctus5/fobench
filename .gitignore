@@ -1,8 +1,11 @@
 __pycache__
+
+# Notebooks
+.ipynb_checkpoints/
+.virtual_documents/
+
+# Documentation
+docs/source/getting_started/_formats_tables.rst
 docs/build
 docs/source/api/*
 !docs/source/api/fobench.rst
-
-# Jupyter
-.ipynb_checkpoints/
-.virtual_documents/

@@ -447,7 +447,7 @@ class Viewer(QtWidgets.QMainWindow):
         plot.plot(freqs, np.squeeze(amps), pen="k")
         plot.setXRange(freqs[0], freqs[-1], padding=0)
         plot.getViewBox().setLimits(xMin=freqs[0], xMax=freqs[-1],
-                                    yMin=min(amps), yMax=max(amps))
+                                    yMin=np.nanmin(amps), yMax=np.nanmax(amps))
 
     def update_colorbar_levels(self) -> None:
         """Updates the colourbar levels after change by user."""

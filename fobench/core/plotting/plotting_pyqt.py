@@ -657,7 +657,7 @@ def plot_fk(wf_ini: np.ndarray, wf_filt: np.ndarray, wf_fk: np.ndarray,
     Returns
     -------
     plots : list[pg.PlotItem]
-        PyQtGraph PlotItems (initial wavefield, filtered wavefield, |fk| spectrum, fk mask)
+        PyQtGraph PlotItems (initial wavefield, filtered wavefield, ``|fk|`` spectrum, fk mask)
     win : pg.GraphicsLayoutWidget
         PyQtGraph GraphicsLayoutWidget
 

@@ -143,7 +143,8 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
 
     elif plot_mode == "mpl":
         plot_acfs(acfs=np.rot90(result, k=-1) if axis else np.fliplr(result), distances=distances, fs=fs,
-                  max_shift=max_shift, **imshow_kwargs)
+                  max_shift=max_shift, vmin=vmin, vmax=vmax, file_name=export, show=show,
+                  **imshow_kwargs)
 
     return result
 
@@ -185,12 +186,11 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         data = np.array_split(data, int(data_length / window), axis=axis)
         return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
 
-    if window is None:
-        data_length = len(times) if dim == "t" else len(channels)
-        result = compute_rmsa(data, data_length, data_length, axis)
-    elif window:
-        data_length = len(times) if dim == "t" else len(channels)
-        result = compute_rmsa(data, data_length, window, axis)
+    data_length = len(times) if dim == "t" else len(channels)
+    window = data_length if window is None else window
+    if not 0 < window <= data_length:
+        raise ValueError(f"window must be > 0 and <= {data_length} samples, got {window}")
+    result = compute_rmsa(data, data_length, window, axis)
 
     if plot_mode == "mpl":
         warn("⚠️ matplotlib plotting not implemented for this method, "

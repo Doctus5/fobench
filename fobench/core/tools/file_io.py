@@ -22,6 +22,7 @@ from tqdm import tqdm
 import pickle as pkl
 
 from obspy.core import UTCDateTime as UTC
+from fobench.core.tools import utils
 
 def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.ndarray = None,
               format: str = None, load_data: bool = True,
@@ -34,9 +35,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
     filepath : str
         Path to file to read.
     company : str
-        Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-        ``"optasense"``, ``"asn"``, ``"terra15"`` ``bam``, ``"sintela"``, ``"sensiphi"``
-        and ``"apsensing"``.
+        Interrogator manufacturer, one of :data:`~fobench.core.tools.utils.COMPANIES`.
+        See :doc:`/getting_started/formats` for the supported formats.
     range_ch : int or tuple(int, int) or np.array
             Range of channels to load. If one single number (``int``), it is one single channel.
             If ``tuple`` is then interpreted as a (start, end) channels.
@@ -60,8 +60,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
     Raises
     ------
     ValueError
-        Unrecognised file format.
+        Unknown company or file format not supported for the passed company.
     """
+
+    utils.check_company_format(company, format)
 
     # option for reading S3 stored files. The check of instance is necessary because the remote file not necessary starts with...
     if isinstance(filepath, str) and filepath.startswith("s3://"):
@@ -298,13 +300,15 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             o_sampling_rate = sampling_rate
             dt = 1 / sampling_rate
             n_samples = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
-            start_time = UTC(str(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"])[2:-1])
+            start_time_value = file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"]
+            start_time = UTC(start_time_value.decode("utf-8") if isinstance(start_time_value, bytes) else str(start_time_value))
             end_time = UTC(start_time + (n_samples - 1) * dt)
             spatial_interval = float(properties["SpatialSamplingInterval"])
             time_length = end_time - start_time
             gauge_length = float(properties["GaugeLength"])
             channel_offset = int(properties["StartLocusIndex"])
-            units = str(dataset.attrs["RawDataUnit"])[2:-1]
+            units_value = dataset.attrs["RawDataUnit"]
+            units = units_value.decode("utf-8") if isinstance(units_value, bytes) else str(units_value)
             conv_factor = None # conversion factor if given explicitly
 
     elif (format == "h5" or format == "hdf5") and company == "aragon": # Aragon Photonics HDAS HDF5
@@ -414,7 +418,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             conv_factor = None
 
     elif format == "csv" and company == "apsensing": # AP Sensing DTS CSV file
-        
+
         pbar = tqdm(total=1, leave=True, desc="Reading AP Sensing DTS CSV file", disable=not show_progress)
         template = None
         dataset = None
@@ -430,17 +434,17 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         cumulative_steps = np.cumsum(sample_steps)
         sample_idx = np.concatenate(([0], cumulative_steps)).astype(int)
         n_samples = int(sample_idx[-1]) + 1
-        
+
         if load_data:
             traces, data = data, np.full((n_samples, len(channels)), np.nan)
             data[sample_idx] = traces if data_range is None else traces[:, data_range]
-            
+
         properties["sample_index"] = sample_idx
         start_time = UTC(timestamps[0])
         end_time = UTC(start_time+(n_samples - 1)*dt)
         time_length = end_time - start_time
         spatial_interval = round(float(distances[1]-distances[0]), 4)
-        channel_offset = float(distances[0]) / spatial_interval
+        channel_offset = int(round(float(distances[0]) / spatial_interval))
         gauge_length = spatial_interval
         units = "temperature"
         conv_factor = None
@@ -612,8 +616,8 @@ def __channel_selection__(range_ch, channels_all):
     if range_ch is None:
         return channels_all, None
 
-    if isinstance(range_ch, int):
-        selector = [range_ch]
+    if isinstance(range_ch, (int, np.integer)):
+        selector = [int(range_ch)]
 
     elif isinstance(range_ch, tuple):
         ch0, chf = sorted(range_ch)

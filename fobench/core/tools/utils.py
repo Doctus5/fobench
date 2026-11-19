@@ -12,6 +12,63 @@ from obspy.core.trace import Trace as oTrace
 from obspy.core.stream import Stream
 from obspy.core import UTCDateTime as UTC
 
+SUPPORTED_FORMATS = {
+	"silixa":    {"name": "Silixa",           "sensing": "das", "experimental": False,
+	              "formats": {"tdms": {"read": True, "write": True},
+                              "hdf5": {"read": True, "write": True}}},
+	"aragon":    {"name": "Aragon Photonics", "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"terra15":   {"name": "Terra15",          "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"sintela":   {"name": "Sintela",          "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"febus":     {"name": "Febus",            "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"optasense": {"name": "OptaSense",        "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"asn":       {"name": "ASN",              "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"sensiphi":  {"name": "SensiPhi",         "sensing": "das", "experimental": False,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+	"apsensing": {"name": "AP Sensing",       "sensing": "dts", "experimental": False,
+	              "formats": {"csv": {"read": True, "write": False}}},
+	"bam":       {"name": "BAM",              "sensing": "das", "experimental": True,
+	              "formats": {"npy": {"read": True, "write": False},
+                              "npz": {"read": True, "write": False}}},
+	"michele":   {"name": "INGV (Michele)",   "sensing": "das", "experimental": True,
+	              "formats": {"hdf5": {"read": True, "write": True}}},
+}
+"""Registry of supported interrogator manufacturers (``company`` parameter), their
+sensing technology, file formats and read/write support. ``"h5"`` is treated as ``"hdf5"``."""
+
+COMPANIES = tuple(SUPPORTED_FORMATS)
+"""Valid values for the ``company`` parameter."""
+
+def check_company_format(company: str, format: str) -> None:
+	"""Raises ``ValueError`` if ``company`` or ``format`` is not in :data:`SUPPORTED_FORMATS`."""
+	if company not in SUPPORTED_FORMATS:
+		raise ValueError(f"Unknown company '{company}'. Choose one of: {', '.join(COMPANIES)}")
+	formats = SUPPORTED_FORMATS[company]["formats"]
+	if {"h5": "hdf5"}.get(format, format) not in formats:
+		raise ValueError(f"Format '{format}' is not supported for '{company}' (supported: {', '.join(formats)})")
+
+def formats_table_rst() -> str:
+	"""Builds the rst tables of non-experimental formats for the documentation page."""
+	tables = []
+	for sensing in ("das", "dts"):
+		lines = [f".. list-table:: {sensing.upper()}", "   :header-rows: 1", "",
+		         "   * - Manufacturer", "     - Format", "     - Read", "     - Write", "     - Parameter"]
+		for company, entry in SUPPORTED_FORMATS.items():
+			if entry["experimental"] or entry["sensing"] != sensing:
+				continue
+			for fmt, support in entry["formats"].items():
+				lines += [f"   * - {entry['name']}", f"     - {fmt}",
+				          f"     - {'✓' if support['read'] else '✗'}",
+				          f"     - {'✓' if support['write'] else '✗'}",
+				          f"     - ``\"{company}\"``"]
+		tables.append("\n".join(lines))
+	return "\n\n".join(tables) + "\n"
+
 def scan_hdf5(path, recursive=True, tab_step=2):
 	"""Function to scan hdf5 file hierarchically."""
 	def scan_node(g, tabs=0):
@@ -179,10 +236,9 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 			data = (data[:, gauge_samples:] - data[:, :-gauge_samples]) / gauge_L if axis == 1 else (data[gauge_samples:, :] - data[:-gauge_samples, :]) / gauge_L
 			n_left = gauge_samples // 2
 			n_right = gauge_samples - n_left
-			if gauge_samples != 0:
-				attributes["channels"] = attributes["channels"][n_left:-n_right]
-				attributes["distances"] = attributes["distances"][n_left:-n_right]
-				attributes["n_channels"] = attributes["channels"].size
+			attributes["channels"] = attributes["channels"][n_left:-n_right]
+			attributes["distances"] = attributes["distances"][n_left:-n_right]
+			attributes["n_channels"] = attributes["channels"].size
 			attributes["gauge_length"] = gauge_L
 		else:
 			print("\n⚠️ Data not in velocity units, doing nothing ...")
@@ -194,7 +250,7 @@ def instr_corr(data: np.ndarray = None, attributes: dict = None, target: str = "
 				return factor
 			data = data * factor # divide by sensitivities. It seems they already provide the conversion factor
 
-	elif (format == "h5" or format == "hdf5") and company == "optasense": # QuantX OptaSense HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
+	elif (format == "h5" or format == "hdf5") and company == "optasense": # OptaSense QuantX HDF5 (CHECK THIS!! WITH VERIFICATION OR CALIBRATION).
 		if target == "strain-rate":
 			i_cst = 116E-9 # meters per radians.
 			gauge_L = attributes["gauge_length"] # gauge length in meters.
