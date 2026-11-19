@@ -730,7 +730,8 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     filepath : str
         Complete S3 URI of the file
     company : str
-        Manufacturer of the fibre optic sensing unit that produce the data (check :func:`~fobench.core.tools.file_io.read_data`)
+        Manufacturer of the fibre optic sensing unit that produced the data
+        (check :func:`~fobench.core.tools.file_io.read_data`)
     range_ch : int or list, optional
         Channels range to load
     format : str, optional
