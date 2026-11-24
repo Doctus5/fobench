@@ -187,10 +187,10 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
 
     data_length = len(times) if dim == "t" else len(channels)
-    window = data_length if window is None else window
-    if not 0 < window <= data_length:
-        raise ValueError(f"window must be > 0 and <= {data_length} samples, got {window}")
-    result = compute_rmsa(data, data_length, window, axis)
+    rmsa_window = data_length if window is None else window
+    if not 0 < rmsa_window <= data_length:
+        raise ValueError(f"window must be > 0 and <= {data_length} samples, got {rmsa_window}")
+    result = compute_rmsa(data, data_length, rmsa_window, axis)
 
     if plot_mode == "mpl":
         warn("⚠️ matplotlib plotting not implemented for this method, "

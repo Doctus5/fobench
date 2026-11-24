@@ -57,7 +57,7 @@ def plot_timeseries(timestamps: np.ndarray, data: np.ndarray | list, dt: float,
     y_label : str, optional
         y-axis label.
     title : str, optional
-        Title of plot.
+        Window title.
     labels : list[str] | None
         Legend labels for each amplitude array. If None, no legend is shown.
 
@@ -117,7 +117,7 @@ def plot_record_section(timestamps: np.ndarray, data: np.ndarray, dt: float,
     y_label : str, optional
         y-axis label.
     title : str, optional
-        Title of plot.
+        Window title.
 
     Returns
     -------
@@ -172,7 +172,7 @@ def plot_distance(distances: np.ndarray, channels: np.ndarray, data: np.ndarray,
     x_label : str, optional
         x-axis label.
     title : str, optional
-        Title of plot.
+        Window title.
 
     Returns
     -------
@@ -237,7 +237,7 @@ def plot_spectral(frequencies: np.ndarray, amplitudes: np.ndarray,
     x_label : str, optional
         x-axis label.
     title : str, optional
-        Title of plot.
+        Window title.
     labels : list[str] | None, optional
         Legend labels for each spectrum. If ``None``, no legend is shown.
     Returns
@@ -298,7 +298,7 @@ def plot_2d_timeseries(timestamps: np.ndarray, data: np.ndarray, y_ticks: list,
     y_label : str, optional
         y-axis label.
     title : str, optional
-        Plot title.
+        Window title.
     cmap : str, optional
         Colourmap to be used.
     cbar_label : str, optional
@@ -404,7 +404,7 @@ def plot_2d_distance(distances: np.ndarray, channels: np.ndarray,
     distance_label : str, optional
         x-axis label when showing distances.
     title : str, optional
-        Title of plot.
+        Window title.
     cmap : str, optional
         Colourmap to use.
     cbar_label : str, optional
@@ -498,8 +498,7 @@ def get_layout(size: tuple = (1200, 600), win_title: str = None,
     win.setWindowIcon(QtGui.QIcon(str(Path(__file__).resolve().parent/"logo.png")))
     win.setBackground("w")
     win.resize(*size)
-    plot = win.addPlot(title=win_title)
-    plot.setTitle(win_title, size="18pt", color="k")
+    plot = win.addPlot()
 
     if x_is_time:
         plot.setAxisItems({"bottom": pg.DateAxisItem(utcOffset=1)})
@@ -763,7 +762,7 @@ def plot_dispersion(frequencies: np.ndarray, velocities: np.ndarray, image: np.n
     vmin, vmax : float
         Minimum and maximum limits of colourbar.
     title : str, optional
-        Title of plot.
+        Window title.
     cmap : str
         Colourmap to use.
     cbar_label : str, optional
