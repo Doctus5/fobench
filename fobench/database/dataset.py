@@ -1,5 +1,5 @@
-"""``Dataset`` class for visualizing, processing and handling a ``Dataset``.
-A Dataset is understood as group of fiber optic sensing data ("ddss/das","dss","dts")
+"""``Dataset`` class for visualising, processing and handling a ``Dataset``.
+A Dataset is understood as group of fibre optic sensing data (``"ddss/das"``, ``"dss"``, ``"dts"``)
 files part of a campaign. Can be continuous data in many files, and may have discontinuities.
 
 :Authors:
@@ -20,9 +20,9 @@ from .parallel import Parallel
 from . import manager as manager
 from .utils.windowing import dataset_windowing
 
-class Dataset(object):
+class Dataset:
     """
-    ``Dataset`` class which keeps track of the organization of the sfile(s)
+    ``Dataset`` class which keeps track of the organisation of the file(s)
     collected.
 
     Note
@@ -42,20 +42,20 @@ class Dataset(object):
         company : str
                 Manufacturer or the instrument that generates the data.
         sensing : str
-            Specifies the type of fiber optic sensing technique of the data.
+            Specifies the type of fibre optic sensing technique of the data.
 
         """
 
-        # internal attributed.
+        # internal attributes.
         self.__filepath__ = folder_path # filepath where the data is located (a folder).
         self.__built__ = False # is there a metadata file for it.
         self.__storage_opts__ = storage_opts
 
         # This variable might be redundant with the variables in metadata. Check this to reduce memory!
         self.id = ""
-        self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the curent Dataset.
+        self.database : pd.DataFrame = database # DataFrame format of available files corresponding to the current Dataset.
         self.n_files = 0
-        self.size = 0.0 # size in storage of the total amount fo files in the dataset (GB)
+        self.size = 0.0 # size in storage of the total amount of files in the dataset (GB)
         self.company = company # company of the manufacturer where the data comes from. Important to know how to read.
         self.sensing = sensing # sensing target of the dataset.
         self.start_time = None
@@ -63,7 +63,7 @@ class Dataset(object):
         self.sampling_rate = None
         self.dt = None
         self.gauge_length = None
-        self.units = None #units of meassure.
+        self.units = None #units of measure.
         self.scale_factor = None
         self.n_channels = None
         self.spatial_interval = None
@@ -156,7 +156,7 @@ class Dataset(object):
         if isinstance(json_file, str):
             meta_dict = manager.open_metadatafile(json_file)
 
-        if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+        if isinstance(json_file, dict): # if the variable is already the dictionary opened from Projects.
             meta_dict = json_file
 
         # Initialize Database
@@ -168,7 +168,7 @@ class Dataset(object):
         # Fill attributes
         # FoBench fields
         self.__filepath__ = meta_dict["database_path"]
-        self.units = self.metadata.get("unit_of_measure") or None # units of meassure.
+        self.units = self.metadata.get("unit_of_measure") or None # units of measure.
         self.pulse_rate = self.metadata.get("pulse_rate")
         self.pulse_width = self.metadata.get("pulse_width")
         self.company = self.metadata["company"]
@@ -291,7 +291,7 @@ class Dataset(object):
         """
         
         channels = np.asarray(n_ch, dtype=int)
-        distances = (channels - self.channel_offset) * self.spatial_interval
+        distances = (channels + self.channel_offset) * self.spatial_interval
         
         ch_group_meta = {
         # Mandatory Channel Group fields
@@ -354,7 +354,7 @@ class Dataset(object):
         Parameters
         ----------
         parallel_params : dict
-            Dictionary containing the parameters for parallelization. If parameters are given
+            Dictionary containing the parameters for parallelisation. If parameters are given
             then the building method runs in parallel. If ``None``, it runs in serial.
 
         Returns
@@ -374,8 +374,8 @@ class Dataset(object):
 
         # in serial mode
         else:
-            database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Fiber Class.
-        database_files = manager.chrono_order(database_files) # aranges in a chronological order.
+            database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Record Class.
+        database_files = manager.chrono_order(database_files) # arranges in a chronological order.
 
         self.database = database_files
         self.__fill_metadata__()
@@ -409,8 +409,8 @@ class Dataset(object):
             Start and end times in ISO format (or any datetime-parsable values).
             Example: ("2019-12-12T00:00:00Z", "2020-12-12T00:00:00Z")
         include_overlap : bool, optional
-            If False (default), keep rows fully contained in ``range``.
-            If True, keep rows that overlap ``range``. Deault is True.
+            If False, keep rows fully contained in ``range``.
+            If True, keep rows that overlap ``range``.
 
         Returns
         -------
@@ -483,19 +483,19 @@ class Dataset(object):
         )
 
 
-    def apply_fiber(self, task, output_store: str, output_key: str = None,
+    def apply_record(self, task, output_store: str, output_key: str = None,
         time_range: tuple = None, window_size: float = None, step: float = None,
         include_overlap: bool = True, min_overlap_s: float = 0.0,
-        group_cols: list[str] = None, fiber_kwargs: dict = None,
+        group_cols: list[str] = None, record_kwargs: dict = None,
         parallel_params: dict = None, submit_chunk_size: int = None,
         cpu_ratio: float = 0.85, show_progress: bool = True,
         reducer: str = "mean", output_adapter=None):
-        """Apply a Fiber task over the dataset windows and save to zarr.
+        """Apply a Record task over the dataset windows and save to zarr.
 
         Parameters
         ----------
         task : list, tuple, dict, str, or callable
-            Fiber processing task definition.
+            Record processing task definition.
         output_store : str
             Output zarr path.
         output_key : str, optional
@@ -512,15 +512,15 @@ class Dataset(object):
             Minimum overlap in seconds for file-window relations.
         group_cols : list[str], optional
             Optional grouping columns for compatibility grouping.
-        fiber_kwargs : dict, optional
-            Keyword arguments passed to Fiber initialization.
+        record_kwargs : dict, optional
+            Keyword arguments passed to :class:`~fobench.core.record.Record` initialisation.
         parallel_params : dict, optional
             Parallel backend parameters.
         submit_chunk_size : int, optional
             Number of files processed per submit wave.
         cpu_ratio : float, optional
             Automatic fraction of available CPUs used when ``n_cores`` is
-            not explicitly set. Defaults to ``0.85``.
+            not explicitly set.
         show_progress : bool, optional
             Show progress bars for parallel execution.
         reducer : str, optional
@@ -535,7 +535,7 @@ class Dataset(object):
 
         """
 
-        # Lazy import to avoid requiring zarr unless apply_fiber is used.
+        # Lazy import to avoid requiring zarr unless apply_record is used.
         from .processing import run_window_pipeline_to_zarr
 
         # Thin wrapper: keep orchestration logic in shared processing module.
@@ -551,7 +551,7 @@ class Dataset(object):
             min_overlap_s=min_overlap_s,
             group_cols=group_cols,
             merge_datasets=True,
-            fiber_kwargs=fiber_kwargs,
+            record_kwargs=record_kwargs,
             parallel_params=parallel_params,
             submit_chunk_size=submit_chunk_size,
             cpu_ratio=cpu_ratio,

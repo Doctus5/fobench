@@ -1,8 +1,8 @@
 """Contains all functionality related to plotting using matplotlib, i.e.
-whenever ``plot_mode`` is set to ``'mpl'``."""
+whenever ``plot_mode`` is set to ``"mpl"``."""
 
 import numpy as np
-import datetime as datetime
+import datetime
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.dates import num2date
@@ -18,14 +18,14 @@ class PrecisionDateFormatter(ticker.Formatter):
     ----------
     fmt : str
         :meth:`~python:datetime.datetime.strftime` format string.
-    precision : int
-        Necessary precision.
-    tz : str
-        Timezone info.
+    precision : int, optional
+        Number of digits for millisecond precision.
+    tz : datetime.tzinfo, optional
+        Timezone for the dates, by default UTC.
 
     """
 
-    def __init__(self, fmt: str, precision: int = 3, tz: str = None):
+    def __init__(self, fmt: str, precision: int = 3, tz: datetime.tzinfo = None):
         self.num2date = num2date
         self.fmt = fmt
         self.tz = tz if tz is not None else datetime.timezone.utc
@@ -51,7 +51,7 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
                  title: str = None, cmap:str = "seismic", file_name: str = None,
                  add_data: np.ndarray = None, show: bool = True, **kwargs)-> plt.Figure:
 
-    """Generic fiber optic sensing data plot.
+    """Generic fibre optic sensing data plot.
 
     Parameters
     ----------
@@ -68,7 +68,7 @@ def gen_DAS_plot(data: np.ndarray = None, t: np.ndarray = None, channels: list =
     title : str
         Title of plot
     cmap : str, optional
-        matplotlib colormap to use.
+        matplotlib colourmap to use.
     file_name : str
         If not ``None``, plot will be saved at given location.
     add_data : np.ndarray
@@ -179,7 +179,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
                 x: list = None, units_y: str = None,
                 figsize: list[float, float] | tuple[float, float] = None,
                 cmap:str = "viridis", title: str = None, file_name: str = None,
-                show: bool = True, **kwargs) -> None:
+                show: bool = True, **kwargs) -> plt.Figure:
 
     """Plots the fx-plot, i.e. frequency content over distance.
 
@@ -196,7 +196,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
     figsize : list[float, float] | tuple[float, float]
         Controls figure size.
     cmap : str, optional
-        matplotlib colormap to use for the spectrogram.
+        matplotlib colourmap to use for the spectrogram.
     title : str, optional
         Title of plot.
     file_name : str, optional
@@ -236,7 +236,7 @@ def mpl_fx_plot(spec_matrix: np.ndarray = None, freqs: np.ndarray = None,
 def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
                        t: np.ndarray = None, units_y: str = None,
                        figsize: list[float, float] | tuple[float, float] = None,
-                       trace: bool = False, cmap: str = "viridis", title: str = "",
+                       trace: np.ndarray | None = None, cmap: str = "viridis", title: str = "",
                        file_name: str = None, show: bool = True,
                        freq_lim: list[float, float] | tuple[float, float] = None,
                        **kwargs) -> plt.Figure:
@@ -255,10 +255,11 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
         Amplitude units.
     figsize : list[float, float] | tuple[float, float]
         Controls figure size.
-    trace : bool
-        Toggles plotting of the time domain data in a second panel.
+    trace : np.ndarray | None, optional
+        Time domain data plotted in a second panel below the spectrogram, same length
+        as ``t``. If ``None``, only the spectrogram is shown.
     cmap : str, optional
-        matplotlib colormap to use for the spectrogram.
+        matplotlib colourmap to use for the spectrogram.
     title : str, optional
         Title of plot.
     file_name : str, optional
@@ -279,6 +280,7 @@ def simple_spectrogram(data: np.ndarray = None, freq: np.ndarray = None,
     """
 
     extent = (t[0], t[-1], freq[0], freq[-1])
+    kwargs.setdefault("origin", "lower")
     precision = str(datetime.timedelta(days=(t[1]-t[0])).total_seconds())[::-1].find(".")
 
     if trace is not None:
@@ -441,7 +443,8 @@ def plot_record_section(signals: np.ndarray, t: np.ndarray, channels: np.ndarray
 
 
 def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
-              max_shift: int, **imshow_kwargs) -> None:
+              max_shift: int, file_name: str = None, show: bool = True,
+              **imshow_kwargs) -> plt.Figure:
 
     """Plots the autocorrelation profile.
 
@@ -455,20 +458,26 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
         Sampling frequency of data.
     max_shift : int
         Maximum shift chosen.
+    file_name : str, optional
+        If not ``None``, plot will be saved at given location.
+    show : bool
+        Toggles display of figure.
     **imshow_kwargs :
         Additional arguments passed to :func:`~matplotlib.pyplot.imshow`,
         e.g. ``vmin``, ``vmax``.
 
     Returns
     -------
-    None
+    fig : :class:`~matplotlib.figure.Figure`
+        Figure instance.
 
     """
 
+    fig, ax = plt.subplots()
     extent = [distances[0], distances[-1], max_shift/fs, 0]
     y_label, x_label = "Lag/TWT [s]", "Optical Distance [m]"
-    im = plt.imshow(acfs, aspect="auto", origin="upper", extent=extent,
-                    **imshow_kwargs)
+    im = ax.imshow(acfs, aspect="auto", origin="upper", extent=extent,
+                   **imshow_kwargs)
     vmin = imshow_kwargs.get("vmin")
     vmax = imshow_kwargs.get("vmax")
 
@@ -481,8 +490,15 @@ def plot_acfs(acfs: np.ndarray, distances: list | np.ndarray, fs: int,
     else:
         extend = "neither"
 
-    plt.colorbar(im, label="Auto-correlation Coefficient", extend=extend)
-    plt.xlabel(x_label, fontsize=16)
-    plt.ylabel(y_label, fontsize=16)
-    plt.gca().tick_params(axis="both", labelsize=16)
-    plt.tight_layout()
+    fig.colorbar(im, ax=ax, label="Auto-correlation Coefficient", extend=extend)
+    ax.set_xlabel(x_label, fontsize=16)
+    ax.set_ylabel(y_label, fontsize=16)
+    ax.tick_params(axis="both", labelsize=16)
+    fig.tight_layout()
+
+    if file_name is not None:
+        fig.savefig(file_name, transparent=False, bbox_inches="tight", pad_inches=0)
+    if show:
+        plt.show()
+
+    return fig

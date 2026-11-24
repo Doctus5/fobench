@@ -6,9 +6,9 @@ FoBench is a toolbox for reading, processing and visualising Fibre Optic Sensing
 .. admonition:: What FoBench offers:
 
    - Support for many common interrogators and data products
-   - Campaign-scale data organization features
+   - Campaign-scale data organisation features
    - Rapid loading and efficient processing
-   - High-speed visualizations and interactive GUI for exploring your data
+   - High-speed visualisations and interactive GUI for exploring your data
    - Built-in parallel processing
    - Workflows inspired by ObsPy and Pyrocko
 
@@ -35,14 +35,9 @@ Follow the :doc:`Installation Guide <getting_started/download_installation>` and
 .. toctree::
    :hidden:
    :maxdepth: 2
-   :caption: Fobench API
+   :caption: FoBench API
    
    Packages and Modules <api/fobench>
-
-
-.. autosummary::
-   :toctree: api
-   :recursive:
 
 
 .. toctree::

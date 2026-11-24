@@ -17,13 +17,13 @@ import json
 import pandas as pd
 import numpy as np
 
-# Import Fiber for both install layouts:
-# - editable install (`from fobench.fiber import Fiber`)
-# - repo namespace usage (`from fobench.fobench.fiber import Fiber`)
+# Import Record for both install layouts:
+# - editable install (`from fobench.record import Record`)
+# - repo namespace usage (`from fobench.fobench.record import Record`)
 try:
-    from fobench.core.fiber import Fiber
+    from fobench.core.record import Record
 except ModuleNotFoundError:
-    from ..fobench.core.fiber import Fiber
+    from ..fobench.core.record import Record
 
 
 def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
@@ -43,7 +43,7 @@ def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
     Returns
     -------
     list of str
-        Sorted local paths or S3 UIRs.
+        Sorted local paths or S3 URIs.
 
     """
 
@@ -54,13 +54,13 @@ def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
     format = "." + format if not format.startswith(".") else format
     storage_opts = {} if storage_opts is None else dict(storage_opts)
 
-    if str(folder_path).startswith("s3://"): # s3 storage fyle systems
+    if str(folder_path).startswith("s3://"): # s3 storage file systems
         try:
             import s3fs
         except ImportError:
             raise ImportError("S3 scanning library needed (s3fs).")
 
-        s3 = s3fs.S3FileSystem(**storage_opts) # pass the credentials if you have them localy
+        s3 = s3fs.S3FileSystem(**storage_opts) # pass the credentials if you have them locally
         prefix = folder_path.removeprefix("s3://").rstrip("/")
         files = s3.glob(f"{prefix}/**/*{format}")
         files = ["s3://"+file for file in files]
@@ -81,14 +81,14 @@ def scan_folder(folder_path, format=None, storage_opts=None, skip_files=None):
 
 
 def files2database(files, company, storage_opts=None):
-    """Function reada all the FOS files with Fiber Class and reports a big
+    """Function reads all the FOS files with Record Class and reports a big
     Database from them with all its important metadata.
 
     Parameters
     ----------
     files : str
         List of complete paths from the files to be handled.
-    companry : str
+    company : str
         Name of manufacturer.
 
     Returns
@@ -111,7 +111,7 @@ def files2database(files, company, storage_opts=None):
         file = files[i] # select file
         # by checking the start and end times in the files
         print("File: " + file)
-        d_file = Fiber(file, company=company, load_data=False, storage_opts=storage_opts)
+        d_file = Record(file, company=company, load_data=False, storage_opts=storage_opts)
 
         info = d_file.metadata(meta_dict=True) # getting public relevant attributes.
         info["scale_factor"] = d_file.instr_correct(return_factor=True)
@@ -132,7 +132,7 @@ def files2database(files, company, storage_opts=None):
 
 
 def init_dataframe(dictionary):
-    """Initializes a DataFrame from dictionary and converts the dates in
+    """Initialises a DataFrame from dictionary and converts the dates in
     isoformat to datetime for management.
 
     Parameters
@@ -141,7 +141,7 @@ def init_dataframe(dictionary):
         Database from metadata as dictionary.
     Returns
     -------
-    database : pandas.Datframe
+    database : pandas.DataFrame
         DataFrame version of the database.
 
     """
@@ -173,7 +173,7 @@ def open_metadatafile(json_file):
 
 
 def chrono_order(database):
-    """Aranges all fiber optic sensing files in a chronological way.
+    """Arranges all fibre optic sensing files in a chronological way.
     Requires reading the file without loading the data.
 
     Parameters
@@ -195,7 +195,7 @@ def chrono_order(database):
 
 def database_discontinuities(df, split=True):
     """Checks if there are time and parameters discontinuities along a reported Dataset.
-    Necessary to separate chuncks of data. Optionally returns the database split.
+    Necessary to separate chunks of data. Optionally returns the database split.
 
     Parameters
     ----------
@@ -240,8 +240,8 @@ def database_discontinuities(df, split=True):
 
         # continuity *= df[variable].shift(1, fill_value=df[variable].iloc[0]) == df[variable]
 
-    continuity.iloc[0] = True #first file always starets a Dataset
-    # Evaluate if the user wants the databse to be splitted in discontinuous parameters (see selected parameters).
+    continuity.iloc[0] = True #first file always starts a Dataset
+    # Evaluate if the user wants the database to be split in discontinuous parameters (see selected parameters).
     if not split:
         return continuity
     
@@ -343,7 +343,7 @@ def df_time_filtering(df: pd.DataFrame, range: tuple, start_label: str = "start_
     end_label : str, optional
         Column name containing row end times.
     include_overlaps : bool, optional
-        If False (default), keep rows fully contained in ``range``.
+        If False, keep rows fully contained in ``range``.
         If True, keep rows that overlap ``range``.
 
     Returns
@@ -380,17 +380,17 @@ def df_time_filtering(df: pd.DataFrame, range: tuple, start_label: str = "start_
 
 
 def dump_metadatafile(meta : dict, filename : str, format : str = "fobench"):
-    """Saves the metadata dictionary as json file and manages which fileds to be saved depending on the format chosen (FoBench or FDSN)
+    """Saves the metadata dictionary as json file and manages which fields to be saved depending on the format chosen (FoBench or FDSN)
 
     Parameters
     ----------
     meta : dict
-        dicitonary which usually is the metadata.
+        dictionary which usually is the metadata.
     filename : str
         file name (with path) for the name of the produced metadata file.
     format : str, optional
-        format on how to save the metadata. Options are the "fdsn" and "fobench". 
-        For working in future projects and exploring file, use fobench as fdsn do not share databases. Default value is "fobench"
+        format on how to save the metadata. Options are the ``"fdsn"`` and ``"fobench"``. 
+        For working in future projects and exploring file, use fobench as fdsn do not share databases.
     """
     
     format = format.lower()
@@ -411,7 +411,7 @@ def dump_metadatafile(meta : dict, filename : str, format : str = "fobench"):
 
 
 def fdsn_fibre_check(fiber):
-    """Validate and clean Fibre metadata for FDSN export as fiber.
+    """Validate and clean Fibre metadata for FDSN export as fibre.
 
     Parameters
     ----------
@@ -590,7 +590,7 @@ def fdsn_acqui_check(acqui):
     required_acqui_fields = ["acquisition_id", "acquisition_start_time", "acquisition_end_time", "acquisition_sample_rate", "acquisition_sample_rate_unit",
                                 "gauge_length", "gauge_length_unit", "unit_of_measure", "number_of_channels", "spatial_sampling_interval", "spatial_sampling_interval_unit"]
     
-    valid_fdsn_units = ("count", "m/m", "m/m/s", "m/s", "rad/s", "rad/m/s") # to be honest, i don't agree with mucch that is here but ok
+    valid_fdsn_units = ("count", "m/m", "m/m/s", "m/s", "rad/s", "rad/m/s") # to be honest, i don't agree with much that is here but ok
     
     # VALIDATION PART -> Dataset
     missing_acqui_fields = [field for field in required_acqui_fields if acqui.get(field) in (None, "")]
@@ -600,7 +600,7 @@ def fdsn_acqui_check(acqui):
         raise ValueError(f"Missing required FDSN Acquisition fields: "
                         f"{missing_acqui_fields}")
     if acqui["unit_of_measure"] not in valid_fdsn_units:
-        warnings.warn("Invalid FDSN unit_of_measure: "
+        warnings.warn("⚠️ Invalid FDSN unit_of_measure: "
                         f'{acqui["unit_of_measure"]}')
         
     for field2 in acqui_rev_fields:

@@ -1,4 +1,4 @@
-"""``Fiber`` class for reading, manipulating and visualizing fiber optic sensing data.
+"""``Record`` class for reading, manipulating and visualising fibre optic sensing data.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -25,13 +25,13 @@ from fobench.core.plotting import plotting_pyqt as plot_pyqt
 from fobench.core.plotting.pyqt_viewer import Viewer
 
 
-class Fiber(object):
+class Record:
     """The base class of FoBench, reading in data and metadata.
 
     Note
     ----
     - Most of the methods perform changes within the class permanently.
-      It can be useful to make a copy of the Fiber instance with the
+      It can be useful to make a copy of the Record instance with the
       ``.copy()`` method before performing any processing or changes.
     - For most methods the ``plot_mode`` parameter can either be
       ``"pyqt"`` or ``"mpl"``; to not generate a plot, set it to anything
@@ -47,27 +47,28 @@ class Fiber(object):
         filepath : str
             Path to file to read.
         company : str
-            Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-            ``"quantx"``, ``"asn"``, ``"terra15"`` ``bam`` and ``"sintela"``
+            Interrogator manufacturer, one of :data:`~fobench.core.tools.utils.COMPANIES`.
+            See :doc:`/getting_started/formats` for the supported formats.
         range_ch : tuple(int, int) | list | int | np.array
-            Range of channels to load. Can be a single channel, list or array of channnels
+            Range of channels to load. Can be a single channel, list or array of channels
             or range given as tuple.
         sensing : str
-            Fiber optic sensing technology. Currently ``"das"`` (default) or ``"dts"``.
+            Fibre optic sensing technology. Currently ``"das"`` or ``"dts"``.
         load_data : bool
             If ``False``, only metadata is loaded.
-        show_progress : True
+        show_progress : bool
             Show progress bar when loading data.
-        storage_opts :
-            -
+        storage_opts : dict, optional
+            Keyword arguments passed to :class:`~s3fs.core.S3FileSystem`, e.g. credentials
+            (``key``, ``secret``), ``endpoint_url`` or ``anon``. Only used when
+            ``filepath`` is an ``"s3://"`` path, ignored for local files.
 
         """
 
         if not company:
             raise ValueError(
                 "\nNo company provided! Please choose one of:\n"
-                " -'silixa'\n -'febus'\n -'bam'\n -'aragon'\n -'quantx'\n -'asn'\n"
-                " -'terra15'\n -'sintela'"
+                + "\n".join(f" -'{c}'" for c in utils.COMPANIES)
             )
 
         self.__filepath__ = [filepath]
@@ -84,11 +85,11 @@ class Fiber(object):
     @classmethod
     def from_array(cls, data, *, sampling_rate, start_time, spatial_interval,
                    units, gauge_length=None, channel_offset=0):
-        """Create a Fiber from data shaped ``(time samples, channels)``.
+        """Create a Record from data shaped ``(time samples, channels)``.
 
-        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in meters,
+        Supply ``sampling_rate`` in Hz, ``spatial_interval`` in metres,
         ``start_time`` as an ObsPy-compatible time, and the data's ``units``.
-        ``gauge_length`` is optional and measured in meters. ``channel_offset``
+        ``gauge_length`` is optional and measured in metres. ``channel_offset``
         is measured in channel intervals, so the first channel's distance is
         ``channel_offset * spatial_interval``.
 
@@ -167,25 +168,25 @@ class Fiber(object):
     """Internal Methods"""
 
     def __str__(self):
-        """Defines output of print(Fiber)."""
+        """Defines output of print(Record)."""
         attributes = ["units", "start_time", "end_time", "n_samples", "n_channels",
                     "spatial_interval", "sampling_rate", "dt", "gauge_length"]
 
-        return ("Instance of Fiber class\n"
+        return ("Instance of Record class\n"
                 "recording parameters:\n"
                 f"{'-' * 65}\n"+ '\n'.join(f"{attr.ljust(25)} = {getattr(self, attr)}" for attr in attributes))
 
     __repr__ = __str__
 
     def __iadd__(self, other):
-        """Defines output of Fiber + Fiber."""
-        if not isinstance(other, Fiber):
-            raise TypeError("Object to add must be instance of Fiber class")
+        """Defines output of Record + Record."""
+        if not isinstance(other, Record):
+            raise TypeError("Object to add must be instance of Record class")
 
         return self.concatenate(other, fill_gaps=0)
 
     def __axis__(self, dim):
-        """Mapping of axis order, dim can be 't' (time) or 'd' (distance)."""
+        """Mapping of axis order, dim can be ``"t"`` (time) or ``"d"`` (distance)."""
 
         return {"t": 0, "d": 1}[dim]
 
@@ -202,14 +203,14 @@ class Fiber(object):
                 print(f"{prop} = {value}")
 
     def copy(self):
-        """Returns a deep copy the Fiber class object in its current state."""
+        """Returns a deep copy of the Record class object in its current state."""
         self.__dict__.pop("_viewer", None)
 
         return copy.deepcopy(self)
 
     def instr_correct(self, target="strain-rate", terra15_gl=None, return_factor=False):
         """Performs instrument correction and data conversion for various instrument types.
-        See :func:`~fobench.core.utils.instr_corr`."""
+        See :func:`~fobench.core.tools.utils.instr_corr`."""
 
         if return_factor:
             return utils.instr_corr(data=None, attributes=vars(self), target=target, terra15_gl=terra15_gl, axis=self.__axis__("d"), return_factor=return_factor)
@@ -222,12 +223,12 @@ class Fiber(object):
             self.corrected = True
             return self
 
-        warn("Instrument correction has already been applied, doing nothing...")
+        warn("⚠️ Instrument correction has already been applied, doing nothing...")
         return self
 
     def trim(self, t0=None, tf=None):
         """Cuts data between given start and end times, t0 and tf can be ``UTCDateTime``
-        or ISOformat style strings.
+        or ISOformat style strings. See :func:`~fobench.core.tools.utils.trim_time`.
         """
         t_axis = self.__axis__("t")
         t0 = self.start_time if t0 is None else t0
@@ -273,11 +274,11 @@ class Fiber(object):
 
     def georeference(self, n_ch, x_ch, y_ch, z_ch, system="decimal", err=None):
         """Takes known channel locations, e.g. from tap tests and interpolates channel locations
-        inbetween, attaches new coordinates.
-        takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
-        and elevation in m (z_ch), coordinate system can be for lon and lat can be "decimal" or "utm"
-        "err" is maximum accepted interpolation error between original metadata location and new interpolated
-        location
+        in between, attaches new coordinates.
+        Takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
+        and elevation in m (z_ch), coordinate system for lon and lat can be ``"decimal"`` or ``"utm"``
+        ``err`` is maximum accepted interpolation error between original metadata location and new interpolated
+        location. See :func:`~fobench.core.tools.utils.interpolate_channels`.
         """
         x_ch = np.zeros(n_ch.size) if x_ch is None else x_ch
         y_ch = np.zeros(n_ch.size) if y_ch is None else y_ch
@@ -290,7 +291,7 @@ class Fiber(object):
         return self
 
     def get_data(self, channel=None):
-        """Returns data, similar to Fiber.data but with option to return only a specified channel.
+        """Returns data, similar to Record.data but with option to return only a specified channel.
         """
         if channel is not None:
             index = self.channels.tolist().index(int(channel))
@@ -300,13 +301,13 @@ class Fiber(object):
         return self.data
 
     def times(self, time_type="UTCDateTime"):
-        """Returns array of sample times, can be ``'UTCDateTime'``, ``'isoformat'``,
-        ``'datetime64'``, ``'matplotlib'`` or ``"unix"``. See :func:`~fobench.core.tools.utils.return_times`.
+        """Returns array of sample times, can be ``"UTCDateTime"``, ``"isoformat"``,
+        ``"datetime64"``, ``"matplotlib"`` or ``"unix"``. See :func:`~fobench.core.tools.utils.return_times`.
         """
         return utils.return_times(self, time_type)
 
     def concatenate(self, input_das=None, fill_gaps=0):
-        """Concatenates two ``Fiber`` class objects assuming they have the same
+        """Concatenates two ``Record`` class objects assuming they have the same
         sampling rate. Channel order is determined automatically, gaps are filled
         with ``"fill_gaps"`` value.
         """
@@ -322,14 +323,14 @@ class Fiber(object):
         return self
 
     def to_traces(self, t_type="obspy"):
-        """Returns channels as ``'obspy'`` or ``'pyrocko'`` streams. See
+        """Returns channels as ``"obspy"`` or ``"pyrocko"`` streams. See
         :func:`~fobench.core.tools.utils.to_traces`.
         """
 
         return utils.to_traces(self, t_type)
 
     def to_xarray(self, name=None, use_distance=True):
-        """Returns the Fiber class as xarray.DataArray object. See
+        """Returns the Record class as xarray.DataArray object. See
         :func:`~fobench.core.tools.utils.to_xarray`.
         """
 
@@ -337,8 +338,8 @@ class Fiber(object):
 
 
     def write(self, save_path="", company=None):
-        """Save data of Fiber in a new file in its the original format. See
-        :func:`~fobench.core.tools.file_io.write_data`.
+        """Save data of Record in a new file in its original format. See
+        :func:`~fobench.core.tools.file_io.write_as`.
         """
         if self.__basefile__ is None:
             raise ValueError("Writing requires a source file template; use to_xarray() to export array data")
@@ -358,7 +359,7 @@ class Fiber(object):
         """Modifies spatial sampling of the data by adding or removing channels.
         ``"upsampling"`` adds a channel between each channel pair by interpolating the values.
         ``"downsampling"`` removes every second channel.
-        See :func:`~fobench.core.tools.utils.spatial_upsampling` and :func:`~fobench.core.tools.utils.spatial_downsampling`
+        See :func:`~fobench.core.tools.utils.spatial_upsampling` and :func:`~fobench.core.tools.utils.spatial_downsampling`.
         """
         if rs_type in ["upsampling", "upsample"]:
             self.data, self.channels = utils.spatial_upsampling(self)
@@ -367,7 +368,7 @@ class Fiber(object):
             self.data, self.channels = utils.spatial_downsampling(self)
             self.spatial_interval *= 2
         else:
-            raise ValueError(f"\nInvalid resample type: '{rs_type}'. Choose on of:\n"
+            raise ValueError(f"\nInvalid resample type: '{rs_type}'. Choose one of:\n"
                     " -'upsampling'\n -'downsampling'")
         self.n_channels = len(self.channels)
 
@@ -375,7 +376,7 @@ class Fiber(object):
 
     @utils._update_processing
     def detrend(self, order=1, dim="t"):
-        """Detrend signal with specified order polynomial.See :func:`~fobench.core.tools.signals.detrend_signal`.
+        """Detrend signal with specified order polynomial. See :func:`~fobench.core.tools.signals.detrend_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.detrend_signal(self.data, order=order, axis=axis)
@@ -385,7 +386,7 @@ class Fiber(object):
     @utils._update_processing
     def demean(self, mode="mean", dim="t"):
         """Remove mean or median of signal along specified dimension.
-        See :func:`~fiber.core.tools.signals.demean_signal`.
+        See :func:`~fobench.core.tools.signals.demean_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.demean_signal(self.data, mode=mode, axis=axis)
@@ -393,7 +394,9 @@ class Fiber(object):
         return self
 
     def remove_common_mode(self, mode="median"):
-        """Removes common mode using `'median'` or `'mean'`"""
+        """Removes common mode using ``"median"`` or ``"mean"`` along the distance dimension. See 
+        :meth:`~fobench.core.record.Record.demean` and :func:`~fobench.core.tools.signals.demean_signal`.
+        """
         return self.demean(mode=mode, dim="d")
 
     @utils._update_processing
@@ -408,10 +411,13 @@ class Fiber(object):
 
     @utils._update_processing
     def decimate(self, new_freq=None, dim="t", f_type="fir-remez"):
-        """Decimates data to new sampling frequeny or spatial interval (with prefilter).
+        """Decimates data to new sampling frequency or spatial interval (with prefilter).
         Target frequency should divide original sampling frequency evenly. Filter options
-        are ``"fir-remez"`` or ``None`` for SciPys default anti-aliasing order 8
-        Chebyshev Type I filter. See :func:`~fobench.core.tools.filters.decimate`.
+        are ``"fir-remez"``, ``"fir235"``, ``"iir"`` (SciPy's order 8 Chebyshev Type I
+        anti-aliasing filter) and ``"fir"`` (SciPy's 30 point FIR filter with Hamming window).
+        See :func:`~fobench.core.tools.filters.decimate`.
+        ``"fir-remez"`` coefficients come from ``pyrocko.util.decimate_coeffs``,
+        ``"fir235"`` coefficients from :func:`~fobench.core.tools.filters.lfir235`.
 
         Warning
         -------
@@ -429,7 +435,7 @@ class Fiber(object):
                 raise ValueError(f"new_freq ({new_freq} Hz) cannot exceed current sampling frequency ({self.sampling_rate} Hz)")
 
             if self.sampling_rate % new_freq != 0:
-                warn(f"Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_rate / int(self.sampling_rate / new_freq)} Hz instead")
+                warn(f"⚠️ Decimation to {new_freq} Hz not possible! Decimating to {self.sampling_rate / int(self.sampling_rate / new_freq)} Hz instead")
             down_factor = int(self.sampling_rate / new_freq)
             new_freq = self.sampling_rate / down_factor
 
@@ -448,21 +454,21 @@ class Fiber(object):
 
             factor = int(new_freq / self.spatial_interval)
             if not np.isclose(self.spatial_interval * factor, new_dx):
-                warn(f"Spatial interval of {new_dx} not possible. Therefore, the new spatial interval would be of {self.spatial_interval*factor} meters")
+                warn(f"⚠️ Spatial interval of {new_dx} not possible. Therefore, the new spatial interval would be of {self.spatial_interval*factor} meters")
 
             self.data = filters.decimate(data=self.data, factor=factor, f_type=f_type, axis=axis)
             self.spatial_interval *=  factor
             self.channels = self.channels[::factor]
-            self.distances = (self.channels - self.channel_offset) * self.spatial_interval
+            self.distances = self.distances[::factor]
             self.n_channels = len(self.channels)
 
         return self
 
     @utils._update_processing
     def normalize(self, method="absolute max", dim="t", ram_window=None):
-        """Normalize data. Methods are ``"absolute max"``, ``"trace max"``,
+        """Normalise data. Methods are ``"absolute max"``, ``"trace max"``,
         ``"running mean"`` and ``"1bit"``.
-        See :func:`~fiber.core.tools.signals.normalize_signal`.
+        See :func:`~fobench.core.tools.signals.normalize_signal`.
         """
         axis = self.__axis__(dim)
         self.data = signals.normalize_signal(self.data, method=method,
@@ -479,7 +485,7 @@ class Fiber(object):
         """
         axis = self.__axis__(dim)
         if not any("filter" in preprocessing for preprocessing in self.processing):
-                      warn("Data has possibly not been filtered before whitening! Check"
+                      warn("⚠️ Data has possibly not been filtered before whitening! Check "
                      "preprocessing and results carefully!\ncontinuing...")
         self.data = signals.whiten_signal(data = self.data, freq_min=freq_min, freq_max=freq_max,
                                     sampling_rate=self.sampling_rate,
@@ -492,7 +498,7 @@ class Fiber(object):
             **options):
         """Filters data using specified filter, based on Obspy.signal.filter module.
         For frequency filters, data is optionally pre-processed.
-        For ``'bandpass'`` and ``'bandstop'`` options, ``freq`` must be tuple.
+        For ``"bandpass"`` and ``"bandstop"`` options, ``freq`` must be tuple.
         See :func:`~fobench.core.tools.filters.point_filter` for all filter options.
         """
 
@@ -520,7 +526,8 @@ class Fiber(object):
     def fk_filter(self, bands=[{}], propagation="both", alpha=0.3, plot_mode=None,
                   verbose=False, results=False, mode="pass", export=None, show=True):
         """Applies frequency wavenumber filter to data.
-        See :func:`~fobench.core.tools.filters.fk_filter`.
+        See :func:`~fobench.core.tools.filters.fk_filter`, and
+        :func:`~fobench.core.tools.filters.fk_mask` for the format of ``bands``.
         """
         out = filters.fk_filter(data=self.data, dt=self.dt, dx=self.spatial_interval,
                                 bands=bands, propagation=propagation, alpha=alpha,
@@ -548,11 +555,11 @@ class Fiber(object):
 
     @utils._update_processing
     def differentiate(self, method="gradient", dim="t"):
-        """Differentiates data in space or time using ``'gradient'`` or ``'diff'`` method.
+        """Differentiates data in space or time using ``"gradient"`` or ``"diff"`` method.
         See :func:`~fobench.core.tools.signals.differentiate_signal`.
         """
         if method not in ["gradient", "diff"]:
-            raise ValueError(f"\nInvalid method: '{method}'. Choose on of:\n"
+            raise ValueError(f"\nInvalid method: '{method}'. Choose one of:\n"
                     " -'gradient'\n -'diff'")
         axis = self.__axis__(dim)
         dx = self.dt if dim == "t" else self.spatial_interval
@@ -581,7 +588,7 @@ class Fiber(object):
 
     def rmsa(self, window=None, dim="t", plot_mode="pyqt", results=False,
           vmin=None, vmax=None, export=None, show=True):
-        """Computes root mean square amplitude for record, dependign on dimension,
+        """Computes root mean square amplitude for record, depending on dimension,
         window is either seconds ("t") or number of channels ("d").
         See :func:`~fobench.core.tools.wavefield.rmsa`.
         """
@@ -599,8 +606,7 @@ class Fiber(object):
             return rmsa
 
     def p2p_amp(self, dim="t", results=False, plot_mode="pyqt", export=None, show=True):
-        """Computes peak-to-peak amplitude of data in time or space.
-        See :func:`~fobench.core.fiber.tools.wavefield.peak_to_peak_amp`.
+        """Computes peak-to-peak amplitude of data in time or space.        See :func:`~fobench.core.tools.wavefield.peak_to_peak_amp`.
         """
         axis = self.__axis__(dim)
         p2p_amplitude, up_index, down_index = wavefield.peak_to_peak_amp(self.data,
@@ -654,8 +660,8 @@ class Fiber(object):
                  order=1, pad=0, nfft=None, mode="spectrum", figsize=None,
                  nperseg=None, file_name=None, legend=True, results=False,
                  export=None, show=True, **kwargs):
-        """Computes and plots spectrum of channel(s), mode can be ``'spectrum'``
-        or ``'psd'``. See :func:`~fobench.core.tools.signals.signal_spectrum`,
+        """Computes and plots spectrum of channel(s), mode can be ``"spectrum"``
+        or ``"psd"``. See :func:`~fobench.core.tools.signals.signal_spectrum`,
         :func:`~fobench.core.plotting.plotting_pyqt.plot_spectral`
         and :func:`~fobench.core.plotting.plotting_mpl.simple_spectrum`.
         """
@@ -683,7 +689,7 @@ class Fiber(object):
                                 labels=channel, export=export, show=show)
         elif plot_mode=="mpl":
             units = self.units if mode == "spectrum" else f"{self.units.split(' ')[-1]}$^{{2}}$/Hz"
-            plot.simple_spectrum(spectra=np.array([spec]), freqs=f, channels=[channel], y_units=units, legend=legend, figsize=figsize,
+            plot.simple_spectrum(spectra=np.moveaxis(spec, axis, -1), freqs=f, channels=channel, y_units=units, legend=legend, figsize=figsize,
                         title=str(self.start_time.date), file_name=file_name, **kwargs)
 
         if results:
@@ -743,30 +749,28 @@ class Fiber(object):
                         cmap="viridis", file_name=None, freq_lim=None, nfft=None,
                         noverlap=None, nperseg=None, results=False, plot_mode="pyqt",
                         vmin=None, vmax=None, export=None, show=True, **kwargs):
-        """Computes and plots spectrogram for a ``"channel"``.
+        """Computes and plots spectrogram for a ``"channel"``. 
         See :func:`~fobench.core.tools.signals.signal_spectrogram`,
-        :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and
+        :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_timeseries` and 
         :func:`~fobench.core.plotting.plotting_mpl.simple_spectrogram`.
         """
-        axis = self.__axis__("t")
         channel = int(channel)
-        index = self.channels.tolist().index(channel)
-        data = self.data[:, index]
+        data = self.get_data(channel)
         f, t, Sxx = signals.signal_spectrogram(data=data, sampling_rate=self.sampling_rate,
-                                         axis=axis, norm=norm, nfft=nfft,
+                                         axis=0, norm=norm, nfft=nfft,
                                          noverlap=noverlap, nperseg=nperseg)
         if plot_mode == "pyqt":
-            t = self.times(time_type="unix")
+            t_plot = self.times(time_type="unix")
             if vmin is None: vmin = 0
             if vmax is None: vmax = np.nanpercentile(Sxx, 95)
-            plot_pyqt.plot_2d_timeseries(timestamps=t, y_ticks=f, dt=self.dt,
-                        data=np.rot90(Sxx, k=-1), y_label="Frequency [Hz]",
+            plot_pyqt.plot_2d_timeseries(timestamps=t_plot, y_ticks=f, dt=self.dt,
+                        data=Sxx.T, y_label="Frequency [Hz]",
                         title=f"Spectrogram channel {channel}", cmap="viridis",
                         vmin=vmin, vmax=vmax, cbar_label=self.units, export=export,
                         show=show)
         elif plot_mode == "mpl":
-            t = self.times(time_type="matplotlib")
-            plot.simple_spectrogram(data=Sxx, freq=f, t=t, units_y=self.units,
+            t_plot = self.times(time_type="matplotlib")
+            plot.simple_spectrogram(data=Sxx, freq=f, t=t_plot, units_y=self.units,
                         trace=data if trace == True else None, figsize=figsize, cmap=cmap,
                         title=str(self.start_time.date)+"  "+"Ch:"+str(channel),
                         file_name=file_name, freq_lim=freq_lim, **kwargs)
@@ -777,7 +781,8 @@ class Fiber(object):
     def record_section(self, channels, plot_mode="pyqt", export=None, show=True):
         """Plots record section of multiple channels. If channels is tuple the range
         between lower and upper limit will be plotted, if list only channels in list
-        will be plotted.
+        will be plotted. See :func:`~fobench.core.plotting.plotting_pyqt.plot_record_section` and
+        :func:`~fobench.core.plotting.plotting_mpl.plot_record_section`.
         """
         if isinstance(channels, np.ndarray):
             channels = channels.tolist()
@@ -806,7 +811,8 @@ class Fiber(object):
                     window_size=None, results=False, vmin=None, vmax=None,
                     export=None, show=True, **imshow_kwargs):
         """Computes autocorrelation profile.
-        See :func:`~fobench.core.tools.wavefield.autocorrelation_profile`.
+        See :func:`~fobench.core.tools.wavefield.autocorrelation_profile`. Plots with
+        :func:`~fobench.core.plotting.plotting_pyqt.plot_2d_distance` or :func:`~fobench.core.plotting.plotting_mpl.plot_acfs`.
         """
         axis = self.__axis__("t")
         max_shift = int(max_lag*self.sampling_rate)
@@ -826,7 +832,7 @@ class Fiber(object):
     def spatial_similarity(self, max_lag, results=False, plot_mode="pyqt", vmin=None,
                        vmax=None, export=None, show=True):
         """Computes spatial similarity matrix.
-        See :func:`~fobench.core.tools.wavefield.similarity_matrix`
+        See :func:`~fobench.core.tools.wavefield.similarity_matrix`.
         """
         data_input = np.moveaxis(self.data, (self.__axis__("d"), self.__axis__("t")), (0, 1))
         coh = wavefield.similarity_matrix(data=data_input, max_lag=max_lag,

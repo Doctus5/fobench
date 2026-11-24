@@ -17,7 +17,7 @@ from .utils import utils
 
 
 
-class Fibre(object):
+class Fibre:
     """
     ``Fibre`` class which keeps track of the fibres present in a cable.
 
@@ -35,7 +35,7 @@ class Fibre(object):
         ----------
         metadata_file : json
                 JSON object which represents the metadata of the project. If this file is non existent
-                Fibre must be initialized without it and a metadata must be created from scratch.
+                Fibre must be initialised without it and a metadata must be created from scratch.
 
         Returns
         -------
@@ -113,7 +113,7 @@ class Fibre(object):
 
         if isinstance(json_file, str):
             meta_dict = manager.open_metadatafile(json_file)
-        elif isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+        elif isinstance(json_file, dict): # if the variable is already the dictionary opened from Projects.
             meta_dict = json_file
         else:
             raise TypeError("metadata_file must be a path string or a dictionary")

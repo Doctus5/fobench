@@ -28,7 +28,7 @@ def point_filter(f_type: str = None, data: np.ndarray = None, df: float = None,
 
         - ``bandpass`` : Bandpass filter
         - ``bandstop`` : Bandstop filter
-        - ``lowpass`` . Lowpass filter
+        - ``lowpass`` : Lowpass filter
         - ``highpass`` : Highpass filter
         - ``median`` : Median filter
         - ``lp_fir`` : FIR-Lowpass filter
@@ -137,7 +137,7 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
     Raises
     ------
     ValueError
-        One or two negative corner freqencies.
+        One or two negative corner frequencies.
     ValueError
         ``freqmin`` larger than ``freqmax``
     ValueError
@@ -167,7 +167,7 @@ def bandpass(data: np.ndarray, freqmin: float , freqmax: float, df: float,
     if freqmin >= nyq:
         raise ValueError(f"Low corner frequency ({freqmin}) is at or above Nyquist ({nyq}).")
     if freqmax >= nyq:
-        warn(f"High corner frequency ({freqmax}) is at or above Nyquist ({nyq}). Applying highpass instead.")
+        warn(f"⚠️ High corner frequency ({freqmax}) is at or above Nyquist ({nyq}). Applying highpass instead.")
         return highpass(data, freq=freqmin, df=df, corners=corners,
                         zerophase=zerophase, axis=axis)
 
@@ -215,7 +215,7 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
     Raises
     ------
     ValueError
-        One or two negative corner freqencies.
+        One or two negative corner frequencies.
     ValueError
         ``freqmin`` at or above Nyquist frequency
     ValueError
@@ -247,8 +247,8 @@ def bandstop(data: np.ndarray, freqmin: float, freqmax: float, df: float,
         raise ValueError(f"Low corner frequency ({freqmin} Hz) is at or above Nyquist ({nyq} Hz).")
     if freqmax >= nyq:
         # freqmax = nyq # scipy can still fail at freqmax getting veeery close to the nyquist
-        warn(f"High corner frequency ({freqmax} Hz) is at or above "
-             f"Nyquist ({nyq} Hz). Setting Nyquist as high corner.")
+        warn(f"⚠️ High corner frequency ({freqmax} Hz) is at or above "
+             f"Nyquist ({nyq} Hz). Applying a lowpass at the low corner ({freqmin} Hz) instead.")
         return lowpass(data, freq=freqmin, df=df, corners=corners,
                    zerophase=zerophase, design=design, axis=axis, **options)
 
@@ -292,7 +292,7 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     Raises
     ------
     ValueError
-        Negative corner freqency.
+        Negative corner frequency.
 
     Returns
     -------
@@ -313,9 +313,9 @@ def lowpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     if freq <= 0:
         raise ValueError(f"Corner frequency ({freq} Hz) must be positive.")
     if freq >= nyq:
-        freq = nyq
-        warn(f"Selected corner frequency ({freq} Hz) is at or above "
+        warn(f"⚠️ Selected corner frequency ({freq} Hz) is at or above "
              f"Nyquist ({nyq} Hz). Setting corner at Nyquist. Scipy may fail.")
+        freq = nyq
         # return data.copy()
 
     sos = iirfilter(corners, freq, btype='lowpass', ftype=design,
@@ -358,7 +358,7 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     Raises
     ------
     ValueError
-        Negative corner freqency.
+        Negative corner frequency.
     ValueError
         Selected corner frequency at or above Nyquist
 
@@ -381,7 +381,7 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
     if freq <= 0:
         raise ValueError(f"Corner frequency ({freq} Hz) must be positive.")
     if freq >= nyq:
-        raise ValueError("Corner frequency ({freq} Hz) is at or above "
+        raise ValueError(f"Corner frequency ({freq} Hz) is at or above "
                          f"Nyquist ({nyq} Hz).")
 
     sos = iirfilter(corners, freq, btype="highpass", ftype=design,
@@ -394,9 +394,9 @@ def highpass(data: np.ndarray, freq: float, df: float, corners: int = 4,
 
 def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
               numtaps: int = 50, zerophase: bool = False, axis: int=0)-> np.ndarray:
-    """ Finite impulse response (FIR) filter whose transfer function minimizes
-    the maximum error between the desired gain and the realized gain in the
-    specified bands using the Remez exchange algorithm. See `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#remez_fir>`__
+    """ Finite impulse response (FIR) filter whose transfer function minimises
+    the maximum error between the desired gain and the realised gain in the
+    specified bands using the Remez exchange algorithm. See :func:`obspy.signal.filter.remez_fir`
     for more details. Filter design calls :func:`~scipy.signal.remez`.
 
 
@@ -443,7 +443,7 @@ def remez_fir(data: np.ndarray, freqmin: float, freqmax: float, df: float,
 def lowpass_fir(data: np.ndarray, freq: float, df: float, winlen: int = 2048,
                 zerophase: bool = False, axis: int=0) -> np.ndarray:
     """ FIR-Lowpass filter. Filter data by passing data only below a certain frequency.
-    For filter description see: `here <https://docs.obspy.org/_modules/obspy/signal/filter.html#lowpass_fir>`__
+    For filter description see: :func:`obspy.signal.filter.lowpass_fir`.
 
     Warning
     -------
@@ -519,7 +519,7 @@ def integer_decimation(data: np.ndarray, decimation_factor: int) -> np.ndarray:
     """
 
     if not isinstance(decimation_factor, int):
-        raise TypeError("Decimation factor must be an integer, got {type(decimation_factor).__name__}!")
+        raise TypeError(f"Decimation factor must be an integer, got {type(decimation_factor).__name__}!")
     if decimation_factor < 2:
         raise ValueError(f"Decimation factor must be 2 or greater, got {decimation_factor}.")
 
@@ -538,7 +538,7 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     data : np.ndarray
         Data to filter.
     freq : float
-        The frequency above which signals are attenuated with 95 dB.
+        The frequency above which signals are attenuated with 96 dB.
     df : float
         Sampling rate in Hz.
     maxorder : int, optional
@@ -566,7 +566,7 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
     wp = ws  # pass band frequency
     if ws > 1:
         ws = 1.0
-        warn("Selected corner frequency is above Nyquist. " + \
+        warn("⚠️ Selected corner frequency is above Nyquist. " + \
              "Setting Nyquist as high corner.")
     while True:
         if order <= maxorder:
@@ -586,7 +586,7 @@ def lowpass_cheby_2(data: np.ndarray, freq: float, df: float, maxorder: int = 12
 def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     exponent: float = 0.3, normalize_power: bool = False) -> np.ndarray:
 
-    """Adaptive frequency-wavenumber filter for denoising. Adapted from pyrockos
+    """Adaptive frequency-wavenumber filter for denoising. Adapted from Pyrocko's
     `lightguide <https://github.com/pyrocko/lightguide/blob/main/lightguide/afk_filter_python.py>`_
     package
 
@@ -601,7 +601,7 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     exponent : float, optional
         Scaling exponent ∈ [0, 1], controls the strength of the filter.
     normalize_power : bool, optional
-        Normalize amplitude spectrum.
+        Normalise amplitude spectrum.
 
     Raises
     ------
@@ -646,8 +646,6 @@ def afk_filter(data: np.ndarray, window_size: int = 32, overlap: int = 14,
     npx_x, npx_y = data.shape
     nwin_x = npx_x // window_stride
     nwin_y = npx_y // window_stride
-    if nwin_x % 1 or nwin_y % 1:
-        raise ValueError("Padding does not match desired data shape")
     filtered_data = np.zeros_like(data)
     taper = triangular_taper(window_size, window_non_overlap)
     for iwin_x in range(nwin_x):
@@ -806,7 +804,7 @@ def fk_filter(data: np.ndarray, dt: float, dx: float, bands: list[dict],
 
     See also
     --------
-    :func:`~fobench.tools.filters.fk_mask`
+    :func:`~fobench.core.tools.filters.fk_mask`
 
     Returns
     -------
@@ -853,7 +851,7 @@ def fk_mask(bands: list[dict], f: np.ndarray, k: np.ndarray, propagation: str = 
     Parameters
     ----------
     bands : list[dict]
-        The limits of the fk-domain regions that will masked, i.e. the passband.
+        The limits of the fk-domain regions that will be masked, i.e. the passband.
         Each dict can contain any of:
 
         - ``"fmin"``, ``"fmax"`` (frequency limits)

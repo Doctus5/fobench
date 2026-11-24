@@ -13,43 +13,9 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.patches import Rectangle
 from matplotlib.dates import num2date
+from fobench.core.plotting.plotting_mpl import PrecisionDateFormatter
 
 """Necessary for Technical aspects"""
-
-class PrecisionDateFormatter(ticker.Formatter):
-    """Extends the :class:`~matplotlib.ticker.Formatter` class to allow for millisecond
-    precision when formatting a tick (in days since the epoch) with a
-    `~datetime.datetime.strftime` format string. Adapted from StackOverflow.
-    """
-
-    def __init__(self, fmt:str , precision: int = 3, tz=None):
-        """
-        Parameters
-        ----------
-        fmt : str
-            `~datetime.datetime.strftime` format string.
-        precision : int, optional
-            Number of digits for millisecond precision, by default 3.
-        tz : timezone, optional
-            Timezone for the dates, default is UTC.
-
-        """
-        self.num2date = num2date
-        self.fmt = fmt
-        self.tz = tz if tz is not None else datetime.timezone.utc
-        self.precision = precision
-
-    def __call__(self, x, pos=0):
-        if x == 0:
-            raise ValueError("DateFormatter found a value of x=0, which is "
-                             "an illegal date; this usually occurs because "
-                             "you have not informed the axis that it is "
-                             "plotting dates, e.g., with ax.xaxis_date()")
-
-        dt = self.num2date(x, self.tz)
-        ms = dt.strftime("%f")[:self.precision]
-
-        return dt.strftime(self.fmt).format(ms=ms)
 
 class AdaptivePrecisionDateFormatter(ticker.Formatter):
     """Extends the :class:`~matplotlib.ticker.Formatter` class to allow for adaptive
@@ -63,7 +29,7 @@ class AdaptivePrecisionDateFormatter(ticker.Formatter):
         dates : array-like
             A list or array of dates to determine the range.
         precision : int, optional
-            Number of digits for millisecond precision, by default 3.
+            Number of digits for millisecond precision.
         tz : timezone, optional
             Timezone for the dates, default is UTC.
 
@@ -145,7 +111,7 @@ def plot_data_coverage(dataset_infos: str, min_max_t: tuple = None):
         y_ticks.append(i + 0.5)
         y_labels.append(f'Dataset {high}')
 
-        width, height = f_time - i_time, high - low # calculating dimensions of the rectangle pathc.
+        width, height = f_time - i_time, high - low # calculating dimensions of the rectangle patch.
         ax.add_patch(Rectangle((i_time, low), width, height)) # Draw the rectangle indicating data availability.
 
     ax.set_xlim(low_lim, high_lim)

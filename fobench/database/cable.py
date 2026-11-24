@@ -1,6 +1,6 @@
 """
 Class ``Cable`` for listing the infrastructure to use in ``Project``.
-A ``Project`` is understood as a field campaing in a specific location where
+A ``Project`` is understood as a field campaign in a specific location where
 several ``Datasets`` are collected from deployments using the ``Cable``.
 
 :Authors:
@@ -24,8 +24,8 @@ from . import manager as manager
 
 
 
-class Cable(object):
-    """Class keeps track of the organization of a single/multiple data collected.
+class Cable:
+    """Class keeps track of the organisation of a single/multiple data collected.
 
     Note
     ----
@@ -41,7 +41,7 @@ class Cable(object):
         ----------
         metadata_file : json
                 JSON object which represents the metadata of the project. If this file is non existent
-                Cable must be initialized without it and a metadata must be created from scratch.
+                Cable must be initialised without it and a metadata must be created from scratch.
 
         Returns
         -------
@@ -146,7 +146,7 @@ class Cable(object):
         # Check if just the path of the metadata is being indicated.
         if isinstance(json_file, str):
             meta_dict = manager.open_metadatafile(json_file)
-        elif isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+        elif isinstance(json_file, dict): # if the variable is already the dictionary opened from Projects.
             meta_dict = json_file
         else:
             raise TypeError("metadata_file must be a path string or dictionary")
@@ -211,7 +211,7 @@ class Cable(object):
         Parameters
         ----------
         parallel_params : dict
-            Dictionary containing the parameters for parallelization. If parameters are
+            Dictionary containing the parameters for parallelisation. If parameters are
             given, then the building method runs in parallel. If ``None``, it runs in serial.
 
         Returns

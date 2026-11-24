@@ -14,9 +14,9 @@ def stack_2D(data: np.ndarray, stack_type: str | tuple[str, int]) -> np.ndarray:
         Data to stack.
     stack_type : str | tuple[str, int]
         Stack type, options are:
-            - ``'linear'``: mean stack
-            - ``('pw', order)``: phase-weighted stack with given order
-            - ``('root', order)``: root stack with given order
+            - ``"linear"``: mean stack
+            - ``("pw", order)``: phase-weighted stack with given order
+            - ``("root", order)``: root stack with given order
     Note
     ----
     Linear stack refers to mean stack, not sum!
@@ -41,9 +41,9 @@ def stack_3D(data: np.ndarray, stack_type: str | tuple[str, int])-> np.ndarray:
         3D array (n_signals, n_samples, n_windows).
     stack_type : str | tuple[str, int]
         Type of stack, options are:
-            - ``'linear'``: mean stack
-            - ``'sum'``: summation stack
-            - ``('pw', order)``: phase-weighted stack with given order
+            - ``"linear"``: mean stack
+            - ``"sum"``: summation stack
+            - ``("pw", order)``: phase-weighted stack with given order
 
     Raises
     ------

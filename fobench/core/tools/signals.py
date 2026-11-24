@@ -5,6 +5,7 @@ import numpy as np
 import pywt
 import scipy.signal as signal
 import scipy.integrate as integrate
+from scipy.ndimage import uniform_filter1d
 from tqdm import tqdm, trange
 from fobench.core.plotting import plotting_pyqt as plot_pyqt
 
@@ -83,10 +84,10 @@ def differentiate_signal(data: np.ndarray, method: str, axis: int, dt: int)-> np
     Parameters
     ----------
     data : np.ndarray
-        Data to differentate.
+        Data to differentiate.
     method : str
-        Sets the prefered method for differentiation. can be ``"gradient"`` or ``"diff"``,
-        when using ``"diff"`` data is prepended with inital value along specified axis.
+        Sets the preferred method for differentiation. Can be ``"gradient"`` or ``"diff"``,
+        when using ``"diff"`` data is prepended with initial value along specified axis.
     axis : int
         Axis along which to apply operation.
     dt : int
@@ -114,11 +115,11 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     Parameters
     ----------
     o_signal : np.ndarray
-        Array containing the the signal(s).
+        Array containing the signal(s).
     order : int
         Order number of the fitting polynomial curve used to detrend.
     axis : int, optional
-        Axis  along which to apply the detrending.
+        Axis along which to apply the detrending.
 
     Returns
     -------
@@ -134,7 +135,7 @@ def detrend_signal(o_signal: np.ndarray, order: int, axis:int = -1)-> np.ndarray
     if order == 1:
         return signal.detrend(o_signal, axis=axis, type="linear")
 
-    # when order of detrned is higher than 1
+    # when order of detrend is higher than 1
     new_signal = np.empty_like(o_signal)
 
     if o_signal.ndim == 1:
@@ -170,7 +171,7 @@ def demean_signal(o_signal: np.ndarray, axis: int = None, mode: str = "mean") ->
     axis : int
         Axis along which to apply operation.
     mode : str
-        Centering method to use: "mean" or "median".
+        Centring method to use: ``"mean"`` or ``"median"``.
 
     Raises
     ------
@@ -305,79 +306,57 @@ def filt_preprocess(io_signal: np.ndarray, axis:int = None, order:int = 1,
 def normalize_signal(data: np.ndarray, method:str = "absolute max",
                      axis: int = None, ram_window: int = None, fs: int = None,
                      n_channels: int = None, n_samples: int = None)-> np.ndarray:
-    """Normalizes signal(s)
+    """Normalises signal(s)
 
     Parameters
     ----------
     data : np.ndarray
-        Data array to normalize.
+        Data array to normalise.
     method : str, optional
-        Normalization method, options are:
-			- ``"absolute max"``: with respect to the whole record (default)
+        Normalisation method, options are:
+			- ``"absolute max"``: with respect to the whole record
 			- ``"trace max"``: for each channel/timestep individually
-			- ``"running mean"``: running absolute mean normalization
-			- ``"1bit"``: 1-bit normalization.
+			- ``"running mean"``: running absolute mean normalisation
+			- ``"1bit"``: 1-bit normalisation.
     axis : int, optional
         Axis along which to perform operation.
     ram_window : int, optional
-        Window length in seconds, only for running absolute mean normalization.
+        Window length in seconds, only for running absolute mean normalisation.
     fs : int, optional
         Sampling frequency of signal.
     n_channels : int, optional
-        Total number of channels, only for running absolute mean normalization.
+        Total number of channels, only for running absolute mean normalisation.
     n_samples : int, optional
-        Total number of time samples, only for running absolute mean normalization.
+        Total number of time samples, only for running absolute mean normalisation.
 
     Raises
     ------
-    TypeError
-        Running mean normalization chosen without window_length given.
     ValueError
-        No valid normalization method chosen.
+        Running mean normalisation chosen without ``ram_window`` given,
+        or no valid normalisation method chosen.
 
     Returns
     -------
     normalized_data : np.ndarray
-        Normalized data array.
+        Normalised data array.
 
     """
 
     if method == "absolute max":
-        normalized_data = (data - data.min()) / (data.max() - data.min())
-        normalized_data = normalized_data * 2 -1
+        normalized_data = data / np.abs(data).max()
 
     elif method == "trace max":
-        channel_min = data.min(axis=axis, keepdims=True)
-        channel_max = data.max(axis=axis, keepdims=True)
-        normalized_data = (data - channel_min)/(channel_max - channel_min)
-        normalized_data = normalized_data * 2 -1
+        normalized_data = data / np.abs(data).max(axis=axis, keepdims=True)
 
     elif method == "running mean":
         if ram_window is None:
-            raise TypeError("⚠️ Please provide a window length for the running absolute mean normalization")
+            raise ValueError("⚠️ Please provide a window length for the running absolute mean normalization")
 
-        normalized_data = data.copy()
-        # from scipy.ndimage import uniform_filter1d
+        w_len = max(1, int(fs * ram_window))
 
-        w_len = int(fs * ram_window)
-        t_axis = 0 if axis == 1 else 1
-
-        # weight = uniform_filter1d(np.abs(data), size=w_len, axis=t_axis, mode="nearest")
-        # weight[weight == 0] = 1
-        # normalized_data = data / weight
-
-        for i in tqdm(range(n_channels), desc="Running mean normalization", leave=False):
-            for segment_start in range(n_samples - w_len + 1):
-                segment_end = segment_start + w_len
-
-                if t_axis == 0:
-                    segment = normalized_data[segment_start:segment_end, i]
-                    weight = np.mean(np.abs(segment))
-                    normalized_data[segment_start:segment_end, i] /= weight
-                else:
-                    segment = normalized_data[i,segment_start:segment_end]
-                    weight = np.mean(np.abs(segment))
-                    normalized_data[i, segment_start:segment_end] /= weight
+        weight = uniform_filter1d(np.abs(data), size=w_len, axis=axis, mode="nearest")
+        weight[weight == 0] = 1
+        normalized_data = data / weight
 
     elif method == "1bit":
         normalized_data = np.sign(data).astype(np.float64)
@@ -391,7 +370,7 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, n_channels: in
                   sampling_rate: int, axis: int)-> np.ndarray:
 
     """Performs spectral whitening of all channels. Adapted code from: https://github.com/seismo-live/seismo_live .
-    Signals should be adequatly pre-processed.
+    Signals should be adequately pre-processed.
 
     Parameters
     ----------
@@ -403,6 +382,8 @@ def whiten_signal(data: np.ndarray, freq_min: int, freq_max: int, n_channels: in
         Total number of channels.
     sampling_rate : int
         Sampling frequency of data
+    axis : int
+        Time axis of ``data``, i.e. the axis along which each channel is whitened.
 
     Returns
     -------
@@ -466,7 +447,7 @@ def signal_spectrum(o_signal: np.ndarray, fs: int, mode: str = "spectrum", pre_p
     pre_processing : bool, optional
         Signal is demeaned, detrended and tapered.
     norm : bool, optional
-        If ``True``, result is normalized by maximum value.
+        If ``True``, result is normalised by maximum value.
     order : int, optional
         Order of polynomial to detrend.
     pad : int, optional
@@ -548,9 +529,10 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
     sampling_rate : int
         Sampling frequency of signal.
     axis : int
-        Time axis index.
+        Axis of the spectrogram along which ``norm`` takes the maximum. ``Sxx`` is
+        always ``(frequencies, time)``, so use ``0`` to normalise each time bin.
     norm : bool
-        Toggles normalization of results by maximum value.
+        Toggles normalisation of results by maximum value.
     nfft : int
         Length of the FFT used
     nperseg : int
@@ -577,12 +559,11 @@ def signal_spectrogram(data: np.ndarray, sampling_rate: int, axis: int,
     if noverlap is None:
         noverlap = int(nperseg/2)
     f, t, Sxx = signal.spectrogram(data, sampling_rate, nfft=nfft, nperseg=nperseg, noverlap=noverlap)
-    Sxx = np.flip(Sxx, axis=axis)
     Sxx = Sxx / Sxx.max(axis=axis) if norm == True else Sxx
 
     return f, t, Sxx
 
-def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
+def cwt(data: np.ndarray, fs: float,  scales: np.ndarray | None = None,
         wavelet: pywt.Wavelet | str = "cmor1.5-1.0", fmin: float = 1.0,
         fmax: float | None = None, n_scales: int = 100, times: np.array = None,
         results: bool = False, plot_mode: str = "pyqt", vmin=None, vmax=None,
@@ -590,12 +571,12 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
 
     """Computes and optionally plots continuous wavelet transform of input signal.
     Mainly a wrapper around :func:`pywt.cwt`.
-    Minimum example: ``cwt(signal=Fiber.get_data(100), fs=das.sampling_rate,
+    Minimum example: ``cwt(data=Record.get_data(100), fs=Record.sampling_rate,
     times=das.times(time_type="unix"))``
 
     Parameters
     ----------
-    signal : np.ndarray
+    data : np.ndarray
         Signal to process.
     fs : float
         Sampling rate of signal.
@@ -604,7 +585,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
     wavelet : pywt.Wavelet | str
         The wavelet to use. See :func:`pywt.cwt`.
     fmin, fmax : float
-        Minimum and maximum frequency to analyze.
+        Minimum and maximum frequency to analyse.
     n_scales : int
         Number of scales, ignored if ``scales`` is not ``None``.
     times : np.array
@@ -614,7 +595,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
     plot_mode : str
         ``"pyqt"``, ``"mpl"`` or no plotting.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
 
     Returns
     -------
@@ -629,7 +610,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
         if fmax is None: fmax = fs/2
         freqs = np.geomspace(fmin, fmax, n_scales)
         scales = pywt.frequency2scale(wavelet, freqs/fs)
-    coeffs, f = pywt.cwt(signal, scales, wavelet, sampling_period=1.0/fs)
+    coeffs, f = pywt.cwt(data, scales, wavelet, sampling_period=1.0/fs)
     if vmin is None: vmin = 0
     if vmax is None: vmax = np.percentile(abs(coeffs), 95)
 
@@ -642,7 +623,7 @@ def cwt(signal: np.ndarray, fs: float,  scales: np.ndarray | None = None,
                     data=abs(coeffs.T), y_label="Frequency [Hz]",
                     title=f"CWT with {str(wavelet)}", cmap="viridis",
                     vmin=vmin, vmax=vmax, cbar_label="CWT magnitude",
-                    export=export, show=True)
+                    export=export, show=show)
 
     if results:
-        return coeffs, freqs
+        return coeffs, f

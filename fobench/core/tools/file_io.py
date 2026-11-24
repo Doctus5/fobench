@@ -1,4 +1,4 @@
-"""File managing the different fiber optic sensing formats.
+"""File managing the different fibre optic sensing formats.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -9,7 +9,6 @@
 
 """
 
-# Necessary packes to read the file formats
 import os
 import json
 import nptdms as tdms
@@ -23,6 +22,7 @@ from tqdm import tqdm
 import pickle as pkl
 
 from obspy.core import UTCDateTime as UTC
+from fobench.core.tools import utils
 
 def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.ndarray = None,
               format: str = None, load_data: bool = True,
@@ -35,9 +35,8 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
     filepath : str
         Path to file to read.
     company : str
-        Interrogator manufacturer. One of ``"silixa"``, ``"febus"``, ``"aragon"``,
-        ``"optasense"``, ``"asn"``, ``"terra15"`` ``bam``, ``"sintela"``, ``"sensiphi"``
-        and ``"apsensing"``.
+        Interrogator manufacturer, one of :data:`~fobench.core.tools.utils.COMPANIES`.
+        See :doc:`/getting_started/formats` for the supported formats.
     range_ch : int or tuple(int, int) or np.array
             Range of channels to load. If one single number (``int``), it is one single channel.
             If ``tuple`` is then interpreted as a (start, end) channels.
@@ -48,8 +47,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         If ``False``, only metadata is loaded.
     show_progress : True
         Show progress bar when loading data.
-    storage_opts : TYPE, optional
-        DESCRIPTION.
+    storage_opts : dict, optional
+        Keyword arguments passed to :class:`~s3fs.core.S3FileSystem`, e.g. credentials
+        (``key``, ``secret``), ``endpoint_url`` or ``anon``. Only used when
+        ``filepath`` is an ``"s3://"`` path, ignored for local files.
 
     Returns
     -------
@@ -59,8 +60,10 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
     Raises
     ------
     ValueError
-        Unrecognized file format.
+        Unknown company or file format not supported for the passed company.
     """
+
+    utils.check_company_format(company, format)
 
     # option for reading S3 stored files. The check of instance is necessary because the remote file not necessary starts with...
     if isinstance(filepath, str) and filepath.startswith("s3://"):
@@ -176,7 +179,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             sampling_rate = 1/(properties["Spacing"][1]*1e-3)
             o_sampling_rate = sampling_rate
             dt = 1/sampling_rate
-            SEMILAG = properties["BlockRate"][0]*1e-3 if getattr(properties["BlockRate"], "size", 0) == 1 else properties["BlockRate"]*1e-3 # unpacking value sif is inside list.
+            SEMILAG = properties["BlockRate"][0]*1e-3 if getattr(properties["BlockRate"], "size", 0) == 1 else properties["BlockRate"]*1e-3 # unpacking values if is inside list.
             SEMILAG = int(np.round((1/SEMILAG) / dt))
 
             # data loading
@@ -297,13 +300,15 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             o_sampling_rate = sampling_rate
             dt = 1 / sampling_rate
             n_samples = int(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["Count"])
-            start_time = UTC(str(file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"])[2:-1])
+            start_time_value = file_file["Acquisition"]["Raw[0]"]["RawDataTime"].attrs["PartStartTime"]
+            start_time = UTC(start_time_value.decode("utf-8") if isinstance(start_time_value, bytes) else str(start_time_value))
             end_time = UTC(start_time + (n_samples - 1) * dt)
             spatial_interval = float(properties["SpatialSamplingInterval"])
             time_length = end_time - start_time
             gauge_length = float(properties["GaugeLength"])
             channel_offset = int(properties["StartLocusIndex"])
-            units = str(dataset.attrs["RawDataUnit"])[2:-1]
+            units_value = dataset.attrs["RawDataUnit"]
+            units = units_value.decode("utf-8") if isinstance(units_value, bytes) else str(units_value)
             conv_factor = None # conversion factor if given explicitly
 
     elif (format == "h5" or format == "hdf5") and company == "aragon": # Aragon Photonics HDAS HDF5
@@ -344,7 +349,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
     elif (format == "h5" or format == "hdf5") and company == "sintela": # Sintela Onyx HDF5
         print("Data units (strain, strain-rate...) can not be extracted from Sintela files\n"
-             "you can set it manually by editing Fiber.units")
+             "you can set it manually by editing Record.units")
         pbar = tqdm(total=1, leave=True, desc="Reading Sintela HDF5 file", disable=not show_progress)
 
         with h5.File(filepath, "r") as file_file:
@@ -413,7 +418,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             conv_factor = None
 
     elif format == "csv" and company == "apsensing": # AP Sensing DTS CSV file
-        
+
         pbar = tqdm(total=1, leave=True, desc="Reading AP Sensing DTS CSV file", disable=not show_progress)
         template = None
         dataset = None
@@ -429,17 +434,17 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         cumulative_steps = np.cumsum(sample_steps)
         sample_idx = np.concatenate(([0], cumulative_steps)).astype(int)
         n_samples = int(sample_idx[-1]) + 1
-        
+
         if load_data:
             traces, data = data, np.full((n_samples, len(channels)), np.nan)
             data[sample_idx] = traces if data_range is None else traces[:, data_range]
-            
+
         properties["sample_index"] = sample_idx
         start_time = UTC(timestamps[0])
         end_time = UTC(start_time+(n_samples - 1)*dt)
         time_length = end_time - start_time
         spatial_interval = round(float(distances[1]-distances[0]), 4)
-        channel_offset = float(distances[0]) / spatial_interval
+        channel_offset = int(round(float(distances[0]) / spatial_interval))
         gauge_length = spatial_interval
         units = "temperature"
         conv_factor = None
@@ -450,7 +455,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
 
     elif format == "npy" and company == "bam": # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
-        print("File format is a Numpy Class. It contains only the unitsdata, and so the metadata must be filled automatically in the code.")
+        print("File format is a Numpy Class. It contains only the data, and so the metadata must be filled automatically in the code.")
         file_file = None
         properties = {}
         channels = None
@@ -473,7 +478,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         units = None
         conv_factor = None # conversion factor if given explicitly
 
-    elif format == "npz" and company == "bam": # .npy format for BAM. This might fail always since the unit is NON-COMMERCIAL!
+    elif format == "npz" and company == "bam": # .npz format for BAM. This might fail always since the unit is NON-COMMERCIAL!
 
         print("File format is a Numpy Zip Class. No Gauge Length specified. Do not attempt to convert to Strain-Rate.")
         file_file = None
@@ -536,7 +541,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         raise ValueError(f"{format} is not a recognized file format!")
     del dataset
 
-    # Attributed for the Fiber class.
+    # Attributes for the Record class.
     attr_keys = [
         "basefile",
         "format",
@@ -561,7 +566,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
         "file_size"
         ]
 
-    # coonvert the type of the data to floating, ready for processing
+    # convert the type of the data to floating, ready for processing
     # if not np.issubdtype(data.dtype, np.floating) and load_data is True:
     #     data = data.astype(float, copy=False)
 
@@ -611,8 +616,8 @@ def __channel_selection__(range_ch, channels_all):
     if range_ch is None:
         return channels_all, None
 
-    if isinstance(range_ch, int):
-        selector = [range_ch]
+    if isinstance(range_ch, (int, np.integer)):
+        selector = [int(range_ch)]
 
     elif isinstance(range_ch, tuple):
         ch0, chf = sorted(range_ch)
@@ -685,7 +690,7 @@ def __data__(extract_point, format, company, range_ch, LAG=None):
 
 
 def __dts_csv_reader__(filepath, load_data=True):
-    """Reads the AP Sensing DTS CSV export: ``;``-separated columns, ``,``-seperated decimals.
+    """Reads the AP Sensing DTS CSV export: ``;``-separated columns, ``,``-separated decimals.
     First four rows (``Date:``, ``Time:``, ``X Units:``, ``Y Units:``) hold one entry
     per trace, the following rows the distance and one value per trace.
 
@@ -725,7 +730,8 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     filepath : str
         Complete S3 URI of the file
     company : str
-        Manufacturer of the fibre optic sensing unit that produce the data (check read_data())
+        Manufacturer of the fibre optic sensing unit that produced the data
+        (check :func:`~fobench.core.tools.file_io.read_data`)
     range_ch : int or list, optional
         Channels range to load
     format : str, optional
@@ -735,12 +741,12 @@ def s3_file(filepath, company, range_ch=None, format=None, load_data=True, show_
     show_progress : bool, optional
         Shows the file-reading progress bar
     storage_opts : dict, optional
-        Options to be passed to the S3 filesystem. Needed as credentials and temporal file handling, by default None
+        Options to be passed to the S3 filesystem. Needed as credentials and temporal file handling.
 
     Returns
     -------
     dict
-        Fiber data and metadata attributes
+        Record data and metadata attributes
 
     """
 
@@ -765,18 +771,18 @@ def __tdms_biReader__(filepath, tdms_metadata, range_ch, copy_data=True):
     Parameters
     ----------
     filepath : str
-        global or partial path where the data is located.
+        Global or partial path where the data is located.
     tdms_metadata : _type_
         _description_
     range_ch : array or list
-        range fo channels to slice the data
+        Range of channels to slice the data
     copy_data : bool, optional
-        load the data into memory, by default True
+        Load the data into memory.
 
     Returns
     -------
     np.array()
-        full data matrix of the sensing
+        Full data matrix of the sensing
 
     """
 
@@ -806,18 +812,18 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
     Parameters
     ----------
     filepath : str
-        global or partial path where the data is located.
+        Global or partial path where the data is located.
     tdms_metadata : _type_
         _description_
     range_ch : array or list
-        range fo channels to slice the data
+        Range of channels to slice the data
     copy_data : bool, optional
-        load the data into memory, by default True
+        Load the data into memory.
 
     Returns
     -------
     np.array()
-        full data matrix of the sensing
+        Full data matrix of the sensing
 
     """
 
@@ -856,16 +862,16 @@ def __h5_biReader__(filepath, dataset, range_ch=None, copy_data=True):
 
 """Methods for writing in original format"""
 
-def write_data(Fiber, filepath=None, company=None, format=None, template=None):
+def write_data(Record, filepath=None, company=None, format=None, template=None):
     """Manages saving of data in the original format as it was written from the manufacturer.
-    Check format and company available (format, company) from read_data() function.
+    Check format and company available (format, company) from :func:`~fobench.core.tools.file_io.read_data`.
     "We can possibly try to give options to save in another format but it will
-    require to known previosuly the formats somehow"
+    require knowing previously the formats somehow"
 
     Parameters
     ----------
-    Fiber : Fiber class
-        Fiber class instance.
+    Record : :class:`~fobench.core.record.Record`
+        Record class instance.
     filepath : str, optional
         Complete path including name to be saved and the format after the dot.
         "path/where/to/save/file.h5".
@@ -886,7 +892,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
     # format = filepath.split(".")[-1] # accessing the desired format from the string of the file path.
 
-    source_template = Fiber.__basefile__ if template is None else template
+    source_template = Record.__basefile__ if template is None else template
 
     if format == "tdms" and company == "silixa": # Silixa TDMS
 
@@ -903,16 +909,16 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         group_properties = dict(group_info.get("properties", {}))
         channels_template = group_info.get("channels", template.get("channels", []))
 
-        # map Fiber attrs back to TDMS root properties
-        root_properties["SamplingFrequency[Hz]"] = float(Fiber.sampling_rate)
-        root_properties["ISO8601 Timestamp"] = Fiber.start_time.isoformat()
-        root_properties["SpatialResolution[m]"] = float(Fiber.spatial_interval)
-        root_properties["GaugeLength"] = float(Fiber.gauge_length)
-        root_properties["OffsetLength"] = float(Fiber.channel_offset)
+        # map Record attrs back to TDMS root properties
+        root_properties["SamplingFrequency[Hz]"] = float(Record.sampling_rate)
+        root_properties["ISO8601 Timestamp"] = Record.start_time.isoformat()
+        root_properties["SpatialResolution[m]"] = float(Record.spatial_interval)
+        root_properties["GaugeLength"] = float(Record.gauge_length)
+        root_properties["OffsetLength"] = float(Record.channel_offset)
 
         # keep only current channels (supports crop)
         ch_map = {str(ch["name"]): ch for ch in channels_template}
-        selected = [ch_map[str(c)] for c in Fiber.channels]
+        selected = [ch_map[str(c)] for c in Record.channels]
 
         objects = [tdms.RootObject(properties=root_properties), tdms.GroupObject(gname, properties=group_properties)]
 
@@ -921,8 +927,8 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
                 tdms.ChannelObject(
                     gname,
                     str(ch["name"]),
-                    np.asarray(Fiber.data[:, i]),
-                    # np.rint(np.clip(Fiber.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if dta gets distorted by processing.
+                    np.asarray(Record.data[:, i]),
+                    # np.rint(np.clip(Record.data[:, i], np.iinfo(np.int16).min, np.iinfo(np.int16).max)).astype(np.int16), # scales back to int16, buuuut with precision errors if data gets distorted by processing.
                     properties=dict(ch.get("properties", {})),
                 )
             )
@@ -930,7 +936,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         with tdms.TdmsWriter(filepath, mode="w") as w:
             w.write_segment(objects)
 
-    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sitela H5 files.
+    elif (format == 'h5' or format == 'hdf5') and company == 'sintela': # Sintela H5 files.
 
         pbar = tqdm(total=1, leave=True, desc="Saving in Sintela HDF5 file")
         dataset_path = "/Acquisition/Raw[0]/RawData"
@@ -944,7 +950,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         # Preserve original type as much as possible for compatibility.
         target_dtype = np.dtype(dataset_node["dtype"])
-        output_data = np.asarray(Fiber.data)
+        output_data = np.asarray(Record.data)
         if np.issubdtype(target_dtype, np.integer):
             info = np.iinfo(target_dtype)
             output_data = np.rint(np.clip(output_data, info.min, info.max)).astype(target_dtype)
@@ -960,22 +966,22 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             if len(chunks) != len(output_data.shape) or any(ch > sh for ch, sh in zip(chunks, output_data.shape)):
                 dataset_node["chunks"] = None
 
-        # Update Sintela metadata from Fiber state.
+        # Update Sintela metadata from Record state.
         acquisition_node.setdefault("attrs", {})
         acquisition_node["attrs"].update({
-            "FiberID": Fiber.fiber,
-            "PulseRate": Fiber.sampling_rate,
-            "MeasurementStartTime": (Fiber.start_time.isoformat()).encode("utf-8"),
-            "NumberOfLoci": int(Fiber.data.shape[1]),
-            "SpatialSamplingInterval": Fiber.spatial_interval,
-            "StartLocusIndex": int(round(Fiber.channel_offset / Fiber.spatial_interval)),
-            "GaugeLength": Fiber.gauge_length
+            "FiberID": Record.fiber,
+            "PulseRate": Record.sampling_rate,
+            "MeasurementStartTime": (Record.start_time.isoformat()).encode("utf-8"),
+            "NumberOfLoci": int(Record.data.shape[1]),
+            "SpatialSamplingInterval": Record.spatial_interval,
+            "StartLocusIndex": int(round(Record.channel_offset / Record.spatial_interval)),
+            "GaugeLength": Record.gauge_length
         })
 
         # If Raw[0] carries channel count, keep it coherent.
         raw_group_node.setdefault("attrs", {})
         if "NumberOfLoci" in raw_group_node["attrs"]:
-            raw_group_node["attrs"]["NumberOfLoci"] = int(Fiber.data.shape[1])
+            raw_group_node["attrs"]["NumberOfLoci"] = int(Record.data.shape[1])
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
@@ -994,7 +1000,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         position_node = __find_h5_node_by_path__(template, position_path)
 
         # Aragon reader converts nanostrain -> strain (x1e-9), so invert on write.
-        strain_out = np.asarray(Fiber.data) * 1e9
+        strain_out = np.asarray(Record.data) * 1e9
         strain_dtype = np.dtype(strain_node["dtype"])
         if np.issubdtype(strain_dtype, np.integer):
             info = np.iinfo(strain_dtype)
@@ -1012,16 +1018,16 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         # Rebuild time axis in file units (seconds from start).
         t_dtype = np.dtype(time_node["dtype"])
-        t_vals = np.arange(Fiber.data.shape[0], dtype=np.float64) * (1.0 / Fiber.sampling_rate)
+        t_vals = np.arange(Record.data.shape[0], dtype=np.float64) * (1.0 / Record.sampling_rate)
         t_vals = t_vals.astype(t_dtype, copy=False)
         time_node["data"] = t_vals
         time_node["shape"] = t_vals.shape
 
         # Rebuild position axis in meters from current channel selection.
-        if Fiber.channels is not None and len(Fiber.channels) == Fiber.data.shape[1]:
-            p_vals = np.asarray(Fiber.channels, dtype=np.float64) * float(Fiber.spatial_interval)
+        if Record.channels is not None and len(Record.channels) == Record.data.shape[1]:
+            p_vals = np.asarray(Record.channels, dtype=np.float64) * float(Record.spatial_interval)
         else:
-            p_vals = np.arange(Fiber.data.shape[1], dtype=np.float64) * float(Fiber.spatial_interval)
+            p_vals = np.arange(Record.data.shape[1], dtype=np.float64) * float(Record.spatial_interval)
         p_dtype = np.dtype(position_node["dtype"])
         p_vals = p_vals.astype(p_dtype, copy=False)
         position_node["data"] = p_vals
@@ -1029,11 +1035,11 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
 
         # Update known Aragon root attrs while preserving original dtype/shape style.
         root_attrs = template.setdefault("attrs", {})
-        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Fiber.sampling_rate))
-        __update_h5_attr_like__(root_attrs, "spatial_sampling", float(Fiber.spatial_interval))
-        __update_h5_attr_like__(root_attrs, "Global_RAM_User_SET_Pulse_Width_(meter)", float(Fiber.gauge_length))
-        __update_h5_attr_like__(root_attrs, "fiber_position_offset", float(Fiber.channel_offset) * float(Fiber.spatial_interval))
-        __update_h5_attr_like__(root_attrs, "Global_FileSaveIO_TimeStamp_s", float(Fiber.start_time))
+        __update_h5_attr_like__(root_attrs, "trigger_frequency", float(Record.sampling_rate))
+        __update_h5_attr_like__(root_attrs, "spatial_sampling", float(Record.spatial_interval))
+        __update_h5_attr_like__(root_attrs, "Global_RAM_User_SET_Pulse_Width_(meter)", float(Record.gauge_length))
+        __update_h5_attr_like__(root_attrs, "fiber_position_offset", float(Record.channel_offset) * float(Record.spatial_interval))
+        __update_h5_attr_like__(root_attrs, "Global_FileSaveIO_TimeStamp_s", float(Record.start_time))
 
         with h5.File(filepath, "w") as f:
             __h5_writer__(template, f)
@@ -1054,7 +1060,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         gl_node = __find_h5_node_by_path__(template, "/header/gaugeLength")
 
         # Preserve on-disk dtype as much as possible for compatibility/size.
-        out = np.asarray(Fiber.data)
+        out = np.asarray(Record.data)
         out_dtype = np.dtype(data_node["dtype"])
         if np.issubdtype(out_dtype, np.integer):
             info = np.iinfo(out_dtype)
@@ -1069,24 +1075,24 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
                 data_node["chunks"] = None
 
         # Scalar datasets in header.
-        dt_val = np.array(1.0 / float(Fiber.sampling_rate), dtype=np.dtype(dt_node["dtype"]))
+        dt_val = np.array(1.0 / float(Record.sampling_rate), dtype=np.dtype(dt_node["dtype"]))
         dt_node["data"] = dt_val
         dt_node["shape"] = dt_val.shape
 
-        t0_val = np.array(float(Fiber.start_time), dtype=np.dtype(t0_node["dtype"]))
+        t0_val = np.array(float(Record.start_time), dtype=np.dtype(t0_node["dtype"]))
         t0_node["data"] = t0_val
         t0_node["shape"] = t0_val.shape
 
-        n0_val = np.array(int(Fiber.data.shape[0]), dtype=np.dtype(n0_node["dtype"]))
-        n1_val = np.array(int(Fiber.data.shape[1]), dtype=np.dtype(n1_node["dtype"]))
+        n0_val = np.array(int(Record.data.shape[0]), dtype=np.dtype(n0_node["dtype"]))
+        n1_val = np.array(int(Record.data.shape[1]), dtype=np.dtype(n1_node["dtype"]))
         n0_node["data"], n0_node["shape"] = n0_val, n0_val.shape
         n1_node["data"], n1_node["shape"] = n1_val, n1_val.shape
 
         # Channels and spacing.
-        if Fiber.channels is not None and len(Fiber.channels) == Fiber.data.shape[1]:
-            channels = np.asarray(Fiber.channels, dtype=np.float64)
+        if Record.channels is not None and len(Record.channels) == Record.data.shape[1]:
+            channels = np.asarray(Record.channels, dtype=np.float64)
         else:
-            channels = np.arange(Fiber.data.shape[1], dtype=np.float64) + float(Fiber.channel_offset)
+            channels = np.arange(Record.data.shape[1], dtype=np.float64) + float(Record.channel_offset)
         ch_dtype = np.dtype(ch_node["dtype"])
         if np.issubdtype(ch_dtype, np.integer):
             info = np.iinfo(ch_dtype)
@@ -1101,11 +1107,11 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             step = float(channels[1]) - float(channels[0])
             if step != 0:
                 chan_step = step
-        dx_val = np.array(float(Fiber.spatial_interval) / chan_step, dtype=np.dtype(dx_node["dtype"]))
+        dx_val = np.array(float(Record.spatial_interval) / chan_step, dtype=np.dtype(dx_node["dtype"]))
         dx_node["data"] = dx_val
         dx_node["shape"] = dx_val.shape
 
-        gl_val = np.array(float(Fiber.gauge_length), dtype=np.dtype(gl_node["dtype"]))
+        gl_val = np.array(float(Record.gauge_length), dtype=np.dtype(gl_node["dtype"]))
         gl_node["data"] = gl_val
         gl_node["shape"] = gl_val.shape
 
@@ -1114,11 +1120,11 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
             u_node = __find_h5_node_by_path__(template, "/header/sensitivityUnits")
             u_dtype = np.dtype(u_node["dtype"])
             if u_dtype.kind in ("S", "a"):
-                u_val = np.array(str(Fiber.units).encode("utf-8"), dtype=u_dtype)
+                u_val = np.array(str(Record.units).encode("utf-8"), dtype=u_dtype)
             elif u_dtype.kind == "U":
-                u_val = np.array(str(Fiber.units), dtype=u_dtype)
+                u_val = np.array(str(Record.units), dtype=u_dtype)
             else:
-                u_val = np.array(str(Fiber.units))
+                u_val = np.array(str(Record.units))
             u_node["data"] = u_val
             u_node["shape"] = u_val.shape
         except KeyError:
@@ -1136,7 +1142,7 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
         channel_node = __find_h5_node_by_path__(template, "/ChannelMap")
 
         # Preserve the original data type.
-        output_data = np.asarray(Fiber.data)
+        output_data = np.asarray(Record.data)
         target_dtype = np.dtype(data_node["dtype"])
 
         if np.issubdtype(target_dtype, np.integer):
@@ -1154,24 +1160,24 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
                 data_node["chunks"] = None
 
         # Update the channel map.
-        channels = np.asarray(Fiber.channels, dtype=np.dtype(channel_node["dtype"]))
+        channels = np.asarray(Record.channels, dtype=np.dtype(channel_node["dtype"]))
         channel_node["data"] = channels
         channel_node["shape"] = channels.shape
 
         # Update the metadata affected by processing.
         root_attrs = template.setdefault("attrs", {})
-        start_time = Fiber.start_time.isoformat() + "Z"
+        start_time = Record.start_time.isoformat() + "Z"
 
         updated_attrs = {
-            "StartTime": int(round(float(Fiber.start_time) * 1e6)),
+            "StartTime": int(round(float(Record.start_time) * 1e6)),
             "StartTime_txt": start_time.encode("UTF-8"),
-            "Samplerate": float(Fiber.sampling_rate),
-            "Sampletime": 1.0 / float(Fiber.sampling_rate),
-            "SamplingFrequency[Hz]": float(Fiber.o_sampling_rate),
-            "SpatialResolution[m]": float(Fiber.spatial_interval),
-            "GaugeLength": float(Fiber.gauge_length),
-            "OffsetLength": float(Fiber.channel_offset),
-            "MeasureLength[m]": float(Fiber.data.shape[1] * Fiber.spatial_interval)
+            "Samplerate": float(Record.sampling_rate),
+            "Sampletime": 1.0 / float(Record.sampling_rate),
+            "SamplingFrequency[Hz]": float(Record.o_sampling_rate),
+            "SpatialResolution[m]": float(Record.spatial_interval),
+            "GaugeLength": float(Record.gauge_length),
+            "OffsetLength": float(Record.channel_offset),
+            "MeasureLength[m]": float(Record.data.shape[1] * Record.spatial_interval)
         }
 
         for key, value in updated_attrs.items():
@@ -1191,13 +1197,13 @@ def write_data(Fiber, filepath=None, company=None, format=None, template=None):
     pbar.set_description("File Saved ✓")
 
 
-def write_as(Fiber, filepath=None, company=None):
-    """Write Fiber data using another supported file structure.
+def write_as(Record, filepath=None, company=None):
+    """Write Record data using another supported file structure.
 
     Parameters
     ----------
-    Fiber : Fiber
-        Fiber instance containing the data and metadata to write.
+    Record : :class:`~fobench.core.record.Record`
+        Record instance containing the data and metadata to write.
     filepath : str
         Destination filepath, including its extension.
     company : str
@@ -1223,7 +1229,7 @@ def write_as(Fiber, filepath=None, company=None):
 
         template = pkl.load(handler)
 
-    write_data(Fiber, filepath=filepath, company=company, format=template_format, template=template)
+    write_data(Record, filepath=filepath, company=company, format=template_format, template=template)
 
 
 """H5/HDF5 explorers, templates, internals and writers"""
@@ -1375,6 +1381,25 @@ def __coerce_h5_dtype_and_data__(dtype_in, data):
 
 
 def scan_template(filepath, company="", format="", storage_opts=None):
+    """Opens a local or S3 file and scans its structure into a lightweight template dictionary.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the file. Paths starting with ``"s3://"`` are opened with :mod:`s3fs`.
+    company : str, optional
+        Manufacturer of the instrument that generated the data.
+    format : str, optional
+        Format of the file, either ``"tdms"``, ``"hdf5"`` or ``"h5"``.
+    storage_opts : dict, optional
+        Keyword arguments passed to :class:`~s3fs.core.S3FileSystem` for S3 paths.
+
+    Returns
+    -------
+    dict
+        Lightweight version of the architecture of the file, used to recreate the file
+        when saving data in its original format.
+    """
 
     if isinstance(filepath, str) and filepath.startswith("s3://"):
         import s3fs
@@ -1402,11 +1427,11 @@ def __scan_template__(core_file, company="", format=""):
     Parameters
     ----------
     core_file : file object
-        file object once it is opened.
+        File object once it is opened.
     company : str,
-        manufacturer or the instrument that generates the data, by default None
+        Manufacturer or the instrument that generates the data.
     format : str, optional
-        format of the file where the data is coming from, by default None
+        Format of the file where the data is coming from.
 
     Returns
     -------

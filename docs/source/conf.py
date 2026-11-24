@@ -1,11 +1,15 @@
 project = "FoBench"
 copyright = "2026, Sergio Diaz-Meza, Jonas Pätzel"
 author = "Sergio Diaz-Meza, Jonas Pätzel"
-release = "0.1"
+release = "1.0.0"
 
 import os
 import sys
 sys.path.insert(0, os.path.abspath("../../"))
+
+from fobench.core.tools.utils import formats_table_rst
+with open(os.path.join(os.path.dirname(__file__), "getting_started", "_formats_tables.rst"), "w", encoding="utf-8") as f:
+    f.write(formats_table_rst())
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -24,7 +28,7 @@ extensions = ["sphinx_last_updated_by_git",
               "sphinx_multiversion"]
 
 templates_path = ["_templates"]
-exclude_patterns = []
+exclude_patterns = ["getting_started/_formats_tables.rst"]
 # napoleon_include_init_with_doc = True
 autoclass_content = 'both'
 autodoc_default_options = {"members": True,
@@ -53,6 +57,7 @@ intersphinx_mapping = {
     "pywavelets": ("https://pywavelets.readthedocs.io/en/latest/", None),
     "pyqtgraph": ("https://pyqtgraph.readthedocs.io/en/latest/", None),
     "pyrocko": ("https://pyrocko.org/docs/current/", None),
+    "s3fs": ("https://s3fs.readthedocs.io/en/latest/", None),
 }
 
 # -- Options for HTML output -------------------------------------------------

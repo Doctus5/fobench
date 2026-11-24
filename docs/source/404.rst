@@ -6,7 +6,7 @@ Page Not Found (404)
 .. meta::
    :description: This page could not be found.
 
-Sorry, the page you were looking for doesn't exist or it has been moved. You may followed a broken our outdated link.
+Sorry, the page you were looking for doesn't exist or it has been moved. You may have followed a broken or outdated link.
 
 What to do now?
 ---------------
@@ -14,5 +14,5 @@ What to do now?
 * Go back to the :doc:`home page </index>`
 * Use the **search bar** at the top of the page
 * Browse the :ref:`genindex`
-* `Open an issue <https://github.com/>`_ if you think this is a mistake
+* `Open an issue <https://github.com/Doctus5/fobench/issues>`_ if you think this is a mistake
 

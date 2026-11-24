@@ -1,4 +1,4 @@
-"""Parallel wrapper methods for parallel computing and HPC for Fiber Optic projects.
+"""Parallel wrapper methods for parallel computing and HPC for Fibre Optic projects.
 
 :Authors:
     - Sergio Diaz-Meza
@@ -15,13 +15,13 @@ import sys
 import time
 from tqdm import tqdm
 
-class Parallel(object):
+class Parallel:
     """Parallel wrapper class for FoBench database and processing tasks.
-    Initialize the parallel wrapper and selected backend.
+    Initialise the parallel wrapper and selected backend.
 
     Notes
     -----
-    This class centralizes multiple backends under one interface:
+    This class centralises multiple backends under one interface:
     ``mpi``, ``multiprocessing``, ``dask`` and ``processpool``.
     """
 
@@ -110,11 +110,11 @@ class Parallel(object):
 
 
     def __init_mpi__(self):
-        """Initialize MPI communicator and rank/size metadata.
+        """Initialise MPI communicator and rank/size metadata.
 
         Notes
         -----
-        After initialization, ``self.n_cores`` is set to the detected MPI
+        After initialisation, ``self.n_cores`` is set to the detected MPI
         world size.
         """
 
@@ -142,9 +142,7 @@ class Parallel(object):
             self._MODE_ = multip
 
         except ImportError:
-            raise ImportError("⚠️ multiprocessing is not installed. Please "
-                              "install it by running 'pip install multiprocessing' "
-                              "or 'conda install multiprocessing'.")
+            raise ImportError("⚠️ multiprocessing is not available in your Python environment.")
 
     def __import_concurrent__(self):
         """Import ``concurrent.futures`` ProcessPool backend.
@@ -185,7 +183,7 @@ class Parallel(object):
 
 
     def __init_dask__(self):
-        """Initialize Dask client.
+        """Initialise Dask client.
 
         Notes
         -----
@@ -219,7 +217,7 @@ class Parallel(object):
             self._dask_client = client_cls(self._dask_cluster)
             self.n_cores = n_workers
 
-        print(f"⚠️ Dask initialized. Scheduler: {self._dask_client.scheduler_info()['address']}")
+        print(f"Dask initialized. Scheduler: {self._dask_client.scheduler_info()['address']}")
 
 
     def __close_dask__(self):
@@ -241,7 +239,7 @@ class Parallel(object):
 
 
     def __del__(self):
-        """Finalize Dask resources during object destruction.
+        """Finalise Dask resources during object destruction.
 
         Returns
         -------
@@ -257,7 +255,7 @@ class Parallel(object):
 
 
     def __normalize_fixed_args__(self, fixed_args):
-        """Normalize fixed arguments into a tuple.
+        """Normalise fixed arguments into a tuple.
 
         Parameters
         ----------
@@ -468,7 +466,7 @@ class Parallel(object):
 
             return results
 
-    """Public Funtions"""
+    """Public Functions"""
     def submit(self, task, var_args, fixed_args, to_return=True,
         submission_mode="single_submit", submit_chunk_size=None,
         show_progress=True):
@@ -484,7 +482,7 @@ class Parallel(object):
               first argument and fixed arguments afterwards.
             - dict:
               Pipeline configuration. Expected keys are:
-              ``pipeline`` (or ``steps``), optional ``fiber_kwargs``, and
+              ``pipeline`` (or ``steps``), optional ``record_kwargs``, and
               optional ``validate_pipeline``.
 
         var_args : array-like
@@ -496,7 +494,7 @@ class Parallel(object):
         submission_mode : {"single_submit", "chunked_submit"}, optional
             Submission strategy:
             - ``"single_submit"`` runs all ``var_args`` in one parallel call.
-            - ``"chunked_submit"`` splits ``var_args`` into submission waves. Efficient for hughe memory limitations.
+            - ``"chunked_submit"`` splits ``var_args`` into submission waves. Efficient for huge memory limitations.
         submit_chunk_size : int, optional
             Number of ``var_args`` items per submission wave when
             ``submission_mode="chunked_submit"``. If ``None``, value is
@@ -536,7 +534,7 @@ class Parallel(object):
             if pipeline is None:
                 raise ValueError("Dictionary task requires 'pipeline' (or 'steps').")
 
-            fiber_kwargs = task.get("fiber_kwargs", None)
+            record_kwargs = task.get("record_kwargs", None)
             validate_pipeline = bool(task.get("validate_pipeline", False))
 
             # Validate once here, then disable repeated validation in worker batches.
@@ -552,7 +550,7 @@ class Parallel(object):
                 )
 
             worker_task = run_batch_pipeline
-            worker_fixed_args = (pipeline, fiber_kwargs, validate_pipeline)
+            worker_fixed_args = (pipeline, record_kwargs, validate_pipeline)
 
         else:
             raise TypeError('"task" must be callable or dictionary.')
@@ -580,7 +578,7 @@ class Parallel(object):
 
         # Chunked submission mode: run in waves to reduce memory pressure.
         if self.mode == "mpi":
-            raise ValueError('⚠️ chunked submittions are not currently supported for MPI mode.')
+            raise ValueError('⚠️ chunked submissions are not currently supported for MPI mode.')
 
         if not isinstance(var_args, np.ndarray):
             var_args = np.array(list(var_args), dtype=object)

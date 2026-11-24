@@ -1,5 +1,5 @@
-"""Class ``Interrogator`` for visualizing and handling data within a ``Project``.
-A ``Project`` is understood as a field campaing in an specific location where several
+"""Class ``Interrogator`` for visualising and handling data within a ``Project``.
+A ``Project`` is understood as a field campaign in a specific location where several
 ``Datasets`` are collected from deployments.
 
 :Authors:
@@ -27,7 +27,7 @@ from .utils import utils
 
 
 
-class Interrogator(object):
+class Interrogator:
 	"""Class keeps track of ``Datasets`` associated with an interrogator or sensing system.
 
 	Note
@@ -50,13 +50,16 @@ class Interrogator(object):
 			Complete path to where the metadata JSON file is located. This file is generated once
 			the Interrogator class was run for the first time scanning files.
 		sensing : str
-			Fiber optic sensing technology. Currently only ``"das"``.
+			Fibre optic sensing technology. Currently only ``"das"``.
 		company : str
 			Interrogator manufacturer.
 		format : str, optional
 			Format specifier.
-		storage_opts :
-			DESCRIPTION.
+		storage_opts : dict, optional
+			Keyword arguments passed to :class:`~s3fs.core.S3FileSystem` when ``folder_path``
+			is an ``"s3://"`` location, e.g. credentials (``key``, ``secret``),
+			``endpoint_url`` or ``anon``. Used for scanning the folder and reading
+			the files, ignored for local paths.
 
 		Returns
 		-------
@@ -79,8 +82,8 @@ class Interrogator(object):
 		self.company = company
 		self.n_files = 0
 		self.n_datasets = len(self.datasets) # total datasets that the interrogator produced.
-		self.earliest_usage = None # earliest start date of meassurements with the interrogator.
-		self.latest_usage = None # latest end date of meassurements with the interrogator.
+		self.earliest_usage = None # earliest start date of measurements with the interrogator.
+		self.latest_usage = None # latest end date of measurements with the interrogator.
 
 		self.metadata = self.__json_metadata__()
 
@@ -134,7 +137,7 @@ class Interrogator(object):
 		if isinstance(json_file, str):
 			meta_dict = manager.open_metadatafile(json_file)
 
-		if isinstance(json_file, dict): # if the variable is already the dicitonary opened from Projects.
+		if isinstance(json_file, dict): # if the variable is already the dictionary opened from Projects.
 			meta_dict = json_file
 
 		# Initialize/Fill the Interrogator attributes.
@@ -166,8 +169,8 @@ class Interrogator(object):
 		self.company = self.metadata.get("company") or self.metadata["manufacturer"]
 		self.n_files = self.metadata.get("n_files", 0)
 		start, end  = self.metadata.get("earliest_usage"), self.metadata.get("latest_usage")
-		self.earliest_usage = UTC(start) if start else None # earliest start date of meassurements with the interrogator.
-		self.latest_usage = UTC(end) if end else None # latest end date of meassurements with the interrogator.
+		self.earliest_usage = UTC(start) if start else None # earliest start date of measurements with the interrogator.
+		self.latest_usage = UTC(end) if end else None # latest end date of measurements with the interrogator.
 
 		return self
 
@@ -193,8 +196,8 @@ class Interrogator(object):
 
 	def __metadates_2_isoformat__(self, reverse=False):
 		"""Define metadata structure for JSON. Transforms the dates of the ``Dataset``
-		files metadata into isoformat.Convenient for saving since Timestamp objects
-		can not be saved in JSONs. If ``reverse=True``, transforma from isoformat
+		files metadata into isoformat. Convenient for saving since Timestamp objects
+		can not be saved in JSONs. If ``reverse=True``, transforms from isoformat
 		to Timestamp object.
 		"""
 
@@ -226,7 +229,7 @@ class Interrogator(object):
 		Parameters
 		----------
 		parallel_params : dict
-			Dictionary containing the parameters for parallelization. If parameters are
+			Dictionary containing the parameters for parallelisation. If parameters are
 			given, then the building method runs in parallel. If ``None``, it runs in serial.
 
 		Returns
@@ -247,9 +250,9 @@ class Interrogator(object):
 		# calculate in serial mode
 		else:
 
-			database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Fiber Class.
+			database_files = manager.files2database(files, self.company, self.__storage_opts__) # organize it as a Dataframe. Use Record Class.
 
-		database_files = manager.chrono_order(database_files) # aranges in a chronological order.
+		database_files = manager.chrono_order(database_files) # arranges in a chronological order.
 		chunks = manager.database_discontinuities(database_files, split=True) # splits based on discontinuities.
 
 		# loop over the found chunks to initialize them as Datasets
@@ -265,7 +268,7 @@ class Interrogator(object):
 			for dataset_index, dataset in enumerate(self.datasets): # loop over existing datasets.
 
 				dataset.id = str(dataset_index)
-				dataset.update() # asignin id's
+				dataset.update() # assigning id's
 				earlier.append(dataset.start_time)
 				later.append(dataset.end_time)
 				self.n_files += dataset.n_files # adding to total number of files.
@@ -332,7 +335,7 @@ class Interrogator(object):
 			Current Interrogator with its compatible Datasets merged.
 		"""
 		
-		# secutiry checks
+		# security checks
 		if max_gap is not None and max_gap < 0:
 			raise ValueError("max_gap cannot be negative.")
 		if len(self.datasets) < 2: # no datasets to merge
@@ -382,13 +385,13 @@ class Interrogator(object):
 
 
 	def dataset_table(self, return_table : bool = False, include_private: bool = False) -> None | pd.DataFrame:
-		"""Prints or returns a summarized table of ``Datasets`` found for the
+		"""Prints or returns a summarised table of ``Datasets`` found for the
 		``Interrogator`` and its properties.
 
 		Parameters
 		----------
 		return_table : bool, optional
-			If ``True``, returns the summarized table of ``Datasets`` within ``Interrogator``
+			If ``True``, returns the summarised table of ``Datasets`` within ``Interrogator``
 			and its properties. If ``False``, prints them in terminal.
 		include_private : bool, optional
 			Include private attributes of the ``Datasets``.
@@ -457,7 +460,7 @@ class Interrogator(object):
 		self.datasets = trimmed_datasets
 		self.n_datasets = len(self.datasets)
 
-		# The following we can consider later. Early and latest usage mas night be related to the extend of the Dataset, but independent.
+		# The following we can consider later. Early and latest usage may be related to the extent of the Dataset, but independent.
 		if self.n_datasets > 0:
 			self.earliest_usage = min(ds.start_time for ds in self.datasets)
 			self.latest_usage = max(ds.end_time for ds in self.datasets)
@@ -564,8 +567,8 @@ class Interrogator(object):
 		"""Takes known channel locations, e.g. from tap tests and interpolates channel locations
 		inbetween, attaches new coordinates.
 		takes 1D arrays of channel number (n_ch), longitude and latitude (x_ch and y_ch)
-		and elevation in m (z_ch), coordinate system can be for lon and lat can be "decimal" or "utm"
-		"err" is maximum accepted interpolation error between original metadata location and new interpolated
+		and elevation in m (z_ch), coordinate system can be for lon and lat can be ``"decimal"`` or ``"utm"``
+		``err`` is maximum accepted interpolation error between original metadata location and new interpolated
 		location
 		"""
   
@@ -645,20 +648,20 @@ class Interrogator(object):
 		)
 
 
-	def apply_fiber(self, task, output_store: str, output_key: str = None,
+	def apply_record(self, task, output_store: str, output_key: str = None,
 		time_range: tuple = None, window_size: float = None, step: float = None,
 		include_overlap: bool = True, min_overlap_s: float = 0.0,
 		merge_datasets: bool = True, group_cols: list[str] = None,
-		fiber_kwargs: dict = None, parallel_params: dict = None,
+		record_kwargs: dict = None, parallel_params: dict = None,
 		submit_chunk_size: int = None, cpu_ratio: float = 0.85,
 		show_progress: bool = True, reducer: str = "mean",
 		output_adapter=None):
-		"""Apply a ``Fiber`` task over ``Interrogator`` windows and save to zarr.
+		"""Apply a ``Record`` task over ``Interrogator`` windows and save to zarr.
 
 		Parameters
 		----------
 		task : list, tuple, dict, str, or callable
-			Fiber processing task definition.
+			Record processing task definition.
 		output_store : str
 			Output zarr path.
 		output_key : str, optional
@@ -677,15 +680,15 @@ class Interrogator(object):
 			If ``True``, map all datasets in one shared timeline.
 		group_cols : list[str], optional
 			Optional grouping columns for compatibility grouping.
-		fiber_kwargs : dict, optional
-			Keyword arguments passed to Fiber initialization.
+		record_kwargs : dict, optional
+			Keyword arguments passed to :class:`~fobench.core.record.Record` initialisation.
 		parallel_params : dict, optional
 			Parallel backend parameters.
 		submit_chunk_size : int, optional
 			Number of files processed per submit wave.
 		cpu_ratio : float, optional
 			Automatic fraction of available CPUs used when ``n_cores`` is
-			not explicitly set. Defaults to ``0.85``.
+			not explicitly set.
 		show_progress : bool, optional
 			Show progress bars for parallel execution.
 		reducer : str, optional
@@ -700,7 +703,7 @@ class Interrogator(object):
 
 		"""
 
-		# Lazy import to avoid requiring zarr unless apply_fiber is used.
+		# Lazy import to avoid requiring zarr unless apply_record is used.
 		from .processing import run_window_pipeline_to_zarr
 
 		# Thin wrapper: keep orchestration logic in shared processing module.
@@ -716,7 +719,7 @@ class Interrogator(object):
 			min_overlap_s=min_overlap_s,
 			group_cols=group_cols,
 			merge_datasets=merge_datasets,
-			fiber_kwargs=fiber_kwargs,
+			record_kwargs=record_kwargs,
 			parallel_params=parallel_params,
 			submit_chunk_size=submit_chunk_size,
 			cpu_ratio=cpu_ratio,

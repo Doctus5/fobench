@@ -1,4 +1,4 @@
-"""Functions to analyze wavefield characteristics."""
+"""Functions to analyse wavefield characteristics."""
 
 import numpy as np
 from warnings import warn
@@ -33,7 +33,7 @@ def similarity_matrix(data: np.ndarray, max_lag: int, fs: int, distances: np.nda
     results : bool, optional
         Toggles return of computed values.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
 
     Returns
     -------
@@ -77,7 +77,7 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
                             export=None, show=True, **imshow_kwargs)-> np.ndarray:
     """Computes the autocorrelation either for each channel or each time sample and
     optionally deconvolves the autocorrelation source term using a moving window.
-    Deconvolution is performed by substracting the average autocorrelation in a window or of the full record.
+    Deconvolution is performed by subtracting the average autocorrelation in a window or of the full record.
 
     Parameters
     ----------
@@ -104,14 +104,14 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
     fs : int
         Sampling frequency of data.
     vmin, vmax : float, optional
-        Minimum and maximum limits of colorbar.
+        Minimum and maximum limits of colourbar.
     **imshow_kwargs :
         Additional arguments passed to :func:`~matplotlib.pyplot.imshow`
 
     Returns
     -------
     result : np.ndarray
-        Autcorrelation profile.
+        Autocorrelation profile.
 
     """
 
@@ -143,7 +143,8 @@ def autocorrelation_profile(data: np.ndarray, max_shift: int, axis: int, plot_mo
 
     elif plot_mode == "mpl":
         plot_acfs(acfs=np.rot90(result, k=-1) if axis else np.fliplr(result), distances=distances, fs=fs,
-                  max_shift=max_shift, **imshow_kwargs)
+                  max_shift=max_shift, vmin=vmin, vmax=vmax, file_name=export, show=show,
+                  **imshow_kwargs)
 
     return result
 
@@ -151,7 +152,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
          channels: list, distances: np.ndarray, plot_mode: str, vmin: float = None,
          vmax: float = None, export=None, show=True) -> np.ndarray:
     """Computes the root mean square amplitude of data. Data is split into windows
-    before, pass window equal to data_length to compute one RMSA vector for full record.
+    before. Pass window equal to data_length to compute one RMSA vector for full record.
 
     Parameters
     ----------
@@ -172,7 +173,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
     plot_mode : str
         ``"pyqt"``, ``"mpl"`` or no plotting.
     vmin, vmax : float, float
-        Minimum and maximum of colorbar
+        Minimum and maximum of colourbar
 
     Returns
     -------
@@ -185,12 +186,11 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
         data = np.array_split(data, int(data_length / window), axis=axis)
         return np.array([np.sqrt(np.mean(window_data**2, axis=axis)) for window_data in data])
 
-    if window is None:
-        data_length = len(times) if dim == "t" else len(channels)
-        result = compute_rmsa(data, data_length, data_length, axis)
-    elif window:
-        data_length = len(times) if dim == "t" else len(channels)
-        result = compute_rmsa(data, data_length, window, axis)
+    data_length = len(times) if dim == "t" else len(channels)
+    window = data_length if window is None else window
+    if not 0 < window <= data_length:
+        raise ValueError(f"window must be > 0 and <= {data_length} samples, got {window}")
+    result = compute_rmsa(data, data_length, window, axis)
 
     if plot_mode == "mpl":
         warn("⚠️ matplotlib plotting not implemented for this method, "
@@ -209,7 +209,7 @@ def rmsa(data: np.ndarray, axis: int, window: int, dim: str, times: np.ndarray,
                                              export=export, show=show)
         elif window:
             p95 = np.percentile(result, 95)
-            if vmin is None: vmin = -p95
+            if vmin is None: vmin = 0
             if vmax is None: vmax = p95
             if dim == "t":
                 timestamps = np.array_split(times, int(len(times)/window))
@@ -295,7 +295,7 @@ def frequency_content(data: np.ndarray, fs:int, order: int, nfft: int, norm: boo
     nfft : int
         Number of points to use for fft.
     norm : bool
-        Normalize each spectrum by its maximum value for easier plotting.
+        Normalise each spectrum by its maximum value for easier plotting.
     mode : str
         Computation mode, can be either ``"spectrum"`` or ``"psd"``.
     axis : int
@@ -355,12 +355,12 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
         - ``valid``: only complete overlaps, shortest output.
 
     demean : bool, optional
-        Removes mean from each trace before correlation. The default is True.
+        Removes mean from each trace before correlation.
     normalize : bool, optional
         If True, correlation is divided by ``||x|| * ||y||``, keeping scores in
         ``[-1, 1]``.
     normalization : str, optional
-        Normalization strategy when ``normalize=True``:
+        Normalisation strategy when ``normalize=True``:
 
         - ``global``: uses one denominator per trace (faster; can show edge spikes in
           ``mode='full'`` with different lengths).
@@ -388,7 +388,7 @@ def x_correlate(signal1: np.ndarray, signal2: np.ndarray, axis: int = -1,
         gpu_use = axis
         axis = -1
     if gpu_use:
-        warn('gpu_use is currently not implemented; running on CPU.')
+        warn('⚠️ gpu_use is currently not implemented; running on CPU.')
 
     signal1 = np.asarray(signal1, dtype=float)
     signal2 = np.asarray(signal2, dtype=float)
