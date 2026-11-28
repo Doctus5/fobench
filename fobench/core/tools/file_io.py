@@ -344,6 +344,7 @@ def read_data(filepath: str = None, company: str = None, range_ch: int|list|np.n
             time_length = end_time - start_time
             gauge_length = float(properties["Global_RAM_User_SET_Pulse_Width_(meter)"][0])
             channel_offset = properties["Global_TimeProcessing_Strain_Fiber Processed_Start_Point_(Integer)"][0]*-1 # ~90m inside interrogator
+            channel_offset += (file_file["position"][0]/spatial_interval)
             units = list(file_file.keys())[2]
             conv_factor = None # conversion factor if given explicitly
 
